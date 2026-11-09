@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DRIVE - My Profile</title>
+
+    <link rel="stylesheet" href="css/style.css">
+    <script src="js/user.js" defer></script>
+</head>
+
+<body>
+
+<header class="topbar">
+    <a class="brand" href="vehicles.html">DRIVE</a>
+
+    <nav>
+        <a href="vehicles.html">Vehicle Rental</a>
+        <a href="profile.html">My Profile</a>
+        <button id="logoutButton" class="nav-button" type="button">
+            Logout
+        </button>
+    </nav>
+</header>
+
+<main class="form-wrap">
+
+    <section class="panel form-panel">
+
+        <p class="eyebrow">USER MANAGEMENT</p>
+
+        <h1>My Profile</h1>
+
+        <form id="profileForm">
+
+            <label>Full Name
+                <input
+                    type="text"
+                    id="profileName"
+                    name="name"
+                    required
+                >
+            </label>
+
+            <label>Email Address
+                <input
+                    type="email"
+                    id="profileEmail"
+                    disabled
+                >
+            </label>
+
+            <label>Phone Number
+                <input
+                    type="tel"
+                    id="profilePhone"
+                    name="phone"
+                >
+            </label>
+
+            <label>Account Role
+                <select id="profileRole" name="role">
+                    <option value="Passenger">Passenger</option>
+                    <option value="Driver">Driver</option>
+                    <option value="Vehicle Owner">Vehicle Owner</option>
+                </select>
+            </label>
+
+            <button type="submit" class="button">
+                Save Changes
+            </button>
+
+            <p id="profileMessage" class="message"></p>
+
+        </form>
+
+        <p class="small-note">
+            Your profile changes are temporary demo data.
+        </p>
+
+    </section>
+
+</main>
+
+<footer>DRIVE Project Demo</footer>
+
+</body>
+</html>

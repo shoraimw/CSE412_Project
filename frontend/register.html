@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DRIVE - Register</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="js/auth.js" defer></script>
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="vehicles.html">DRIVE</a>
+        <nav>
+            <a href="login.html">Login</a>
+            <a href="vehicles.html">Vehicle Rental</a>
+        </nav>
+    </header>
+
+    <main class="form-wrap">
+        <section class="panel form-panel">
+            <p class="eyebrow">AUTHENTICATION & SECURITY</p>
+            <h1>Create an Account</h1>
+
+            <form id="registerForm">
+                <label>Full Name
+                    <input type="text" name="name" required maxlength="80"
+                           placeholder="Enter your full name">
+                </label>
+
+                <label>Email Address
+                    <input type="email" name="email" required
+                           placeholder="Enter your email">
+                </label>
+
+                <label>Phone Number
+                    <input type="tel" name="phone"
+                           placeholder="Enter your phone number">
+                </label>
+
+                <label>Password
+                    <input type="password" name="password"
+                           minlength="6" required
+                           placeholder="At least 6 characters">
+                </label>
+
+                <label>Account Role
+                    <select name="role">
+                        <option value="Passenger">Passenger</option>
+                        <option value="Driver">Driver</option>
+                        <option value="Vehicle Owner">Vehicle Owner</option>
+                    </select>
+                </label>
+
+                <button type="submit" class="button">Register</button>
+                <p id="registerMessage" class="message"></p>
+            </form>
+
+            <p>Already have an account?
+                <a href="login.html">Login here</a>
+            </p>
+        </section>
+    </main>
+
+    <footer>DRIVE Project Demo</footer>
+</body>
+</html>
