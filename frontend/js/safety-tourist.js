@@ -3,7 +3,8 @@ const safetyState = {
   activeTrip: null,
   watchId: null,
   places: [],
-  selectedPlaceIds: []
+  selectedPlaceIds: [],
+  touristOrigin: null
 };
 const byId = id => document.getElementById(id);
 function setText(id, message) { const node = byId(id); if (node) node.textContent = message; }
@@ -147,6 +148,7 @@ async function loadActiveTrip() {
   const trips = await driveRequest('/safety/trips/active');
   safetyState.activeTrip = trips.length ? trips[trips.length - 1] : null;
   renderActiveTrip();
+  if (safetyState.activeTrip) startLocationWatch(safetyState.activeTrip.id);
 }
 function startLocationWatch(tripId) {
   stopLocationWatch();
@@ -252,6 +254,15 @@ byId('refreshAlertsButton').addEventListener('click', () => loadAlerts().catch(e
 function selectedInterests() {
   return Array.from(document.querySelectorAll('input[name="interest"]:checked')).map(input => input.value);
 }
+byId('useTouristLocation').addEventListener('click', async () => {
+  try {
+    safetyState.touristOrigin = await getPosition();
+    setText('touristLocationStatus', 'Starting point saved: ' + safetyState.touristOrigin.lat.toFixed(5) + ', ' + safetyState.touristOrigin.lng.toFixed(5));
+  } catch (error) {
+    safetyState.touristOrigin = null;
+    setText('touristLocationStatus', 'Location not selected: ' + error.message);
+  }
+});
 async function loadRecommendations() {
   const params = new URLSearchParams({
     city: byId('touristCity').value,
@@ -303,11 +314,12 @@ byId('createTouristPlan').addEventListener('click', async () => {
       transportPreference: byId('transportPreference').value
     };
     if (byId('travelDate').value) payload.travelDate = byId('travelDate').value;
+    if (safetyState.touristOrigin) payload.origin = safetyState.touristOrigin;
     const plan = await driveRequest('/tourist/plans', { method: 'POST', body: JSON.stringify(payload) });
     const container = byId('touristPlanResult');
     container.replaceChildren(
       makeNode('strong', '', plan.city + ' · ' + plan.transportPreference),
-      makeNode('p', 'muted', 'Approx. ' + plan.totalDistanceKm + ' km · ' + plan.approximateTravelMinutes + ' minutes travel time')
+      makeNode('p', 'muted', 'Approx. ' + plan.totalDistanceKm + ' km · ' + plan.approximateTravelMinutes + ' minutes travel time' + (plan.origin ? ' · starting from your current location' : ''))
     );
     const list = makeNode('ol', 'plan-stop-list');
     plan.stops.forEach(stop => list.append(makeNode('li', '', stop.name + (stop.distanceFromPreviousKm ? ' — ' + stop.distanceFromPreviousKm + ' km from previous stop' : ' — first stop'))));

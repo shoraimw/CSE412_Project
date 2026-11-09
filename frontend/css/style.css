@@ -461,3 +461,5 @@ footer {
   .share-actions { flex-direction: row; flex-wrap: wrap; }
   .feature-card { padding: 18px; }
 }
+
+.origin-control { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 0 0 18px; }

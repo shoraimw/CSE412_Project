@@ -61,7 +61,8 @@ export class TouristService {
     const speedKmh = mode === 'Walking' ? 4.5 : mode === 'Bike' ? 22 : mode === 'Public Transport' ? 18 : 25;
     let totalDistanceKm = 0;
     const stops = places.map((place, index) => {
-      const distanceFromPreviousKm = index === 0 ? 0 : haversineKm(places[index - 1], place);
+      const previousPoint = index === 0 ? dto.origin : places[index - 1];
+      const distanceFromPreviousKm = previousPoint ? haversineKm(previousPoint, place) : 0;
       totalDistanceKm += distanceFromPreviousKm;
       const estimatedTravelMinutes = index === 0 ? 0 : Math.max(1, Math.round((distanceFromPreviousKm * 1.4 / speedKmh) * 60));
       return {
@@ -73,9 +74,9 @@ export class TouristService {
     });
     const plan = {
       id: randomUUID(), userId, city: dto.city, travelDate: dto.travelDate || null,
-      transportPreference: mode, stops, totalDistanceKm: Number(totalDistanceKm.toFixed(2)),
+      transportPreference: mode, origin: dto.origin || null, stops, totalDistanceKm: Number(totalDistanceKm.toFixed(2)),
       approximateTravelMinutes: stops.reduce((sum, stop) => sum + Number(stop.estimatedTravelMinutes), 0),
-      estimateType: 'Approximate straight-line distance with rough travel-time estimate; not live road routing or traffic.',
+      estimateType: 'Approximate straight-line distance with rough travel-time estimate; not live road routing or traffic. The first leg starts from the supplied current location when available.',
       createdAt: new Date().toISOString()
     };
     this.plans.unshift(plan);
