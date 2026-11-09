@@ -17,7 +17,7 @@ type SafetyAlert = {
   location: GeoPointDto | null; createdAt: string; status: string;
   notifiedContacts: Array<{ name: string; phone: string; delivery: string }>;
 };
-type ShareRecord = { tripId: string; userId: number; contactIds: string[]; createdAt: string };
+type ShareRecord = { tripId: string; userId: number; contactIds: string[]; createdAt: string; expiresAt: string };
 
 const DEMO_VERIFIED_DRIVERS = [
   { id: 'driver-demo-101', name: 'Rahim Ahmed', vehicle: 'Toyota Axio', rating: 4.8, verificationStatus: 'Demo verified', note: 'Sample driver record for academic demonstration' },
@@ -129,9 +129,11 @@ export class SafetyService {
     if (contacts.length === 0) throw new BadRequestException('Select at least one saved trusted contact.');
     const shareToken = randomBytes(24).toString('hex');
     const createdAt = new Date().toISOString();
-    this.shares.set(shareToken, { tripId, userId, contactIds: contacts.map(contact => contact.id), createdAt });
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    this.shares.set(shareToken, { tripId, userId, contactIds: contacts.map(contact => contact.id), createdAt, expiresAt });
     return {
       shareToken,
+      expiresAt,
       sharedContacts: contacts.map(({ id, name, phone }) => ({ id, name, phone })),
       notificationDelivery: 'SIMULATED_ONLY',
       message: 'A private live-trip link was created. SMS or WhatsApp delivery is not configured in this demo.'
@@ -141,6 +143,10 @@ export class SafetyService {
   getSharedTrip(token: string) {
     const share = this.shares.get(token);
     if (!share) throw new NotFoundException('This trip-sharing link is invalid or expired.');
+    if (Date.now() > new Date(share.expiresAt).getTime()) {
+      this.shares.delete(token);
+      throw new NotFoundException('This trip-sharing link has expired.');
+    }
     const trip = this.trips.get(share.tripId);
     if (!trip) throw new NotFoundException('Trip not found.');
     return {
@@ -151,6 +157,7 @@ export class SafetyService {
       currentLocation: trip.currentLocation,
       warnings: trip.warnings,
       lastUpdatedAt: trip.currentLocation?.updatedAt || trip.startedAt,
+      shareExpiresAt: share.expiresAt,
       privacyNote: 'This link exposes limited trip details only. Contact notifications are simulated in this academic demo.'
     };
   }

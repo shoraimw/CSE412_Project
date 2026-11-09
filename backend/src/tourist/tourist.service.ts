@@ -44,12 +44,20 @@ export class TouristService {
     );
   }
 
-  getRecommendations(city: string, interests: string) {
+  getRecommendations(city: string, interests: string, origin?: { lat: number; lng: number }) {
     const selectedInterests = interests.split(',').map(item => item.trim().toLowerCase()).filter(Boolean);
     const places = this.getPlaces(city);
     return places
-      .map(place => ({ ...place, matchScore: place.tags.filter(tag => selectedInterests.includes(tag)).length }))
-      .sort((a, b) => b.matchScore - a.matchScore)
+      .map(place => ({
+        ...place,
+        matchScore: place.tags.filter(tag => selectedInterests.includes(tag)).length,
+        distanceFromCurrentLocationKm: origin ? Number(haversineKm(origin, place).toFixed(2)) : null
+      }))
+      .sort((a, b) => {
+        if (b.matchScore !== a.matchScore) return b.matchScore - a.matchScore;
+        if (origin) return (a.distanceFromCurrentLocationKm ?? Infinity) - (b.distanceFromCurrentLocationKm ?? Infinity);
+        return a.name.localeCompare(b.name);
+      })
       .slice(0, 8);
   }
 

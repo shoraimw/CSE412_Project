@@ -198,7 +198,7 @@ byId('shareTripButton').addEventListener('click', async () => {
     const shareUrl = new URL('shared-trip.html', window.location.href);
     shareUrl.searchParams.set('token', result.shareToken);
     const container = byId('shareLinkResult');
-    container.replaceChildren(makeNode('p', '', result.message));
+    container.replaceChildren(makeNode('p', '', result.message + ' Link expires: ' + new Date(result.expiresAt).toLocaleString()));
     const link = makeNode('a', 'share-url', shareUrl.toString());
     link.href = shareUrl.toString();
     link.target = '_blank';
@@ -258,6 +258,7 @@ byId('useTouristLocation').addEventListener('click', async () => {
   try {
     safetyState.touristOrigin = await getPosition();
     setText('touristLocationStatus', 'Starting point saved: ' + safetyState.touristOrigin.lat.toFixed(5) + ', ' + safetyState.touristOrigin.lng.toFixed(5));
+    await loadRecommendations();
   } catch (error) {
     safetyState.touristOrigin = null;
     setText('touristLocationStatus', 'Location not selected: ' + error.message);
@@ -268,6 +269,10 @@ async function loadRecommendations() {
     city: byId('touristCity').value,
     interests: selectedInterests().join(',')
   });
+  if (safetyState.touristOrigin) {
+    params.set('lat', String(safetyState.touristOrigin.lat));
+    params.set('lng', String(safetyState.touristOrigin.lng));
+  }
   const places = await driveRequest('/tourist/recommendations?' + params.toString());
   safetyState.places = places;
   const container = byId('touristRecommendations');
@@ -277,6 +282,9 @@ async function loadRecommendations() {
     const card = makeNode('article', 'place-card');
     card.append(makeNode('span', 'place-category', place.category), makeNode('h4', '', place.name), makeNode('p', '', place.description));
     card.append(makeNode('small', 'muted', 'Nearby: ' + place.nearbyFacilities.join(' · ')));
+    if (place.distanceFromCurrentLocationKm !== null && place.distanceFromCurrentLocationKm !== undefined) {
+      card.append(makeNode('small', 'muted', place.distanceFromCurrentLocationKm + ' km straight-line from your location'));
+    }
     const button = makeNode('button', 'secondary-button', safetyState.selectedPlaceIds.includes(place.id) ? 'Remove from plan' : 'Add to plan');
     button.type = 'button';
     button.addEventListener('click', () => {
