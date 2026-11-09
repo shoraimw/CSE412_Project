@@ -1,13 +1,12 @@
 import { Type } from 'class-transformer';
 import {
-  ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsIn, IsInt, IsLatitude,
-  IsLongitude, IsNumber, IsOptional, IsString, Matches, Max, MaxLength,
-  Min, ValidateNested
+  ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsIn, IsInt, IsNumber,
+  IsNotEmpty, IsOptional, IsString, Matches, Max, MaxLength, Min, ValidateNested
 } from 'class-validator';
 
 export class SafetyContactDto {
   @IsOptional() @IsString() id?: string;
-  @IsString() @MaxLength(80) name!: string;
+  @IsString() @IsNotEmpty() @MaxLength(80) name!: string;
   @IsString() @Matches(/^\+?[0-9][0-9\s-]{6,18}$/) phone!: string;
   @IsOptional() @IsString() @MaxLength(40) relation?: string;
 }
@@ -22,12 +21,12 @@ export class SafetySettingsDto {
 }
 
 export class GeoPointDto {
-  @Type(() => Number) @IsNumber() @Min(-90) @Max(90) @IsLatitude() lat!: number;
-  @Type(() => Number) @IsNumber() @Min(-180) @Max(180) @IsLongitude() lng!: number;
+  @Type(() => Number) @IsNumber() @Min(-90) @Max(90) lat!: number;
+  @Type(() => Number) @IsNumber() @Min(-180) @Max(180) lng!: number;
 }
 
 export class CreateSafetyTripDto {
-  @IsString() @MaxLength(120) destination!: string;
+  @IsString() @IsNotEmpty() @MaxLength(120) destination!: string;
   @Type(() => Number) @IsInt() @Min(1) @Max(1440) estimatedDurationMinutes!: number;
   @IsOptional() @IsArray() @ArrayMaxSize(100) @ValidateNested({ each: true }) @Type(() => GeoPointDto)
   plannedRoute?: GeoPointDto[];
