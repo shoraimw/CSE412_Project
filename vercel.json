@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "buildCommand": "cd backend && npm install && npm run build",
+  "outputDirectory": "frontend",
+  "functions": {
+    "api/[...path].js": {
+      "includeFiles": "backend/dist/**",
+      "maxDuration": 10
+    }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" }
+  ]
+}

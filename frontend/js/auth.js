@@ -12,8 +12,8 @@ if (registerForm) {
     try {
       const result = await driveRequest("/auth/register", { method: "POST", body: JSON.stringify(data) });
       localStorage.setItem(DRIVE_TOKEN_KEY, result.accessToken);
-      showAuthMessage("registerMessage", "Registration successful. Opening your profile...", true);
-      setTimeout(() => window.location.href = "profile.html", 700);
+      showAuthMessage("registerMessage", "Account created. Opening your DRIVE dashboard...", true);
+      setTimeout(() => window.location.href = "dashboard.html", 700);
     } catch (error) { showAuthMessage("registerMessage", error.message); }
   });
 }
@@ -25,8 +25,8 @@ if (loginForm) {
     try {
       const result = await driveRequest("/auth/login", { method: "POST", body: JSON.stringify(data) });
       localStorage.setItem(DRIVE_TOKEN_KEY, result.accessToken);
-      showAuthMessage("loginMessage", "Login successful. Opening your profile...", true);
-      setTimeout(() => window.location.href = "profile.html", 700);
+      showAuthMessage("loginMessage", "Login successful. Opening your DRIVE dashboard...", true);
+      setTimeout(() => window.location.href = "dashboard.html", 700);
     } catch (error) { showAuthMessage("loginMessage", error.message); }
   });
 }
