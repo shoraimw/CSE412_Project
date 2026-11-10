@@ -24,7 +24,6 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.0",
-    "@types/serverless-http": "^3.0.2",
     "typescript": "^5.7.2"
   }
 }
