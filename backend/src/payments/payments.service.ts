@@ -29,10 +29,11 @@ export class PaymentsService {
   async createQuote(amountBDT: number, currency: CurrencyCode, rideId?: string) {
     const result = await this.getRates();
     const rate = result.rates[currency];
-    if (typeof rate !== 'number') throw new ServiceUnavailableException(\`Exchange rate for \${currency} is unavailable.\`);
-    const convertedAmount = Number((amountBDT * rate).toFixed(currency === 'INR' || currency === 'BDT' ? 2 : 2));
+    if (typeof rate !== 'number') throw new ServiceUnavailableException('Exchange rate for ' + currency + ' is unavailable.');
+    const convertedAmount = Number((amountBDT * rate).toFixed(2));
+    const quoteId = 'quote_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
     return {
-      quoteId: \`quote_\${Date.now()}_\${Math.random().toString(36).slice(2, 8)}\`,
+      quoteId,
       rideId: rideId || null,
       originalAmount: amountBDT,
       originalCurrency: 'BDT',
