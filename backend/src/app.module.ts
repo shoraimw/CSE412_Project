@@ -7,6 +7,9 @@ import { RoutesModule } from './routes/routes.module';
 import { PaymentsModule } from './payments/payments.module';
 import { SafetyModule } from './safety/safety.module';
 import { TouristModule } from './tourist/tourist.module';
+import { RidesModule } from './rides/rides.module';
 
-@Module({ imports: [AuthModule, UsersModule, RentalModule, FareModule, RoutesModule, PaymentsModule, SafetyModule, TouristModule] })
+@Module({
+  imports: [AuthModule, UsersModule, RentalModule, RidesModule, FareModule, RoutesModule, PaymentsModule, SafetyModule, TouristModule]
+})
 export class AppModule {}
