@@ -12,8 +12,8 @@ function haversine(aLat: number, aLng: number, bLat: number, bLng: number) {
 @Injectable()
 export class RoutesService {
   async optimize(dto: OptimizeRouteDto) {
-    const coordinates = \`\${dto.pickupLng},\${dto.pickupLat};\${dto.destinationLng},\${dto.destinationLat}\`;
-    const url = \`https://router.project-osrm.org/route/v1/driving/\${coordinates}?overview=full&geometries=geojson&alternatives=true&steps=false\`;
+    const coordinates = String(dto.pickupLng) + ',' + String(dto.pickupLat) + ';' + String(dto.destinationLng) + ',' + String(dto.destinationLat);
+    const url = 'https://router.project-osrm.org/route/v1/driving/' + coordinates + '?overview=full&geometries=geojson&alternatives=true&steps=false';
     try {
       const response = await fetch(url, { signal: AbortSignal.timeout(8000), headers: { 'User-Agent': 'DRIVE-CSE412-Academic-Project/1.0' } });
       if (!response.ok) throw new Error('Routing provider returned an error');
@@ -36,7 +36,7 @@ export class RoutesService {
         isRoadRoute: true,
         note: 'Route alternatives depend on what the public routing provider returns. This is route optimization, not an AI/ML model.',
       };
-    } catch (error) {
+    } catch {
       const distance = haversine(dto.pickupLat, dto.pickupLng, dto.destinationLat, dto.destinationLng);
       if (!Number.isFinite(distance) || distance <= 0) throw new ServiceUnavailableException('Unable to calculate route.');
       return {
