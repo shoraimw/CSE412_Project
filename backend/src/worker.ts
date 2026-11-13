@@ -35,6 +35,14 @@ async function createHandler() {
 
 export default {
   async fetch(request: Request, envBindings: Env, ctx: ExecutionContext): Promise<Response> {
+    const url = new URL(request.url);
+
+    // Only API routes should enter NestJS. All other requests must be served
+    // by Workers Static Assets (HTML, CSS, JS, images, favicon, etc.).
+    if (!url.pathname.startsWith('/api/')) {
+      return envBindings.ASSETS.fetch(request);
+    }
+
     handlerPromise ??= createHandler();
     const handler = await handlerPromise;
     return handler.fetch(request);
