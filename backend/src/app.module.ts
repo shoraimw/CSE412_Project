@@ -8,8 +8,10 @@ import { PaymentsModule } from './payments/payments.module';
 import { SafetyModule } from './safety/safety.module';
 import { TouristModule } from './tourist/tourist.module';
 import { RidesModule } from './rides/rides.module';
+import { HealthController } from './health.controller';
 
 @Module({
-  imports: [AuthModule, UsersModule, RentalModule, RidesModule, FareModule, RoutesModule, PaymentsModule, SafetyModule, TouristModule]
+  imports: [AuthModule, UsersModule, RentalModule, RidesModule, FareModule, RoutesModule, PaymentsModule, SafetyModule, TouristModule],
+  controllers: [HealthController]
 })
 export class AppModule {}
