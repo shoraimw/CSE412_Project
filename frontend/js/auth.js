@@ -14,6 +14,7 @@ if (registerForm) registerForm.addEventListener('submit', async event => {
     const result = await driveRequest('/auth/register', { method: 'POST', body: JSON.stringify(data) });
     if (result.accessToken) {
       localStorage.setItem(DRIVE_TOKEN_KEY, result.accessToken);
+      if (result.user) localStorage.setItem('drive_user', JSON.stringify(result.user));
       if (result.refreshToken) localStorage.setItem('drive_refresh_token', result.refreshToken);
       showAuthMessage('registerMessage', 'Account created. Opening your dashboard…', true);
       window.location.href = 'dashboard.html';
