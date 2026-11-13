@@ -98,3 +98,27 @@ end;
 $$;
 revoke all on function public.drive_claim_request(uuid) from public, anon;
 grant execute on function public.drive_claim_request(uuid) to authenticated;
+
+-- The driver claim RPC is the only driver-facing state transition for requests.
+-- Do not allow drivers to arbitrarily edit passenger identity or request contents.
+drop policy if exists ride_requests_verified_driver_update on public.ride_requests;
+drop policy if exists rides_verified_driver_insert on public.rides;
+
+-- Prevent a user from promoting or verifying their own profile through the
+-- existing self-update profile policy. Admins can still update other profiles.
+create or replace function public.prevent_self_privilege_change()
+returns trigger language plpgsql set search_path=public as $$
+begin
+  if (select auth.uid()) = old.id and (
+    new.role is distinct from old.role or
+    new.is_verified is distinct from old.is_verified or
+    new.is_active is distinct from old.is_active
+  ) then
+    raise exception 'Role, verification and account status are administrator-controlled';
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists prevent_self_privilege_change on public.profiles;
+create trigger prevent_self_privilege_change before update on public.profiles
+for each row execute procedure public.prevent_self_privilege_change();
