@@ -55,7 +55,31 @@ export class RidesService{
   return {...this.formatRequest(data,null),womenSafety};
  }
  async list(userId:string,token:string,role:Role){
-  if(role==='passenger'){const {data,error}=await this.db(token).from('ride_requests').select('*,rides(id,driver_id,vehicle_id,status,accepted_at,started_at,completed_at,actual_fare)').eq('passenger_id',userId).order('created_at',{ascending:false});if(error)throw new ServiceUnavailableException(error.message);return (data||[]).map(x=>this.formatRequest(x,Array.isArray(x.rides)?x.rides[0]||null:x.rides));}
+  if(role==='passenger'){
+   const db=this.db(token);
+   const [{data:owned,error:ownedError},{data:memberships,error:membershipError}]=await Promise.all([
+    db.from('ride_requests').select('*,rides(id,driver_id,vehicle_id,status,accepted_at,started_at,completed_at,actual_fare,ride_passengers(passenger_id,fare_share))').eq('passenger_id',userId).order('created_at',{ascending:false}),
+    db.from('ride_passengers').select('ride_id,seats,fare_share,rides(id,request_id,driver_id,vehicle_id,status,accepted_at,started_at,completed_at,actual_fare,ride_requests(*))').eq('passenger_id',userId)
+   ]);
+   if(ownedError||membershipError)throw new ServiceUnavailableException(ownedError?.message||membershipError?.message);
+   const rows=new Map<string,any>();
+   for(const item of owned||[]){
+    const ride=Array.isArray(item.rides)?item.rides[0]||null:item.rides;
+    const membership=(ride?.ride_passengers||[]).find((p:any)=>p.passenger_id===userId);
+    const formatted=this.formatRequest(item,ride);
+    if(membership){formatted.passengerFare=Number(membership.fare_share);formatted.seats=Number(membership.seats||1);}
+    rows.set(item.id,formatted);
+   }
+   for(const membership of memberships||[]){
+    const ride=Array.isArray(membership.rides)?membership.rides[0]||null:membership.rides;
+    const request=Array.isArray(ride?.ride_requests)?ride.ride_requests[0]||null:ride?.ride_requests;
+    if(!ride||!request)continue;
+    const existing=rows.get(request.id);
+    if(existing){existing.passengerFare=Number(membership.fare_share);existing.seats=Number(membership.seats||1);}
+    else{const formatted=this.formatRequest(request,ride);formatted.passengerFare=Number(membership.fare_share);formatted.seats=Number(membership.seats||1);rows.set(request.id,formatted);}
+   }
+   return Array.from(rows.values()).sort((a,b)=>new Date(b.createdAt).getTime()-new Date(a.createdAt).getTime());
+  }
   if(role==='driver'){const {data,error}=await this.db(token).from('rides').select('*,ride_requests(*)').eq('driver_id',userId).order('created_at',{ascending:false});if(error)throw new ServiceUnavailableException(error.message);return (data||[]).map(x=>this.formatDriverRide(x));}
   if(role==='admin'){const {data,error}=await this.db(token).from('ride_requests').select('*,rides(id,driver_id,vehicle_id,status,accepted_at,started_at,completed_at,actual_fare)').order('created_at',{ascending:false}).limit(200);if(error)throw new ServiceUnavailableException(error.message);return (data||[]).map(x=>this.formatRequest(x,Array.isArray(x.rides)?x.rides[0]||null:x.rides));}
   return [];
