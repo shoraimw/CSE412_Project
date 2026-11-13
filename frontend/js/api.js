@@ -1,13 +1,7 @@
-// Cloudflare serves the frontend and /api from the same Worker origin.
-// For a separately-started local NestJS server, set window.__DRIVE_API_BASE__ before this file.
-const DRIVE_API_BASE = window.__DRIVE_API_BASE__ || '/api';
-const DRIVE_TOKEN_KEY = 'drive_access_token';
-async function driveRequest(path, options = {}) {
-  const headers = { ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...(options.headers || {}) };
-  const token = localStorage.getItem(DRIVE_TOKEN_KEY);
-  if (token) headers.Authorization = 'Bearer ' + token;
-  const response = await fetch(DRIVE_API_BASE + path, { ...options, headers });
-  const result = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(Array.isArray(result.message) ? result.message.join(' ') : result.message || 'The request could not be completed.');
-  return result;
-}
+// Same-origin API client for Cloudflare Workers. Supabase access tokens are refreshed once after expiry.
+const DRIVE_API_BASE=window.__DRIVE_API_BASE__||'/api';
+const DRIVE_TOKEN_KEY='drive_access_token';
+let driveRefreshInFlight=null;
+async function refreshDriveSession(){if(driveRefreshInFlight)return driveRefreshInFlight;const refreshToken=localStorage.getItem('drive_refresh_token');if(!refreshToken)return false;driveRefreshInFlight=(async()=>{try{const response=await fetch(DRIVE_API_BASE+'/auth/refresh',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({refreshToken})});const result=await response.json().catch(()=>({}));if(!response.ok||!result.accessToken)throw new Error('Session expired');localStorage.setItem(DRIVE_TOKEN_KEY,result.accessToken);if(result.refreshToken)localStorage.setItem('drive_refresh_token',result.refreshToken);return true;}catch{localStorage.removeItem(DRIVE_TOKEN_KEY);localStorage.removeItem('drive_refresh_token');localStorage.removeItem('drive_user');return false;}finally{driveRefreshInFlight=null;}})();return driveRefreshInFlight;}
+async function driveRequest(path,options={}){const makeRequest=()=>{const headers={...(options.body?{'Content-Type':'application/json'}:{}),...(options.headers||{})};const token=localStorage.getItem(DRIVE_TOKEN_KEY);if(token)headers.Authorization='Bearer '+token;return fetch(DRIVE_API_BASE+path,{...options,headers});};let response=await makeRequest();if(response.status===401&&!path.startsWith('/auth/')){if(await refreshDriveSession())response=await makeRequest();}const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(Array.isArray(result.message)?result.message.join(' '):result.message||'The request could not be completed.');return result;}
+function driveLogout(){localStorage.removeItem(DRIVE_TOKEN_KEY);localStorage.removeItem('drive_refresh_token');localStorage.removeItem('drive_user');window.location.href='login.html';}

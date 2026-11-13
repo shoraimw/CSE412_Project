@@ -10,7 +10,7 @@ on:
       - 'package.json'
       - '.github/workflows/cloudflare-build.yml'
   push:
-    branches: [feature/drive-full-platform]
+    branches: [feature/uber-style-platform]
     paths:
       - 'backend/**'
       - 'frontend/**'

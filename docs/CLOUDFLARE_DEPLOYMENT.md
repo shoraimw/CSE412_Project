@@ -67,3 +67,14 @@ A successful build/deploy does not prove all workflows work end-to-end. Producti
 
 
 Latest fix: non-API paths are delegated to the Workers Static Assets binding (`envBindings.ASSETS.fetch(request)`); API requests continue through NestJS.
+## Authentication setup for email OTP
+The API exposes `POST /api/auth/email-otp` and `POST /api/auth/verify-email-otp`.
+In Supabase Dashboard → Authentication → Email Templates → Magic Link, change the template body to include the one-time code variable `{{ .Token }}` (and remove the magic-link-only content) before testing the six-digit code flow. Supabase's default template may send a magic link instead of a numeric OTP. Email delivery and rate limits remain subject to the Supabase free plan. SMS phone OTP is not included because a configured SMS provider is required and is not guaranteed to be free.
+
+## Maps and currency services
+- Maps use Leaflet with OpenStreetMap tiles; geocoding uses the public Nominatim service and route estimates use the public OSRM demo service. Follow their attribution and fair-use policies; they are community services, not an SLA-backed commercial map platform.
+- Currency conversion uses a public exchange-rate endpoint and caches rates in the Worker isolate. It is a display/quote feature only; the currency amount does not change the BDT settlement amount.
+- Driver GPS is foreground browser geolocation. It requires HTTPS and the driver's permission, and stops when the browser/page is closed or suspended. It is not background mobile tracking.
+
+## First administrator setup
+Public signup always creates a Passenger. Do not add a public admin-registration route. After creating a trusted team account, assign the first administrator role manually from the Supabase SQL Editor using the exact account email and a reviewed, one-time SQL statement. Keep admin role changes restricted to trusted database operators; never expose the service-role key in the browser or repository.
