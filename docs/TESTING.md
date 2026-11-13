@@ -43,7 +43,7 @@ The team requirement PDF defines 12 functional requirement groups and five non-f
 | Real-Time Ride Tracking | Driver foreground GPS watchPosition; authenticated location writes; passenger map refreshes every 6 seconds | Browser tab must remain open; this is not native background tracking or WebSocket streaming |
 | Smart Fare Prediction | Rule-based BDT estimate with distance, vehicle, traffic, demand and time multipliers | Not a trained ML model; final fare is subject to trip conditions |
 | AI Route Optimization | OSRM fastest/shortest road-route selection and alternatives when returned | Algorithmic route selection, not AI/ML; public demo endpoint is best-effort |
-| Multi-Currency Payment | Live BDT-to-currency conversion quotes and payment-intent records | No card/bKash/Nagad gateway is connected; no foreign-currency settlement or money collection occurs |
+| Multi-Currency Payment | Live BDT-to-currency conversion quotes and payment-intent records | Cash payment intents can be recorded and manually confirmed by an admin after cash is physically received; no card/bKash/Nagad gateway or foreign-currency settlement is connected |
 | Women Safety Mode | Preference stored with ride request; verified-driver claim guard; trusted contacts and expiring private trip-share links | SMS/WhatsApp notification delivery is not configured |
 | Smart Emergency & Safe Trip | SOS incident records, emergency contacts, expected-arrival delay and route-deviation checks | No emergency-services dispatch or guaranteed contact notification |
 | Tourist Mode | Seeded tourist places, recommendations and saved multi-stop plans | Validate location accuracy and route provider availability |
