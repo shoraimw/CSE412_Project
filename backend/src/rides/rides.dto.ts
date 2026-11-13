@@ -12,6 +12,8 @@ export class CreateRideDto{
  @IsOptional()@Type(()=>Number)@IsNumber()@Min(-180)@Max(180)pickupLng?:number;
  @IsOptional()@Type(()=>Number)@IsNumber()@Min(-90)@Max(90)destinationLat?:number;
  @IsOptional()@Type(()=>Number)@IsNumber()@Min(-180)@Max(180)destinationLng?:number;
+ @IsOptional()@Type(()=>Number)@IsNumber()@Min(0.1)@Max(1000)routeDistanceKm?:number;
+ @IsOptional()@Type(()=>Number)@IsNumber()@Min(1)@Max(1440)routeDurationMinutes?:number;
 }
 export class RideLocationDto{@Type(()=>Number)@IsNumber()@Min(-90)@Max(90)lat!:number;@Type(()=>Number)@IsNumber()@Min(-180)@Max(180)lng!:number;}
 export class RideStatusDto{@IsIn(['driver_arriving','in_progress','completed','cancelled'])status!:string;}
