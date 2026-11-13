@@ -28,7 +28,7 @@ Feature branch: `feature/drive-full-platform`
 The feature branch is deployed through Wrangler Preview and must not overwrite the production Worker. Preview URL aliases and unique deployment URLs are shown in Cloudflare Workers & Pages → cse412-project → Deployments.
 
 ## Supabase setup
-The connected Supabase project already contains the DRIVE migrations through `20261113153111`. These create the core schema, auth profile trigger, RLS policies, ride/rental/safety/tourist data, notification triggers, and driver application workflow.
+The connected Supabase project is synchronized through migration `20261113192334`. The repository includes matching migration version identifiers for the applied profile guards, owner applications, shared rides, driver location, and automatic Women Safety workflows. For a fresh Supabase project, apply the versioned SQL migrations in order, then configure Auth redirect URLs. Do not apply migrations to production manually outside the reviewed migration process.
 
 Use Supabase Dashboard → Authentication → URL Configuration to set the production and Preview Site URLs and allowed redirect URLs. Email confirmation settings affect whether signup returns a session immediately.
 
