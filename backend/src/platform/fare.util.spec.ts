@@ -1,0 +1,2 @@
+import {estimateFare} from './fare.util';
+describe('estimateFare',()=>{it('calculates a car estimate using transparent multipliers',()=>{const r=estimateFare({vehicle_type:'car',distance_km:10,traffic:'light',demand:'low'});expect(r.estimated_fare).toBe(310);expect(r.currency).toBe('BDT');});it('rejects non-positive distance',()=>{expect(()=>estimateFare({vehicle_type:'bike',distance_km:0})).toThrow('Valid distance');});it('rejects unsupported vehicle',()=>{expect(()=>estimateFare({vehicle_type:'car',distance_km:1,traffic:'rush' as any})).toThrow('Invalid traffic');});});
