@@ -26,7 +26,7 @@ Use Node.js 22+.
 - Production Worker: `cse412-project`
 - Feature Preview name: `feature/drive-full-platform`
 - Preview URL: https://feature-drive-full-platform-cse412-project.nexorabd.workers.dev
-- Latest unique deployment URL: https://4947c6b9-cse412-project.nexorabd.workers.dev
+- Latest unique deployment URL: https://cab6a6b7-cse412-project.nexorabd.workers.dev
 
 The feature branch is deployed using `wrangler preview`, not `wrangler deploy`. Do not promote it to production until browser and API smoke tests pass.
 
@@ -64,3 +64,6 @@ Still required before production:
 5. Run staged k6 tests before any capacity claim.
 
 A successful build/deploy does not prove all workflows work end-to-end. Production has not been promoted or overwritten.
+
+
+Latest fix: non-API paths are delegated to the Workers Static Assets binding (`envBindings.ASSETS.fetch(request)`); API requests continue through NestJS.
