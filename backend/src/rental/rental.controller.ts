@@ -1,69 +1,27 @@
-import { BadRequestException, Body, Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/common';
-import { Request } from 'express';
-import { bookings, users, vehicles } from '../data/store';
-import { AuthGuard } from '../auth/auth.guard';
-import { CreateBookingDto } from './dto/create-booking.dto';
-
-function isValidDateOnly(value: string): boolean {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (!match) return false;
-
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  const date = new Date(Date.UTC(year, month - 1, day));
-
-  return date.getUTCFullYear() === year &&
-    date.getUTCMonth() === month - 1 &&
-    date.getUTCDate() === day;
-}
-
-function getBangladeshToday(): string {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Asia/Dhaka',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  }).formatToParts(new Date());
-
-  const part = (type: string) => parts.find(item => item.type === type)?.value ?? '';
-  return `${part('year')}-${part('month')}-${part('day')}`;
-}
-
+import {BadRequestException,Body,Controller,ForbiddenException,Get,Param,Patch,Post,Query,Req,UseGuards,ServiceUnavailableException,NotFoundException} from '@nestjs/common';
+import {Request} from 'express';
+import {DatabaseService} from '../database/database.service';
+import {AuthGuard} from '../auth/auth.guard';
+import {CreateBookingDto} from './dto/create-booking.dto';
+import {CreateVehicleDto,UpdateVehicleDto} from './dto/vehicle.dto';
+type AuthReq=Request&{user:{id:string;accessToken:string;role:'passenger'|'driver'|'vehicle_owner'|'admin'}};
+function validDate(s:string){const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s);if(!m)return false;const d=new Date(Date.UTC(+m[1],+m[2]-1,+m[3]));return d.getUTCFullYear()===+m[1]&&d.getUTCMonth()===+m[2]-1&&d.getUTCDate()===+m[3];}
+function dhakaToday(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Dhaka',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());}
 @Controller('rental')
-export class RentalController {
-  @Get('vehicles')
-  getVehicles(@Query('type') type = 'All', @Query('location') location = '', @Query('max_price') maxPrice = '') {
-    const max = maxPrice === '' ? null : Number(maxPrice);
-    if (max !== null && (!Number.isFinite(max) || max < 0)) throw new BadRequestException('Maximum price must be a valid positive number.');
-    return vehicles.filter(vehicle =>
-      (type === 'All' || vehicle.type === type) &&
-      vehicle.location.toLowerCase().includes(location.trim().toLowerCase()) &&
-      (max === null || vehicle.price <= max)
-    );
-  }
-
-  @Post('bookings')
-  @UseGuards(AuthGuard)
-  createBooking(@Req() request: Request & { user: { id: number } }, @Body() dto: CreateBookingDto) {
-    const customerName = dto.customer_name.trim();
-    const vehicle = vehicles.find(item => item.id === dto.vehicle_id);
-    const today = getBangladeshToday();
-
-    // Compare date-only strings in YYYY-MM-DD form to avoid UTC/local-time shifts.
-    if (!vehicle || !customerName ||
-        !isValidDateOnly(dto.start_date) || !isValidDateOnly(dto.end_date) ||
-        dto.start_date < today || dto.end_date < dto.start_date) {
-      throw new BadRequestException('Please provide valid booking details.');
-    }
-
-    const user = users.find(item => item.id === request.user.id)!;
-    const booking = {
-      id: bookings.length + 1, userId: user.id, vehicleId: vehicle.id,
-      vehicleName: vehicle.name, customerName, startDate: dto.start_date,
-      endDate: dto.end_date, status: 'Pending' as const
-    };
-    bookings.push(booking);
-    return { message: 'Booking request received successfully.', booking };
-  }
+export class RentalController{
+ constructor(private readonly database:DatabaseService){}
+ @Get('vehicles')async getVehicles(@Query('type')type='All',@Query('location')location='',@Query('max_price')maxPrice=''){
+  const max=maxPrice===''?null:Number(maxPrice);if(max!==null&&(!Number.isFinite(max)||max<0))throw new BadRequestException('Maximum price must be a valid positive number.');
+  let query=this.database.publicClient().from('vehicles').select('id,make,model,vehicle_type,city,seats,price_per_day,price_per_km,photo_paths,description,model_year,color').eq('is_verified',true).eq('is_available',true);
+  if(type!=='All')query=query.eq('vehicle_type',type.toLowerCase());if(location.trim())query=query.ilike('city','%'+location.trim()+'%');if(max!==null)query=query.lte('price_per_day',max);
+  const {data,error}=await query.order('created_at',{ascending:false});if(error)throw new ServiceUnavailableException(error.message);
+  return (data||[]).map(v=>({id:v.id,name:[v.make,v.model].filter(Boolean).join(' '),type:v.vehicle_type,location:v.city,seats:v.seats,price:Number(v.price_per_day||0),image:v.photo_paths?.[0]||'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=900',images:v.photo_paths||[],description:v.description,year:v.model_year,color:v.color,pricePerKm:v.price_per_km}));
+ }
+ @Get('owner/vehicles')@UseGuards(AuthGuard)async ownerVehicles(@Req()r:AuthReq){if(!['vehicle_owner','admin'].includes(r.user.role))throw new ForbiddenException('Vehicle Owner access is required.');const {data,error}=await this.database.userClient(r.user.accessToken).from('vehicles').select('*').eq('owner_id',r.user.id).order('created_at',{ascending:false});if(error)throw new ServiceUnavailableException(error.message);return data||[];}
+ @Post('vehicles')@UseGuards(AuthGuard)async createVehicle(@Req()r:AuthReq,@Body()d:CreateVehicleDto){if(r.user.role!=='vehicle_owner')throw new ForbiddenException('Only approved Vehicle Owners can list vehicles.');const payload={owner_id:r.user.id,make:d.make.trim(),model:d.model.trim(),vehicle_type:d.vehicle_type,plate_number:d.plate_number.trim().toUpperCase(),city:d.city?.trim()||'Dhaka',seats:d.seats||1,price_per_day:d.price_per_day??null,price_per_km:d.price_per_km??null,color:d.color?.trim()||null,model_year:d.model_year??null,description:d.description?.trim()||null,photo_paths:d.photo_paths||[],is_available:true,is_verified:false};const {data,error}=await this.database.userClient(r.user.accessToken).from('vehicles').insert(payload).select('*').single();if(error||!data)throw new BadRequestException(error?.message||'Vehicle could not be submitted.');return {message:'Vehicle submitted for administrator verification. It will appear in the public catalog after approval.',vehicle:data};}
+ @Patch('vehicles/:id')@UseGuards(AuthGuard)async updateVehicle(@Req()r:AuthReq,@Param('id')id:string,@Body()d:UpdateVehicleDto){if(!['vehicle_owner','admin'].includes(r.user.role))throw new ForbiddenException('Vehicle Owner access is required.');const patch:any={};for(const key of ['price_per_day','price_per_km','is_available','description'])if((d as any)[key]!==undefined)patch[key]=(d as any)[key];if(!Object.keys(patch).length)throw new BadRequestException('No vehicle changes provided.');const {data,error}=await this.database.userClient(r.user.accessToken).from('vehicles').update(patch).eq('id',id).eq('owner_id',r.user.id).select('*').maybeSingle();if(error||!data)throw new NotFoundException(error?.message||'Vehicle not found.');return data;}
+ @Get('bookings')@UseGuards(AuthGuard)async listBookings(@Req()r:AuthReq){const {data,error}=await this.database.userClient(r.user.accessToken).from('rental_bookings').select('*,vehicles(make,model,city,photo_paths)').eq('renter_id',r.user.id).order('created_at',{ascending:false});if(error)throw new ServiceUnavailableException(error.message);return data||[];}
+ @Get('owner/bookings')@UseGuards(AuthGuard)async ownerBookings(@Req()r:AuthReq){if(!['vehicle_owner','admin'].includes(r.user.role))throw new ForbiddenException('Vehicle Owner access is required.');const {data,error}=await this.database.userClient(r.user.accessToken).from('rental_bookings').select('*,vehicles!inner(id,make,model,city,owner_id)').eq('vehicles.owner_id',r.user.id).order('created_at',{ascending:false});if(error)throw new ServiceUnavailableException(error.message);return data||[];}
+ @Post('bookings')@UseGuards(AuthGuard)async createBooking(@Req()r:AuthReq,@Body()d:CreateBookingDto){if(!validDate(d.start_date)||!validDate(d.end_date)||d.start_date<dhakaToday()||d.end_date<d.start_date||!d.customer_name.trim())throw new BadRequestException('Please provide valid rental dates and customer details.');const db=this.database.userClient(r.user.accessToken);const {data:v,error:ve}=await db.from('vehicles').select('id,owner_id,price_per_day,is_verified,is_available').eq('id',d.vehicle_id).maybeSingle();if(ve||!v||!v.is_verified||!v.is_available)throw new BadRequestException('This vehicle is not currently available for booking.');if(v.owner_id===r.user.id)throw new BadRequestException('You cannot rent your own vehicle.');if(v.price_per_day===null)throw new BadRequestException('This vehicle has no daily rental price.');const start=new Date(d.start_date+'T00:00:00+06:00'),end=new Date(d.end_date+'T23:59:59+06:00');const days=Math.max(1,Math.ceil((Date.parse(d.end_date)-Date.parse(d.start_date))/86400000)+1);const total=Number((Number(v.price_per_day)*days).toFixed(2));const {data,error}=await db.from('rental_bookings').insert({vehicle_id:v.id,renter_id:r.user.id,start_at:start.toISOString(),end_at:end.toISOString(),total_amount:total,currency:'BDT',pickup_note:d.customer_name.trim()}).select('*').single();if(error||!data)throw new BadRequestException(error?.message||'Rental request could not be created.');return {message:'Rental request submitted. The vehicle owner must approve it before confirmation.',booking:data};}
+ @Patch('bookings/:id/status')@UseGuards(AuthGuard)async updateBookingStatus(@Req()r:AuthReq,@Param('id')id:string,@Body()body:{status:string}){if(!['vehicle_owner','admin'].includes(r.user.role))throw new ForbiddenException('Vehicle Owner access is required.');if(!['approved','rejected','active','completed','cancelled'].includes(body.status))throw new BadRequestException('Invalid booking status.');const db=this.database.userClient(r.user.accessToken);const {data,error}=await db.from('rental_bookings').update({status:body.status}).eq('id',id).select('*').maybeSingle();if(error||!data)throw new BadRequestException(error?.message||'Booking status could not be updated.');return data;}
 }
