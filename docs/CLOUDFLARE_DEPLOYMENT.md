@@ -26,7 +26,7 @@ Use Node.js 22+.
 - Production Worker: `cse412-project`
 - Feature Preview name: `feature/drive-full-platform`
 - Preview URL: https://feature-drive-full-platform-cse412-project.nexorabd.workers.dev
-- Latest unique deployment URL: https://560638cc-cse412-project.nexorabd.workers.dev
+- Latest unique deployment URL: https://4947c6b9-cse412-project.nexorabd.workers.dev
 
 The feature branch is deployed using `wrangler preview`, not `wrangler deploy`. Do not promote it to production until browser and API smoke tests pass.
 
