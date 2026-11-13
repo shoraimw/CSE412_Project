@@ -720,3 +720,15 @@ body > footer {
 .auth-switch{padding-top:8px;text-align:center}
 .auth-page>footer{background:transparent!important;color:#89948b!important}
 @media(max-width:600px){.auth-panel{margin:0 auto}.auth-page .form-wrap{align-items:center}.auth-page .topbar{position:relative}}
+
+/* Email OTP sign-in panel */
+.otp-divider{display:flex;align-items:center;gap:12px;margin:18px 0;color:#9aa49b;font-size:10px;font-weight:800;letter-spacing:1px}
+.otp-divider:before,.otp-divider:after{content:"";height:1px;background:#e7ece6;flex:1}
+.otp-mode-toggle{display:block;width:100%;border:1px solid #e0e8dc;border-radius:12px;background:#f8faf6;color:#34452d;padding:13px;font:700 12px "DM Sans";cursor:pointer;transition:background .2s}
+.otp-mode-toggle:hover{background:#edf3e6}
+.email-otp-panel{display:grid;gap:12px;margin-top:14px;padding:16px;border:1px solid #e8eee4;border-radius:14px;background:#fbfcf9}
+.email-otp-panel[hidden]{display:none}
+.email-otp-panel label{display:grid;gap:7px;color:#46546a;font-size:12px;font-weight:700}
+.email-otp-panel input{width:100%;min-height:44px;padding:10px 12px;border:1px solid #d8dee7;border-radius:8px;font:14px "DM Sans"}
+.otp-description{margin:0;color:#758078;font-size:12px;line-height:1.6}
+.email-otp-panel .auth-submit{margin-top:0}
