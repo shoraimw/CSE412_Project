@@ -23,12 +23,12 @@ The repository is configured for Cloudflare. Vercel is not the deployment target
 - Deploy production only from the protected `main` branch after Preview verification: `npm run deploy`.
 
 ### Cloudflare Preview
-Feature branch: `feature/drive-full-platform`
+Feature branch: `feature/complete-system-integration`
 
 The feature branch is deployed through Wrangler Preview and must not overwrite the production Worker. Preview URL aliases and unique deployment URLs are shown in Cloudflare Workers & Pages → cse412-project → Deployments.
 
 ## Supabase setup
-The connected Supabase project is synchronized through migration `20261113192334`. The repository includes matching migration version identifiers for the applied profile guards, owner applications, shared rides, driver location, and automatic Women Safety workflows. For a fresh Supabase project, apply the versioned SQL migrations in order, then configure Auth redirect URLs. Do not apply migrations to production manually outside the reviewed migration process.
+The connected Supabase project is active and its migration history has been verified through `20261113192334`. This repository tracks the later feature migrations, but the original bootstrap migrations (`drive_initial_schema`, auth/RLS baseline and initial role setup) were applied before they were committed as SQL files. Therefore, this migration folder alone is not yet a complete fresh-database bootstrap. Do not run it against a new project until a reviewed baseline schema export has been added; do not replay migrations manually against the connected production project.
 
 Use Supabase Dashboard → Authentication → URL Configuration to set the production and Preview Site URLs and allowed redirect URLs. Email confirmation settings affect whether signup returns a session immediately.
 
