@@ -40,3 +40,6 @@ if (loginForm) loginForm.addEventListener('submit', async event => {
   } catch (error) { showAuthMessage('loginMessage', error.message); }
   finally { button.disabled = false; }
 });
+
+
+document.querySelectorAll('[data-password-toggle]').forEach(toggle=>{const field=document.getElementById(toggle.dataset.passwordToggle);if(!field)return;toggle.addEventListener('click',()=>{const visible=field.type==='password';field.type=visible?'text':'password';toggle.setAttribute('aria-pressed',String(visible));toggle.setAttribute('aria-label',visible?'Hide password':'Show password');const label=toggle.querySelector('span');if(label)label.textContent=visible?'Hide':'Show';toggle.classList.toggle('is-visible',visible);});});
