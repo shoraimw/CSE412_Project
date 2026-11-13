@@ -4,20 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "cf dev",
-    "build": "tsc -p backend/tsconfig.cloudflare.json && cf build",
-    "preview": "cf previews deploy",
-    "deploy": "cf deploy",
-    "check": "cf workers check",
-    "build:cloudflare": "tsc -p backend/tsconfig.cloudflare.json && cf build",
-    "typecheck:cloudflare": "cf workers types && tsc -p backend/tsconfig.cloudflare.json --noEmit"
+    "dev": "wrangler dev",
+    "build": "wrangler deploy --dry-run",
+    "preview": "wrangler deploy --env preview",
+    "deploy": "wrangler deploy",
+    "check": "wrangler deploy --dry-run"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "beta",
-    "cf": "^1.0.0-beta.18",
-    "vite": "^7.0.0",
     "@types/node": "^22.10.0",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "wrangler": "^4.45.0"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
