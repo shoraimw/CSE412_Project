@@ -1,4 +1,5 @@
 import {BadRequestException,ForbiddenException,Injectable,NotFoundException,ServiceUnavailableException} from '@nestjs/common';
+import {createHash,randomBytes} from 'crypto';
 import {DatabaseService} from '../database/database.service';
 import {CreateRideDto,RideLocationDto} from './rides.dto';
 
@@ -17,9 +18,41 @@ export class RidesService{
   const straightKm=haversine(pickup,destination);if(!Number.isFinite(straightKm)||straightKm<=0)throw new BadRequestException('Pickup and destination must be different valid locations.');
   const estimatedKm=Number((straightKm*1.25).toFixed(2));const rate=rates[dto.vehicleType];const fare=Math.round((rate.base+estimatedKm*rate.km)*1.2);
   const payload={passenger_id:userId,pickup_label:dto.pickupAddress.trim(),pickup_lat:pickup.lat,pickup_lng:pickup.lng,destination_label:dto.destinationAddress.trim(),destination_lat:destination.lat,destination_lng:destination.lng,requested_vehicle:dto.vehicleType,is_shared:!!dto.isShared,women_safety_preference:!!dto.womenSafetyPreference,estimated_distance_km:estimatedKm,estimated_duration_minutes:Math.max(1,Math.round(estimatedKm/25*60)),estimated_fare:fare,currency:'BDT',notes:dto.notes?.trim()||null,seats_requested:dto.seatsRequested||1};
-  const {data,error}=await this.db(token).from('ride_requests').insert(payload).select('*').single();
+  const db=this.db(token);
+  const {data,error}=await db.from('ride_requests').insert(payload).select('*').single();
   if(error||!data)throw new BadRequestException(error?.message||'Ride request could not be saved.');
-  return this.formatRequest(data,null);
+  const {data:preference,error:preferenceError}=await db.from('user_safety_preferences').select('women_safety_enabled').eq('user_id',userId).maybeSingle();
+  if(preferenceError)throw new ServiceUnavailableException(preferenceError.message);
+  const womenSafetyEnabled=!!dto.womenSafetyPreference||!!preference?.women_safety_enabled;
+  if(womenSafetyEnabled&&!data.women_safety_preference){const {error:preferenceUpdateError}=await db.from('ride_requests').update({women_safety_preference:true}).eq('id',data.id);if(preferenceUpdateError)throw new ServiceUnavailableException(preferenceUpdateError.message);data.women_safety_preference=true;}
+  let womenSafety:any=null;
+  if(womenSafetyEnabled){
+   const now=new Date();
+   const expected=new Date(now.getTime()+(Math.max(1,Math.round(estimatedKm/25*60))+10)*60000);
+   const point=dto.safetyInitialLocation;
+   const {data:session,error:sessionError}=await db.from('safety_trip_sessions').insert({
+    user_id:userId,ride_request_id:data.id,destination:dto.destinationAddress.trim(),started_at:now.toISOString(),
+    expected_arrival_at:expected.toISOString(),status:'ACTIVE',current_lat:point?.lat??null,current_lng:point?.lng??null,
+    planned_route:[],warnings:[]
+   }).select('*').single();
+   if(sessionError||!session)throw new ServiceUnavailableException(sessionError?.message||'Automatic Women Safety session could not be started.');
+   if(point){
+    const {error:locationError}=await db.from('safety_trip_locations').insert({safety_trip_id:session.id,user_id:userId,latitude:point.lat,longitude:point.lng});
+    if(locationError)throw new ServiceUnavailableException(locationError.message);
+   }
+   const {data:contacts,error:contactsError}=await db.from('trusted_contacts').select('id,contact_name,phone,contact_type').eq('user_id',userId).in('contact_type',['trusted','emergency']).order('created_at');
+   if(contactsError)throw new ServiceUnavailableException(contactsError.message);
+   let shareToken:string|null=null,expiresAt:string|null=null;
+   if(contacts?.length){
+    shareToken=randomBytes(32).toString('hex');
+    const tokenHash=createHash('sha256').update(shareToken).digest('hex');
+    expiresAt=new Date(Date.now()+24*60*60*1000).toISOString();
+    const {error:shareError}=await db.from('trip_shares').insert({safety_trip_id:session.id,user_id:userId,token_hash:tokenHash,contact_ids:contacts.map(c=>c.id),expires_at:expiresAt});
+    if(shareError)throw new ServiceUnavailableException(shareError.message);
+   }
+   womenSafety={enabled:true,sessionId:session.id,shareToken,expiresAt,initialLocationReceived:!!point,contacts:(contacts||[]).map(c=>({id:c.id,name:c.contact_name,phone:c.phone,type:c.contact_type}))};
+  }
+  return {...this.formatRequest(data,null),womenSafety};
  }
  async list(userId:string,token:string,role:Role){
   if(role==='passenger'){const {data,error}=await this.db(token).from('ride_requests').select('*,rides(id,driver_id,vehicle_id,status,accepted_at,started_at,completed_at,actual_fare)').eq('passenger_id',userId).order('created_at',{ascending:false});if(error)throw new ServiceUnavailableException(error.message);return (data||[]).map(x=>this.formatRequest(x,Array.isArray(x.rides)?x.rides[0]||null:x.rides));}
