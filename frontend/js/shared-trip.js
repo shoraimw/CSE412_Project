@@ -1,44 +1,9 @@
-const token = new URLSearchParams(window.location.search).get('token');
-const message = document.getElementById('sharedTripMessage');
-const details = document.getElementById('sharedTripDetails');
-function node(tag, cls, text) {
-  const element = document.createElement(tag);
-  if (cls) element.className = cls;
-  if (text !== undefined) element.textContent = text;
-  return element;
-}
-async function refreshSharedTrip() {
-  if (!token) { message.textContent = 'This link is missing its sharing token.'; return; }
-  try {
-    const trip = await driveRequest('/safety/shared/' + encodeURIComponent(token));
-    message.textContent = 'Trip information refreshed at ' + new Date().toLocaleTimeString();
-    details.replaceChildren(
-      node('h2', '', trip.destination),
-      node('p', 'status-pill ' + trip.status.toLowerCase(), trip.status),
-      node('p', '', 'Started: ' + new Date(trip.startedAt).toLocaleString()),
-      node('p', '', 'Expected arrival: ' + new Date(trip.expectedArrivalAt).toLocaleString()),
-      node('p', '', trip.currentLocation
-        ? 'Last known coordinates: ' + trip.currentLocation.lat.toFixed(5) + ', ' + trip.currentLocation.lng.toFixed(5)
-        : 'Waiting for the passenger to share their first location update.'),
-      node('p', 'muted', 'Last location update: ' + new Date(trip.lastUpdatedAt).toLocaleString())
-    );
-    if (trip.currentLocation) {
-      const mapLink = node('a', 'primary-button', 'View last location on map');
-      mapLink.href = 'https://www.google.com/maps?q=' + trip.currentLocation.lat + ',' + trip.currentLocation.lng;
-      mapLink.target = '_blank';
-      mapLink.rel = 'noopener noreferrer';
-      details.append(mapLink);
-    }
-    if (trip.warnings && trip.warnings.length) {
-      const list = node('ul', 'trip-warning-list');
-      trip.warnings.forEach(warning => list.append(node('li', '', warning.message)));
-      details.append(node('h3', '', 'Safety warnings'), list);
-    }
-    details.append(node('p', 'feature-footnote', trip.privacyNote));
-  } catch (error) {
-    message.textContent = error.message;
-    message.className = 'feature-message error-message';
-  }
-}
-refreshSharedTrip();
-window.setInterval(refreshSharedTrip, 15000);
+const token=new URLSearchParams(window.location.search).get('token');
+const message=document.getElementById('sharedTripMessage');
+const details=document.getElementById('sharedTripDetails');
+let liveMap=null,liveMarker=null,liveTrail=null,pollTimer=null;
+function node(tag,cls,text){const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;return el;}
+function initLiveMap(){if(liveMap||!window.L)return;liveMap=L.map('sharedTripMap',{scrollWheelZoom:false}).setView([23.8103,90.4125],12);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(liveMap);}
+function renderLiveMap(trip){if(!window.L)return;initLiveMap();if(!liveMap)return;const points=(trip.recentLocations||[]).map(p=>[Number(p.lat),Number(p.lng)]).filter(p=>p.every(Number.isFinite));const current=trip.currentLocation?[Number(trip.currentLocation.lat),Number(trip.currentLocation.lng)]:null;if(current&&current.every(Number.isFinite)){if(!liveMarker)liveMarker=L.marker(current).addTo(liveMap).bindPopup('Passenger current location');else liveMarker.setLatLng(current);if(points.length===0)points.push(current);if(liveTrail)liveTrail.setLatLngs(points);else if(points.length>1)liveTrail=L.polyline(points,{color:'#78983c',weight:5,opacity:.85}).addTo(liveMap);if(points.length>1)liveMap.fitBounds(liveTrail.getBounds(),{padding:[35,35],maxZoom:15});else liveMap.setView(current,16);}else{message.textContent='Waiting for the passenger GPS location…';}}
+async function refreshSharedTrip(){if(!token){message.textContent='This link is missing its sharing token.';return;}try{const trip=await driveRequest('/safety/shared/'+encodeURIComponent(token));const updated=trip.lastUpdatedAt?new Date(trip.lastUpdatedAt):null;message.textContent='LIVE TRIP · refreshed '+new Date().toLocaleTimeString()+(updated?' · GPS '+updated.toLocaleTimeString():'');message.className='feature-message';details.replaceChildren(node('h2','',trip.destination),node('p','status-pill '+String(trip.status).toLowerCase(),trip.status),node('p','','Started: '+new Date(trip.startedAt).toLocaleString()),node('p','','Expected arrival: '+new Date(trip.expectedArrivalAt).toLocaleString()),node('p','',trip.currentLocation?'Passenger GPS: '+trip.currentLocation.lat.toFixed(5)+', '+trip.currentLocation.lng.toFixed(5):'Waiting for the passenger to share the first GPS location.'),node('p','muted',updated?'Last location update: '+updated.toLocaleString():'No GPS update received yet.'));renderLiveMap(trip);if(trip.currentLocation){const mapLink=node('a','primary-button','Open current location in Google Maps');mapLink.href='https://www.google.com/maps?q='+trip.currentLocation.lat+','+trip.currentLocation.lng;mapLink.target='_blank';mapLink.rel='noopener noreferrer';details.append(mapLink);}if(trip.warnings?.length){const list=node('ul','trip-warning-list');trip.warnings.forEach(w=>list.append(node('li','',w.message)));details.append(node('h3','','Safety warnings'),list);}details.append(node('p','feature-footnote',trip.privacyNote||'This private link is for selected trusted contacts only.'));if(trip.status==='COMPLETED'){message.textContent='TRIP COMPLETED · live location sharing has ended.';if(pollTimer){clearInterval(pollTimer);pollTimer=null;}}}catch(error){message.textContent=error.message;message.className='feature-message error-message';if(/expired|invalid/i.test(error.message)&&pollTimer){clearInterval(pollTimer);pollTimer=null;}}}
+refreshSharedTrip().then(()=>{if(!pollTimer)pollTimer=window.setInterval(refreshSharedTrip,5000);});
