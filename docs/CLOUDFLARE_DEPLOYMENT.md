@@ -14,49 +14,53 @@ Use Node.js 22+.
 4. Run `npm run dev` and open the URL printed by Wrangler.
 
 ## Worker configuration
-`wrangler.jsonc` is the deployment source of truth:
+`wrangler.jsonc` is the only deployment configuration:
 - `main`: `backend/src/worker.ts`
 - `assets.directory`: `./frontend`
 - `assets.run_worker_first`: `/api/*`
 - `compatibility_flags`: `nodejs_compat`
-- Optional NestJS transports unused by this REST-only app are explicitly aliased to a no-op module so Wrangler does not bundle unsupported messaging clients.
+- `previews`: Preview configuration block
+- Optional NestJS messaging and websocket transports not used by this REST-only app are aliased to a no-op module so Wrangler does not bundle unsupported transport clients.
 
 ## Preview and production isolation
-The feature branch uses a dedicated Worker name:
-`feature-drive-full-platform-cse412-project`
+- Production Worker: `cse412-project`
+- Feature Preview name: `feature/drive-full-platform`
+- Preview URL: https://feature-drive-full-platform-cse412-project.nexorabd.workers.dev
+- Latest unique deployment URL: https://560638cc-cse412-project.nexorabd.workers.dev
 
-Preview URL:
-https://feature-drive-full-platform-cse412-project.nexorabd.workers.dev
+The feature branch is deployed using `wrangler preview`, not `wrangler deploy`. Do not promote it to production until browser and API smoke tests pass.
 
-The production Worker remains:
-`cse412-project`
+## Preview secrets
+The Cloudflare Build trigger has two build-time variables:
+- `SUPABASE_URL` (non-secret project URL)
+- `SUPABASE_ANON_KEY` (stored as a secret; value is the Supabase publishable key)
 
-Do not change the feature branch's Wrangler name to `cse412-project`; that would risk deploying preview code directly over production. Production should only use the production Worker name from the main branch after all preview smoke tests pass.
+The deployment command writes these to a temporary env file inside the isolated build container, then uses:
+- `wrangler preview base-config secret bulk` to configure future previews.
+- `wrangler preview secret bulk` to configure the current feature preview.
 
-## Secrets
-Configure encrypted Worker secrets on the feature preview Worker:
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
-
-Use the existing DRIVE Supabase project. The application uses the publishable/legacy anon key with RLS. Never use or expose a service-role key.
+The temporary file is deleted after successful secret upload. Secret values are not committed to Git and are not printed in build logs. The Worker uses only the Supabase publishable key with RLS; never use a service-role key.
 
 ## Commands
 - `npm run build`: `wrangler deploy --dry-run`, validates and bundles without deploying.
 - `npm run dev`: local Wrangler Worker runtime.
-- `npm run deploy`: deploys to the Worker name declared in `wrangler.jsonc`.
+- `npm run deploy`: production deployment. Do not run from the feature branch.
 
-Cloudflare Workers Builds for the feature branch:
-- Build command: `npm install && npm run build`
-- Deploy command: `npx wrangler deploy`
-- Root directory: `/`
+Cloudflare Workers Builds feature-branch deploy command:
+`npx wrangler preview --worker-name cse412-project --name feature-drive-full-platform`, followed by preview secret setup.
 
-## Required runtime tests
-After deploying the feature Worker and adding secrets:
-1. `GET /api/health` returns 200.
-2. Homepage and all CSS/JS/image assets load.
-3. Supabase registration/login work.
-4. Profile, ride booking, driver claim, safety/SOS, rental and admin APIs work.
-5. Verify RLS isolation with two separate test users.
-6. Run staged k6 tests before any capacity claim.
+## Verification status
+- Wrangler dry-run build: passed.
+- NestJS backend build: passed.
+- Frontend JavaScript syntax check: passed.
+- Cloudflare Preview deployment: successful; Worker module and static assets uploaded.
+- Supabase Preview secrets: both configured successfully.
 
-A successful Wrangler dry-run only proves the bundle compiles. It is not proof that the Worker runtime or all application workflows work.
+Still required before production:
+1. Open the Preview URL in a browser and verify `GET /api/health` returns 200.
+2. Test registration/login against Supabase Auth.
+3. Test profile, ride booking, driver claim, safety/SOS, rental and admin APIs.
+4. Verify RLS isolation with two separate test users.
+5. Run staged k6 tests before any capacity claim.
+
+A successful build/deploy does not prove all workflows work end-to-end. Production has not been promoted or overwritten.
