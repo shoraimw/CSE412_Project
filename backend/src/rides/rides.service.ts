@@ -24,6 +24,7 @@ export class RidesService{
   const {data:preference,error:preferenceError}=await db.from('user_safety_preferences').select('women_safety_enabled').eq('user_id',userId).maybeSingle();
   if(preferenceError)throw new ServiceUnavailableException(preferenceError.message);
   const womenSafetyEnabled=!!dto.womenSafetyPreference||!!preference?.women_safety_enabled;
+  if(womenSafetyEnabled&&!data.women_safety_preference){const {error:preferenceUpdateError}=await db.from('ride_requests').update({women_safety_preference:true}).eq('id',data.id);if(preferenceUpdateError)throw new ServiceUnavailableException(preferenceUpdateError.message);data.women_safety_preference=true;}
   let womenSafety:any=null;
   if(womenSafetyEnabled){
    const now=new Date();
