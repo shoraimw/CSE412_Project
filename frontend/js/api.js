@@ -1,4 +1,6 @@
-const DRIVE_API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3000/api' : '/api';
+// Cloudflare serves the frontend and /api from the same Worker origin.
+// For a separately-started local NestJS server, set window.__DRIVE_API_BASE__ before this file.
+const DRIVE_API_BASE = window.__DRIVE_API_BASE__ || '/api';
 const DRIVE_TOKEN_KEY = 'drive_access_token';
 async function driveRequest(path, options = {}) {
   const headers = { ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...(options.headers || {}) };
