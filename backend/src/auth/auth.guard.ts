@@ -1,22 +1,2 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { users } from '../data/store';
-
-@Injectable()
-export class AuthGuard implements CanActivate {
-  constructor(private readonly jwt: JwtService) {}
-  async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
-    const header = request.headers.authorization ?? '';
-    if (!header.startsWith('Bearer ')) throw new UnauthorizedException('Please log in first.');
-    try {
-      const payload = await this.jwt.verifyAsync(header.slice(7));
-      const user = users.find(item => item.id === Number(payload.sub));
-      if (!user) throw new UnauthorizedException('User account was not found.');
-      request.user = { id: user.id };
-      return true;
-    } catch {
-      throw new UnauthorizedException('Your session is invalid. Please log in again.');
-    }
-  }
-}
+import {CanActivate,ExecutionContext,Injectable,UnauthorizedException} from '@nestjs/common';import {DatabaseService} from '../database/database.service';
+@Injectable() export class AuthGuard implements CanActivate {constructor(private db:DatabaseService){}async canActivate(ctx:ExecutionContext){const req=ctx.switchToHttp().getRequest();const h=req.headers.authorization||'';if(!h.startsWith('Bearer '))throw new UnauthorizedException('Sign in required.');const token=h.slice(7);try{const {data:{user},error}=await this.db.publicClient().auth.getUser(token);if(error||!user)throw new Error();const {data:p,error:e}=await this.db.userClient(token).from('profiles').select('id,role,is_verified,is_active').eq('id',user.id).single();if(e||!p||!p.is_active)throw new Error();req.user={id:user.id,email:user.email,role:p.role,isVerified:p.is_verified,token};return true;}catch{throw new UnauthorizedException('Session invalid or account inactive.');}}}
