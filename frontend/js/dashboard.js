@@ -18,4 +18,4 @@ $('fareForm').addEventListener('submit',async e=>{e.preventDefault();try{const r
 $('currencyForm').addEventListener('submit',async e=>{e.preventDefault();try{const result=await driveRequest('/payments/quote',{method:'POST',body:JSON.stringify({amountBDT:Number($('amountBdt').value),currency:$('currency').value})});$('currencyResult').hidden=false;$('currencyResult').textContent='৳'+result.originalAmount+' ≈ '+new Intl.NumberFormat(undefined,{style:'currency',currency:result.currency}).format(result.convertedAmount)+'. Rate timestamp: '+new Date(result.rateFetchedAt).toLocaleString()+'. Quote only; no foreign-currency settlement is collected.';}catch(err){$('currencyResult').hidden=false;$('currencyResult').textContent=err.message;}});
 
 $('logout').addEventListener('click',()=>{localStorage.removeItem(DRIVE_TOKEN_KEY);localStorage.removeItem('drive_refresh_token');localStorage.removeItem('drive_user');location.href='login.html';});
-if(requireLogin()){initMaps();loadRides();loadSharedRides();}
+if(requireLogin()){initMaps();loadRides();loadSharedRides();setInterval(()=>{loadRides();loadSharedRides();},15000);}
