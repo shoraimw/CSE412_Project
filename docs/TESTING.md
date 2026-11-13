@@ -39,7 +39,7 @@ The team requirement PDF defines 12 functional requirement groups and five non-f
 | User Management | Passenger profiles, driver applications, owner applications, role-controlled admin approval | Verify with passenger, driver, owner and admin accounts |
 | Vehicle Rental | Vehicle catalogue, owner workflow, rental booking and database overlap guard | Test two overlapping bookings for the same vehicle |
 | Smart Ride Booking | Map-selected pickup/destination, ride type, fare quote and persistent ride request | Requires browser location permission only for current-location pickup |
-| Smart Ride Match & Cost Sharing | Atomic verified-driver claim RPC and shared-ride data/API foundation | Shared passenger joining and split settlement need end-to-end acceptance testing |
+| Smart Ride Match & Cost Sharing | Atomic verified-driver claim RPC; passenger shared-ride discovery/join; seat-capacity guard and per-passenger fare recalculation | Verify concurrent joins, full-ride rejection and final fare shares |
 | Real-Time Ride Tracking | Driver foreground GPS watchPosition; authenticated location writes; passenger map refreshes every 6 seconds | Browser tab must remain open; this is not native background tracking or WebSocket streaming |
 | Smart Fare Prediction | Rule-based BDT estimate with distance, vehicle, traffic, demand and time multipliers | Not a trained ML model; final fare is subject to trip conditions |
 | AI Route Optimization | OSRM fastest/shortest road-route selection and alternatives when returned | Algorithmic route selection, not AI/ML; public demo endpoint is best-effort |
@@ -50,7 +50,7 @@ The team requirement PDF defines 12 functional requirement groups and five non-f
 | Performance | Indexed relational schema, bounded list endpoints, request validation and CI build checks | No latency SLO or load capacity is claimed until k6 runs are measured |
 | Usability | Responsive pages, consistent forms, map-based booking, accessible show/hide password control | Test desktop and mobile viewport sizes |
 | Scalability | Cloudflare Worker + Supabase managed Postgres; k6 test script included | Free-tier quotas apply; 100,000 concurrent users are not verified |
-| Security | Supabase RLS on public tables, user-scoped clients, server-side role checks and guarded RPCs | Security advisor was clean at last check; still perform role-isolation and abuse tests |
+| Security | Supabase RLS on public tables, user-scoped clients, server-side role checks and guarded RPCs | RLS and role checks are enabled; the advisor currently flags two SECURITY DEFINER shared-ride RPCs that intentionally enforce auth.uid() and passenger-role checks. Review their function bodies and run role-isolation/abuse tests before claiming a clean audit |
 | Portability | Responsive web frontend on modern browsers | Native mobile background GPS and push notifications are outside this web build |
 
 ## $0 academic deployment envelope
@@ -58,7 +58,7 @@ The team requirement PDF defines 12 functional requirement groups and five non-f
 - Cloudflare Workers Free currently includes 100,000 requests per day and a 10 ms CPU limit per invocation. Stay within the published free quota.
 - Supabase Free currently includes a 500 MB database and 50,000 monthly active users; free projects may pause after one week of inactivity.
 - OpenStreetMap map tiles and the public OSRM routing demo are community/best-effort services, not commercial SLAs. OSRM's public demo asks for no more than one request per second and reasonable non-commercial use.
-- Public Nominatim geocoding has a maximum of one request per second per application. Prefer map coordinate selection for normal ride booking; avoid autocomplete or bulk geocoding.
+- Ride booking uses map-selected coordinates and does not geocode typed addresses. If geocoding is added later, public Nominatim has a maximum of one request per second per application; avoid autocomplete or bulk geocoding.
 - The above services can support a university demonstration at low traffic. They do not guarantee zero cost at arbitrary traffic, commercial uptime, or 100,000 concurrent users. No paid service or payment gateway should be added without explicit approval.
 
 ## Manual acceptance sequence
