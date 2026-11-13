@@ -4,7 +4,7 @@ on:
     branches: [main]
     paths: ['frontend/**', '.github/workflows/frontend-ci.yml']
   push:
-    branches: [feature/uber-style-platform]
+    branches: [feature/drive-full-platform]
     paths: ['frontend/**', '.github/workflows/frontend-ci.yml']
 jobs:
   frontend-js:
