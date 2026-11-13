@@ -40,3 +40,30 @@ create policy payment_owner_insert on public.payment_records for insert to authe
 create policy reviews_public_read on public.reviews for select to anon,authenticated using(true);
 create policy review_owner_insert on public.reviews for insert to authenticated with check(reviewer_id=auth.uid());
 insert into public.tourist_places(name,city,description,category,latitude,longitude) values('Lalbagh Fort','Dhaka','Mughal-era fort complex','Heritage',23.7188,90.3880),('Ahsan Manzil','Dhaka','Historic pink palace museum','Heritage',23.7089,90.4060),('National Parliament House','Dhaka','Landmark designed by Louis Kahn','Architecture',23.7625,90.3785),('Patenga Sea Beach','Chattogram','Coastal promenade','Nature',22.2362,91.7906),('Foy''s Lake','Chattogram','Lake and recreation area','Nature',22.3660,91.8000);
+
+
+-- Security hardening: users cannot promote themselves or self-verify.
+create or replace function public.protect_profile_privileges() returns trigger
+language plpgsql security definer set search_path=public as $$
+begin
+  if auth.uid() = old.id and (new.role <> old.role or new.is_verified <> old.is_verified or new.is_active <> old.is_active) then
+    raise exception 'Role, verification and account status are administrator-controlled.';
+  end if;
+  return new;
+end; $$;
+create trigger protect_profile_privileges before update on public.profiles
+for each row execute procedure public.protect_profile_privileges();
+
+-- Drivers can discover open requests; only verified drivers can accept them.
+create policy verified_drivers_discover_requests on public.rides for select to authenticated
+using(status='requested' and exists(select 1 from public.profiles p where p.id=auth.uid() and p.role='driver' and p.is_verified=true));
+drop policy if exists driver_update_assigned_ride on public.rides;
+create policy driver_update_assigned_ride on public.rides for update to authenticated
+using(driver_id=auth.uid() or (driver_id is null and status='requested' and exists(select 1 from public.profiles p where p.id=auth.uid() and p.role='driver' and p.is_verified=true)))
+with check(driver_id=auth.uid());
+
+-- Prevent two active/pending rentals from overlapping for the same vehicle.
+create extension if not exists btree_gist;
+alter table public.rental_bookings add constraint rental_no_overlapping_active
+exclude using gist (vehicle_id with =, tstzrange(start_at,end_at,'[)') with &&)
+where (status in ('pending','accepted','active'));
