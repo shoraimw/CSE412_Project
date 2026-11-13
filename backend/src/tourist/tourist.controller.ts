@@ -1,48 +1,7 @@
-import { BadRequestException, Body, Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/common';
-import { Request } from 'express';
-import { AuthGuard } from '../auth/auth.guard';
-import { CreateTouristPlanDto } from './tourist.dto';
-import { TouristService } from './tourist.service';
-
-type AuthenticatedRequest = Request & { user: { id: number } };
-
-@Controller('tourist')
-export class TouristController {
-  constructor(private readonly tourist: TouristService) {}
-
-  @Get('places')
-  getPlaces(@Query('city') city?: string, @Query('category') category?: string, @Query('q') search?: string) {
-    return this.tourist.getPlaces(city, category, search);
-  }
-
-  @Get('recommendations')
-  getRecommendations(
-    @Query('city') city = 'Dhaka',
-    @Query('interests') interests = '',
-    @Query('lat') latitude?: string,
-    @Query('lng') longitude?: string
-  ) {
-    let origin: { lat: number; lng: number } | undefined;
-    if (latitude !== undefined || longitude !== undefined) {
-      const lat = Number(latitude);
-      const lng = Number(longitude);
-      if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-        throw new BadRequestException('A valid latitude and longitude pair is required.');
-      }
-      origin = { lat, lng };
-    }
-    return this.tourist.getRecommendations(city, interests, origin);
-  }
-
-  @Post('plans')
-  @UseGuards(AuthGuard)
-  createPlan(@Req() request: AuthenticatedRequest, @Body() dto: CreateTouristPlanDto) {
-    return this.tourist.createPlan(request.user.id, dto);
-  }
-
-  @Get('plans')
-  @UseGuards(AuthGuard)
-  getPlans(@Req() request: AuthenticatedRequest) {
-    return this.tourist.getPlans(request.user.id);
-  }
+import {BadRequestException,Body,Controller,Get,Post,Query,Req,UseGuards} from '@nestjs/common';import {Request} from 'express';import {AuthGuard} from '../auth/auth.guard';import {CreateTouristPlanDto} from './tourist.dto';import {TouristService} from './tourist.service';type AR=Request&{user:{id:string;accessToken:string}};
+@Controller('tourist')export class TouristController{constructor(private readonly tourist:TouristService){}
+@Get('places')getPlaces(@Query('city')city?:string,@Query('category')category?:string,@Query('q')search?:string){return this.tourist.getPlaces(city,category,search);}
+@Get('recommendations')getRecommendations(@Query('city')city='Dhaka',@Query('interests')interests='',@Query('lat')lat?:string,@Query('lng')lng?:string){let origin:any;if(lat!==undefined||lng!==undefined){const a=Number(lat),b=Number(lng);if(!Number.isFinite(a)||!Number.isFinite(b)||a< -90||a>90||b< -180||b>180)throw new BadRequestException('A valid latitude and longitude pair is required.');origin={lat:a,lng:b};}return this.tourist.getRecommendations(city,interests,origin);}
+@Post('plans')@UseGuards(AuthGuard)createPlan(@Req()r:AR,@Body()d:CreateTouristPlanDto){return this.tourist.createPlan(r.user.id,r.user.accessToken,d);}
+@Get('plans')@UseGuards(AuthGuard)getPlans(@Req()r:AR){return this.tourist.getPlans(r.user.id,r.user.accessToken);}
 }
