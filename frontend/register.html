@@ -1,23 +1,26 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DRIVE — Create account</title>
-  <link rel="stylesheet" href="css/style.css">
-  <script src="js/api.js" defer></script><script src="js/auth.js" defer></script>
-</head>
-<body>
-  <header class="topbar"><a class="brand" href="index.html">DRIVE</a><nav><a href="login.html">Login</a><a href="vehicles.html">Vehicle Rental</a></nav></header>
-  <main class="form-wrap"><section class="panel form-panel">
-    <p class="eyebrow">AUTHENTICATION & SECURITY</p><h1>Create your account</h1>
-    <p class="small-note">New accounts start as Passenger. Driver and Vehicle Owner access requires a separate verification process.</p>
-    <form id="registerForm">
-      <label>Full Name<input type="text" name="name" required maxlength="80" autocomplete="name" placeholder="Enter your full name"></label>
-      <label>Email Address<input type="email" name="email" required autocomplete="email" placeholder="Enter your email"></label>
-      <label>Phone Number<input type="tel" name="phone" maxlength="30" autocomplete="tel" placeholder="Enter your phone number"></label>
-      <label>Password<input type="password" name="password" minlength="8" maxlength="72" required autocomplete="new-password" placeholder="At least 8 characters"></label>
-      <button type="submit" class="button">Create account</button><p id="registerMessage" class="message" aria-live="polite"></p>
-    </form>
-    <p>Already have an account? <a href="login.html">Log in</a></p>
-  </section></main><footer>DRIVE · CSE412 Academic Project</footer>
-</body></html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DRIVE — Create account</title><link rel="stylesheet" href="css/style.css"><style>
+/* Accessible password visibility control */
+.password-field{position:relative;display:flex;align-items:center;width:100%}
+.password-field input{width:100%;padding-right:76px!important}
+.password-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:transparent;color:#68758a;display:inline-flex;align-items:center;gap:5px;padding:7px 9px;border-radius:8px;cursor:pointer;font:600 12px Arial,sans-serif;transition:background .2s,color .2s}
+.password-toggle:hover{background:#eef2f6;color:#172b4d}
+.password-toggle svg{width:17px;height:17px;transition:transform .2s,opacity .2s}
+.password-toggle:active svg{transform:scale(.88)}
+.password-toggle:focus-visible{outline:2px solid #e98732;outline-offset:2px}
+</style>
+<script src="js/api.js" defer></script><script src="js/auth.js" defer></script></head><body>
+<header class="topbar"><a class="brand" href="index.html">DRIVE</a><nav><a href="login.html">Login</a><a href="vehicles.html">Vehicle Rental</a></nav></header>
+<main class="form-wrap"><section class="panel form-panel"><p class="eyebrow">AUTHENTICATION & SECURITY</p><h1>Create your account</h1>
+<p class="small-note">New accounts start as Passenger. Driver and Vehicle Owner access requires a separate verification process.</p>
+<form id="registerForm">
+<label>Full Name<input type="text" name="name" required maxlength="80" autocomplete="name" placeholder="Enter your full name"></label>
+<label>Email Address<input type="email" name="email" required autocomplete="email" placeholder="Enter your email"></label>
+<label>Phone Number<input type="tel" name="phone" maxlength="30" autocomplete="tel" placeholder="Enter your phone number"></label>
+<label>Password<span class="password-field"><input id="registerPassword" type="password" name="password" minlength="8" maxlength="72" required autocomplete="new-password" placeholder="At least 8 characters">
+<button class="password-toggle" type="button" data-password-toggle="registerPassword" aria-label="Show password" aria-pressed="false">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg><span>Show</span></button></span></label>
+<button type="submit" class="button">Create account</button><p id="registerMessage" class="message" aria-live="polite"></p>
+</form><p>Already have an account? <a href="login.html">Log in</a></p>
+</section></main><footer>DRIVE · CSE412 Academic Project</footer></body></html>
