@@ -71,3 +71,10 @@ The team requirement PDF defines 12 functional requirement groups and five non-f
 6. Confirm a different passenger cannot read the ride or its tracking data.
 7. Test rental booking overlap, owner approval, fare quote, currency quote, safety settings, private share expiry, SOS record, tourist plan and notification history.
 8. Run the staged k6 profile against a dedicated test environment. Record error rate and p50/p95/p99 latency; never infer 100k concurrency from registered-user count.
+
+## Manual UI and route tests
+- On the passenger dashboard, select pickup and destination on the Leaflet map, drag markers, use current location, preview OSRM alternatives, and submit a ride. Confirm human-readable addresses resolve and server-side fare/distance use the road route when OSRM is available.
+- In a second verified driver account, claim the request, transition through arriving/in-progress, allow browser location permission and keep the driver page open. Confirm the passenger's tracking map refreshes with the driver's latest GPS position.
+- Create a shared car/CNG request. After a verified driver claims it, sign in as another passenger, join it, and verify the seat count and per-passenger fare share. Attempt a second join after capacity is full and confirm it is rejected.
+- Test email OTP only after changing the Supabase email template to use `{{ .Token }}`. Test password login and refresh after access-token expiry.
+- Confirm non-admin users cannot update `profiles.role`, `is_verified`, or `is_active` directly through PostgREST.
