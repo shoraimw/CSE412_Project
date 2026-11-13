@@ -88,8 +88,8 @@ async function loadVerifiedDrivers() {
   drivers.forEach(driver => {
     const card = makeNode('div', 'driver-row');
     const details = makeNode('div');
-    details.append(makeNode('strong', '', driver.name), makeNode('small', '', driver.vehicle + ' · Rating ' + driver.rating));
-    card.append(details, makeNode('span', 'demo-verified', driver.verificationStatus));
+    details.append(makeNode('strong', '', driver.full_name || driver.name), makeNode('small', '', 'Verified DRIVE driver · Rating ' + (driver.average_rating ?? 'Not rated')));
+    card.append(details, makeNode('span', 'demo-verified', 'Verified'));
     container.append(card);
   });
 }
@@ -146,7 +146,7 @@ function renderActiveTrip() {
 }
 async function loadActiveTrip() {
   const trips = await driveRequest('/safety/trips/active');
-  safetyState.activeTrip = trips.length ? trips[trips.length - 1] : null;
+  safetyState.activeTrip = trips.length ? trips[0] : null;
   renderActiveTrip();
   if (safetyState.activeTrip) startLocationWatch(safetyState.activeTrip.id);
 }
