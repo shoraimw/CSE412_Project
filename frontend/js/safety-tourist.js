@@ -109,7 +109,7 @@ function renderShareContactChoices() {
   });
 }
 function normalizeWhatsAppNumber(phone) {
-  let digits = String(phone || '').replace(/\\D/g, '');
+  let digits = String(phone || '').replace(/\D/g, '');
   if (digits.startsWith('01')) digits = '88' + digits;
   else if (digits.startsWith('1') && digits.length === 10) digits = '880' + digits;
   return digits;
