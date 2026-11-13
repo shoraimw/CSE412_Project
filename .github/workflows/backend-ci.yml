@@ -2,16 +2,10 @@ name: DRIVE backend CI
 on:
   pull_request:
     branches: [main]
-    paths:
-      - 'backend/**'
-      - 'supabase/**'
-      - '.github/workflows/backend-ci.yml'
+    paths: ['backend/**', 'supabase/**', '.github/workflows/backend-ci.yml']
   push:
     branches: [feature/drive-full-platform]
-    paths:
-      - 'backend/**'
-      - 'supabase/**'
-      - '.github/workflows/backend-ci.yml'
+    paths: ['backend/**', 'supabase/**', '.github/workflows/backend-ci.yml']
 jobs:
   backend-build:
     runs-on: ubuntu-latest
@@ -23,7 +17,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: backend/package-lock.json
       - run: npm install
       - run: npm run build
