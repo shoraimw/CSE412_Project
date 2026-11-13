@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "feature-drive-full-platform-cse412-project",
+  "name": "cse412-project",
   "main": "backend/src/worker.ts",
   "compatibility_date": "2026-11-13",
   "compatibility_flags": [
@@ -34,5 +34,6 @@
     "ioredis": "./backend/src/empty-optional-module.ts",
     "amqplib": "./backend/src/empty-optional-module.ts",
     "amqp-connection-manager": "./backend/src/empty-optional-module.ts"
-  }
+  },
+  "preview_urls": true
 }
