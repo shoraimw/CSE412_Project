@@ -65,3 +65,36 @@ create index if not exists rides_vehicle_idx on public.rides(vehicle_id);
 create index if not exists safety_alerts_ride_idx on public.safety_alerts(ride_id);
 create index if not exists trip_locations_driver_idx on public.trip_locations(driver_id);
 create index if not exists trusted_contacts_user_idx on public.trusted_contacts(user_id);
+
+-- Additional city field used by the rental catalogue filters.
+alter table public.vehicles add column if not exists city text not null default 'Dhaka';
+
+-- Claiming a ride request is atomic: row lock prevents two drivers claiming one request.
+create or replace function public.drive_claim_request(p_request_id uuid)
+returns uuid
+language plpgsql
+security definer
+set search_path = public, private
+as $$
+declare
+  v_driver uuid := auth.uid();
+  v_request public.ride_requests%rowtype;
+  v_ride_id uuid;
+begin
+  if v_driver is null then raise exception 'Authentication required'; end if;
+  if private.drive_role() <> 'driver'::public.drive_role then raise exception 'Driver role required'; end if;
+  if not exists(select 1 from public.profiles p where p.id=v_driver and p.is_verified=true and p.is_active=true) then
+    raise exception 'Verified active driver required';
+  end if;
+  select * into v_request from public.ride_requests where id=p_request_id for update;
+  if not found or v_request.status <> 'requested' then raise exception 'Ride request is no longer available'; end if;
+  if v_request.women_safety_preference and not exists(
+    select 1 from public.profiles p where p.id=v_driver and p.is_verified=true
+  ) then raise exception 'This ride requires a verified driver'; end if;
+  update public.ride_requests set status='matched',updated_at=now() where id=p_request_id;
+  insert into public.rides(request_id,driver_id,status) values(p_request_id,v_driver,'matched') returning id into v_ride_id;
+  return v_ride_id;
+end;
+$$;
+revoke all on function public.drive_claim_request(uuid) from public, anon;
+grant execute on function public.drive_claim_request(uuid) to authenticated;
