@@ -1,0 +1,40 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cse412-project",
+  "main": "backend/src/worker.ts",
+  "compatibility_date": "2026-11-13",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "assets": {
+    "directory": "./frontend",
+    "binding": "ASSETS",
+    "run_worker_first": [
+      "/api/*"
+    ]
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true
+    }
+  },
+  "alias": {
+    "@nestjs/websockets/socket-module": "./backend/src/empty-optional-module.ts",
+    "@nestjs/microservices/microservices-module": "./backend/src/empty-optional-module.ts",
+    "@nestjs/microservices": "./backend/src/empty-optional-module.ts",
+    "@nestjs/platform-socket.io": "./backend/src/empty-optional-module.ts",
+    "@grpc/grpc-js": "./backend/src/empty-optional-module.ts",
+    "@grpc/proto-loader": "./backend/src/empty-optional-module.ts",
+    "kafkajs": "./backend/src/empty-optional-module.ts",
+    "mqtt": "./backend/src/empty-optional-module.ts",
+    "nats": "./backend/src/empty-optional-module.ts",
+    "ioredis": "./backend/src/empty-optional-module.ts",
+    "amqplib": "./backend/src/empty-optional-module.ts",
+    "amqp-connection-manager": "./backend/src/empty-optional-module.ts"
+  },
+  "preview_urls": true,
+  "previews": {}
+}

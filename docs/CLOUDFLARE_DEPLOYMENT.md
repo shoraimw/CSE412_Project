@@ -1,54 +1,66 @@
-# DRIVE — Cloudflare deployment
+# DRIVE — Cloudflare-only deployment
 
-DRIVE is deployed as a Cloudflare Worker with Workers Static Assets. The same Worker serves the frontend and routes `/api/*` requests to the NestJS application through Cloudflare's Node.js HTTP server compatibility layer. Supabase remains the PostgreSQL/Auth provider.
-
-## Cloudflare architecture
-- Cloudflare Workers: frontend edge delivery and API runtime.
-- Workers Static Assets: the existing multi-page HTML/CSS/JS frontend from `frontend/`.
-- NestJS + Express: existing API, adapted through `cloudflare:node` `httpServerHandler`.
-- Supabase: PostgreSQL, Auth and row-level security.
-
-No Vercel deployment is required.
+## Architecture
+- Cloudflare Worker serves the static multi-page frontend from `frontend/`.
+- The same Worker routes `/api/*` to the NestJS REST API through Cloudflare's documented `cloudflare:node` `httpServerHandler` integration.
+- Supabase provides PostgreSQL, Auth and RLS.
+- No Vercel dependency.
 
 ## Local development
-Use Node.js 22.18 or later.
-
+Use Node.js 22+.
 1. Copy `.dev.vars.example` to `.dev.vars`.
-2. Fill in the existing Supabase project URL and publishable/anon key. Keep `.dev.vars` private and never commit it.
-3. Install dependencies: `npm install`.
-4. Start the Cloudflare Workers local runtime: `npm run dev`.
-5. Open the local URL printed by `cf dev`. The frontend and `/api` are same-origin.
+2. Set `SUPABASE_URL` and `SUPABASE_ANON_KEY` locally.
+3. Run `npm install`.
+4. Run `npm run dev` and open the URL printed by Wrangler.
 
-For the standalone NestJS development server, run `cd backend && npm install && npm run start:dev`; if using a separate static server, set `window.__DRIVE_API_BASE__` to that API's `/api` URL before loading `frontend/js/api.js`.
+## Worker configuration
+`wrangler.jsonc` is the only deployment configuration:
+- `main`: `backend/src/worker.ts`
+- `assets.directory`: `./frontend`
+- `assets.run_worker_first`: `/api/*`
+- `compatibility_flags`: `nodejs_compat`
+- `previews`: Preview configuration block
+- Optional NestJS messaging and websocket transports not used by this REST-only app are aliased to a no-op module so Wrangler does not bundle unsupported transport clients.
 
-## Configure Cloudflare secrets
-The Worker requires these secrets:
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
+## Preview and production isolation
+- Production Worker: `cse412-project`
+- Feature Preview name: `feature/drive-full-platform`
+- Preview URL: https://feature-drive-full-platform-cse412-project.nexorabd.workers.dev
+- Latest unique deployment URL: https://4947c6b9-cse412-project.nexorabd.workers.dev
 
-They are declared as required secrets in `cloudflare.config.ts`. Set them in the Cloudflare Worker settings or with the Cloudflare CLI secret workflow. Never put their values in Git or in `cloudflare.config.ts`.
+The feature branch is deployed using `wrangler preview`, not `wrangler deploy`. Do not promote it to production until browser and API smoke tests pass.
 
-`CORS_ORIGIN` is optional; leave it empty for the same-origin frontend/API deployment. If a separate trusted frontend origin is added later, configure an explicit comma-separated allowlist.
+## Preview secrets
+The Cloudflare Build trigger has two build-time variables:
+- `SUPABASE_URL` (non-secret project URL)
+- `SUPABASE_ANON_KEY` (stored as a secret; value is the Supabase publishable key)
 
-## Build and deploy
-- `npm run build` — build and validate Cloudflare Worker output without deploying.
-- `npm run preview` — deploy a Cloudflare Worker Preview.
-- `npm run deploy` — deploy the Worker to Cloudflare.
+The deployment command writes these to a temporary env file inside the isolated build container, then uses:
+- `wrangler preview base-config secret bulk` to configure future previews.
+- `wrangler preview secret bulk` to configure the current feature preview.
 
-The connected Workers Builds project should use:
-- Root directory: `/`
-- Build command: `npm run build`
-- Deploy command: `npx cf deploy`
-- Preview command: `npx cf previews deploy`
+The temporary file is deleted after successful secret upload. Secret values are not committed to Git and are not printed in build logs. The Worker uses only the Supabase publishable key with RLS; never use a service-role key.
 
-Preview builds need preview secrets configured separately from production secrets.
+## Commands
+- `npm run build`: `wrangler deploy --dry-run`, validates and bundles without deploying.
+- `npm run dev`: local Wrangler Worker runtime.
+- `npm run deploy`: production deployment. Do not run from the feature branch.
 
-## Runtime verification required
-The NestJS-on-Workers adapter uses Node.js HTTP server compatibility. A successful TypeScript build is not sufficient to prove runtime compatibility. Verify these in a Cloudflare Preview before promoting:
-1. `GET /api/health` returns 200.
-2. Registration/login works against the existing Supabase Auth project.
-3. Authenticated profile and ride APIs work.
-4. Static HTML, CSS, JS and image assets load.
-5. CORS and error responses behave as expected.
+Cloudflare Workers Builds feature-branch deploy command:
+`npx wrangler preview --worker-name cse412-project --name feature-drive-full-platform`, followed by preview secret setup.
 
-Cloudflare Workers Free currently has a 100,000-request daily limit and 10 ms CPU per invocation. Review current account limits and measure actual concurrent load before making any capacity claim. See [Cloudflare Workers limits](https://developers.cloudflare.com/workers/platform/limits/) and [pricing](https://developers.cloudflare.com/workers/platform/pricing/).
+## Verification status
+- Wrangler dry-run build: passed.
+- NestJS backend build: passed.
+- Frontend JavaScript syntax check: passed.
+- Cloudflare Preview deployment: successful; Worker module and static assets uploaded.
+- Supabase Preview secrets: both configured successfully.
+
+Still required before production:
+1. Open the Preview URL in a browser and verify `GET /api/health` returns 200.
+2. Test registration/login against Supabase Auth.
+3. Test profile, ride booking, driver claim, safety/SOS, rental and admin APIs.
+4. Verify RLS isolation with two separate test users.
+5. Run staged k6 tests before any capacity claim.
+
+A successful build/deploy does not prove all workflows work end-to-end. Production has not been promoted or overwritten.
