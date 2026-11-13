@@ -52,3 +52,20 @@ The NestJS-on-Workers adapter uses Node.js HTTP server compatibility. A successf
 5. CORS and error responses behave as expected.
 
 Cloudflare Workers Free currently has a 100,000-request daily limit and 10 ms CPU per invocation. Review current account limits and measure actual concurrent load before making any capacity claim. See [Cloudflare Workers limits](https://developers.cloudflare.com/workers/platform/limits/) and [pricing](https://developers.cloudflare.com/workers/platform/pricing/).
+
+
+## Current Preview deployment (2026-11-13)
+A Cloudflare Preview was successfully deployed from `feature/drive-full-platform`:
+- Preview URL: https://feature-drive-full-platform-cse412-project.nexorabd.workers.dev
+- Unique deployment URL: https://c4a828ae-cse412-project.nexorabd.workers.dev
+- The production Worker has not been promoted or overwritten by this Preview.
+
+### Add Supabase secrets to this Preview
+Preview settings are separate from Production settings:
+1. Open Workers & Pages → `cse412-project`.
+2. Use the environment selector at the top (currently showing Production) and select the Preview named `feature/drive-full-platform` or Preview settings.
+3. Open Settings → Variables and secrets.
+4. Add encrypted secrets `SUPABASE_URL` and `SUPABASE_ANON_KEY` using the existing DRIVE Supabase project's URL and publishable/anon key.
+5. Save and redeploy the Preview if the dashboard asks.
+
+The API health route is expected to be available before secrets are set; database-backed endpoints return a configuration error until both secrets are present. Do not add the service-role key; the app uses the publishable/anon key with Supabase RLS.
