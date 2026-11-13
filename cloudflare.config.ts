@@ -1,11 +1,12 @@
 import { bindings, defineConfig } from 'cf/config';
-import * as entrypoint from './backend/src/worker.ts' with { type: 'cf-worker' };
+import * as entrypoint from './backend/dist-cloudflare/worker.js' with { type: 'cf-worker' };
 
-export default defineConfig({
+export default defineConfig(({ isPreview }) => ({
   worker: {
     name: 'cse412-project',
     entrypoint,
     compatibilityDate: '2026-11-13',
+    compatibilityFlags: ['nodejs_compat'],
     env: {
       SUPABASE_URL: bindings.secret(),
       SUPABASE_ANON_KEY: bindings.secret(),
@@ -21,4 +22,4 @@ export default defineConfig({
       traces: { enabled: true, headSamplingRate: 0.1 },
     },
   },
-});
+}));
