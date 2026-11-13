@@ -1,39 +1,5 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcryptjs';
-import { users } from '../data/store';
-import { RegisterDto } from './dto/register.dto';
-import { LoginDto } from './dto/login.dto';
-
-@Injectable()
-export class AuthService {
-  constructor(private readonly jwt: JwtService) {}
-
-  async register(dto: RegisterDto) {
-    const email = dto.email.trim().toLowerCase();
-    if (users.some(user => user.email === email)) throw new BadRequestException('This email is already registered.');
-    const user = {
-      id: users.length ? Math.max(...users.map(item => item.id)) + 1 : 1,
-      name: dto.name.trim(), email, phone: dto.phone?.trim() ?? '',
-      // Never trust a role supplied by a public registration request.
-      role: 'Passenger' as const,
-      passwordHash: await bcrypt.hash(dto.password, 12)
-    };
-    users.push(user);
-    return this.makeLoginResponse(user);
-  }
-
-  async login(dto: LoginDto) {
-    const user = users.find(item => item.email === dto.email.trim().toLowerCase());
-    if (!user || !(await bcrypt.compare(dto.password, user.passwordHash))) {
-      throw new UnauthorizedException('Incorrect email or password.');
-    }
-    return this.makeLoginResponse(user);
-  }
-
-  private async makeLoginResponse(user: (typeof users)[number]) {
-    const accessToken = await this.jwt.signAsync({ sub: user.id, email: user.email });
-    const { passwordHash, ...safeUser } = user;
-    return { message: 'Login successful.', accessToken, expiresIn: '1d', user: safeUser };
-  }
-}
+import {BadRequestException,Injectable,UnauthorizedException} from '@nestjs/common';import {DatabaseService} from '../database/database.service';import {RegisterDto} from './dto/register.dto';import {LoginDto} from './dto/login.dto';
+@Injectable() export class AuthService{constructor(private db:DatabaseService){}
+async register(dto:RegisterDto){const {data,error}=await this.db.publicClient().auth.signUp({email:dto.email.trim().toLowerCase(),password:dto.password,options:{data:{full_name:dto.name.trim(),phone:dto.phone?.trim()||null}}});if(error)throw new BadRequestException(error.message);return {message:data.session?'Account created successfully.':'Account created. Confirm your email before logging in.',accessToken:data.session?.access_token??null,refreshToken:data.session?.refresh_token??null,expiresIn:data.session?.expires_in??null,user:data.user?{id:data.user.id,email:data.user.email}:null,requiresEmailConfirmation:!data.session};}
+async login(dto:LoginDto){const client=this.db.publicClient();const {data,error}=await client.auth.signInWithPassword({email:dto.email.trim().toLowerCase(),password:dto.password});if(error||!data.session)throw new UnauthorizedException('Incorrect credentials or email not confirmed.');const {data:p,error:e}=await client.from('profiles').select('id,full_name,phone,avatar_path,role,is_verified,is_active').eq('id',data.user.id).single();if(e||!p||!p.is_active)throw new UnauthorizedException('Account is unavailable.');return {message:'Login successful.',accessToken:data.session.access_token,refreshToken:data.session.refresh_token,expiresIn:data.session.expires_in,user:{...p,email:data.user.email}};}
+async refresh(refreshToken:string){const {data,error}=await this.db.publicClient().auth.refreshSession({refresh_token:refreshToken});if(error||!data.session)throw new UnauthorizedException('Session expired. Please log in again.');return {accessToken:data.session.access_token,refreshToken:data.session.refresh_token,expiresIn:data.session.expires_in};}}
