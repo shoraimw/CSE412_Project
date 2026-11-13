@@ -8,3 +8,18 @@ const otpPanel=document.getElementById('emailOtpPanel');
 otpToggle?.addEventListener('click',()=>{const open=otpPanel.hidden;otpPanel.hidden=!open;otpToggle.textContent=open?'Use password instead':'Sign in with an email code instead';if(open){const email=document.querySelector('#loginForm input[name="email"]')?.value||'';document.getElementById('otpEmail').value=email;document.getElementById('otpEmail').focus();}});
 document.getElementById('sendOtpButton')?.addEventListener('click',async()=>{const email=document.getElementById('otpEmail').value.trim();const button=document.getElementById('sendOtpButton');if(!email){showAuthMessage('otpMessage','Enter your account email first.');return;}button.disabled=true;try{const result=await driveRequest('/auth/email-otp',{method:'POST',body:JSON.stringify({email})});showAuthMessage('otpMessage',result.message,true);}catch(e){showAuthMessage('otpMessage',e.message);}finally{button.disabled=false;}});
 document.getElementById('verifyOtpButton')?.addEventListener('click',async()=>{const email=document.getElementById('otpEmail').value.trim(),token=document.getElementById('otpCode').value.trim(),button=document.getElementById('verifyOtpButton');if(!email||!/^[0-9]{6}$/.test(token)){showAuthMessage('otpMessage','Enter a valid email and 6-digit code.');return;}button.disabled=true;try{const result=await driveRequest('/auth/verify-email-otp',{method:'POST',body:JSON.stringify({email,token})});localStorage.setItem(DRIVE_TOKEN_KEY,result.accessToken);localStorage.setItem('drive_refresh_token',result.refreshToken);localStorage.setItem('drive_user',JSON.stringify(result.user));showAuthMessage('otpMessage','Verified. Opening your dashboard…',true);location.href='dashboard.html';}catch(e){showAuthMessage('otpMessage',e.message);}finally{button.disabled=false;}});
+
+/* Accessible password visibility control with a subtle icon transition. */
+document.querySelectorAll('.password-field').forEach(wrapper=>{
+ const input=wrapper.querySelector('input[type="password"],input[type="text"]');
+ const toggle=wrapper.querySelector('.password-toggle');
+ if(!input||!toggle)return;
+ toggle.addEventListener('click',()=>{
+  const showing=input.type==='text';
+  input.type=showing?'password':'text';
+  toggle.setAttribute('aria-pressed',String(!showing));
+  toggle.setAttribute('aria-label',showing?'Show password':'Hide password');
+  wrapper.classList.toggle('is-visible',!showing);
+  input.focus({preventScroll:true});
+ });
+});
