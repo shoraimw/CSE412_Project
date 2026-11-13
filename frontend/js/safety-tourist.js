@@ -108,6 +108,31 @@ function renderShareContactChoices() {
     container.append(label);
   });
 }
+function normalizeWhatsAppNumber(phone) {
+  let digits = String(phone || '').replace(/\\D/g, '');
+  if (digits.startsWith('01')) digits = '88' + digits;
+  else if (digits.startsWith('1') && digits.length === 10) digits = '880' + digits;
+  return digits;
+}
+function addContactMessageActions(container, contacts, message, labelPrefix) {
+  if (!contacts || !contacts.length) return;
+  const group = makeNode('div', 'contact-message-actions');
+  group.append(makeNode('p', 'muted', 'Choose a contact method. Your messaging app will open; you must review and press Send.'));
+  contacts.forEach(contact => {
+    const row = makeNode('div', 'contact-message-row');
+    row.append(makeNode('strong', '', contact.name));
+    const sms = makeNode('a', 'secondary-button', 'Send SMS');
+    sms.href = 'sms:' + String(contact.phone || '').replace(/[^+0-9]/g, '') + '?body=' + encodeURIComponent(message);
+    const waNumber = normalizeWhatsAppNumber(contact.phone);
+    const whatsapp = makeNode('a', 'secondary-button', 'WhatsApp');
+    whatsapp.href = 'https://wa.me/' + waNumber + '?text=' + encodeURIComponent(message);
+    whatsapp.target = '_blank';
+    whatsapp.rel = 'noopener noreferrer';
+    row.append(sms, whatsapp);
+    group.append(row);
+  });
+  container.append(group);
+}
 function getPosition() {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) return reject(new Error('Geolocation is not supported by this browser.'));
@@ -210,6 +235,9 @@ byId('shareTripButton').addEventListener('click', async () => {
       catch { setText('tripMessage', 'Copy is unavailable. Select and copy the link manually.'); }
     });
     container.append(link, copy);
+    const chosenContacts = safetyState.settings.trustedContacts.filter(contact => contactIds.includes(contact.id));
+    const shareMessage = 'I am sharing my live DRIVE trip with you: ' + shareUrl.toString() + ' (link expires ' + new Date(result.expiresAt).toLocaleString() + ').';
+    addContactMessageActions(container, chosenContacts, shareMessage, 'Trip link');
   } catch (error) { setText('tripMessage', error.message); }
 });
 byId('completeTripButton').addEventListener('click', async () => {
@@ -231,7 +259,11 @@ byId('sosButton').addEventListener('click', async () => {
     if (safetyState.activeTrip) payload.tripId = safetyState.activeTrip.id;
     if (location) payload.location = { lat: location.lat, lng: location.lng };
     const result = await driveRequest('/safety/sos', { method: 'POST', body: JSON.stringify(payload) });
-    setText('sosMessage', result.message);
+    const sosBox = byId('sosMessage');
+    sosBox.replaceChildren(makeNode('p', '', result.message));
+    const where = location ? 'My last shared location: https://maps.google.com/?q=' + location.lat + ',' + location.lng : 'I cannot share my current location right now.';
+    const sosText = 'EMERGENCY: I need help. ' + where + (safetyState.activeTrip ? ' Trip destination: ' + safetyState.activeTrip.destination + '.' : '');
+    addContactMessageActions(sosBox, result.emergencyContacts || [], sosText, 'Emergency');
     await loadAlerts();
     if (safetyState.activeTrip) { safetyState.activeTrip.status = 'EMERGENCY'; renderActiveTrip(); }
   } catch (error) { setText('sosMessage', error.message); }
