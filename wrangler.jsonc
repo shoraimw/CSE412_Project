@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "cse412-project",
+  "name": "feature-drive-full-platform-cse412-project",
   "main": "backend/src/worker.ts",
   "compatibility_date": "2026-11-13",
   "compatibility_flags": [
