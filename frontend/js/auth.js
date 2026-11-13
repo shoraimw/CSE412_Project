@@ -33,6 +33,7 @@ if (loginForm) loginForm.addEventListener('submit', async event => {
   try {
     const result = await driveRequest('/auth/login', { method: 'POST', body: JSON.stringify(data) });
     localStorage.setItem(DRIVE_TOKEN_KEY, result.accessToken);
+    if (result.user) localStorage.setItem('drive_user', JSON.stringify(result.user));
     if (result.refreshToken) localStorage.setItem('drive_refresh_token', result.refreshToken);
     showAuthMessage('loginMessage', 'Login successful. Opening your dashboard…', true);
     window.location.href = 'dashboard.html';
