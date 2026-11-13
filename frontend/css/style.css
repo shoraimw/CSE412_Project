@@ -738,8 +738,9 @@ body > footer {
 .password-field input{padding-right:52px!important}
 .password-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:0;border-radius:8px;background:transparent;color:#738096;display:grid;place-items:center;cursor:pointer;transition:background .18s,color .18s}
 .password-toggle:hover{background:#f1f4f8;color:#172b4d}
-.password-toggle svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;transition:opacity .16s,transform .16s}
-.password-toggle .eye-closed{display:none}
-.password-field.is-visible .eye-open{display:none}
-.password-field.is-visible .eye-closed{display:block}
+.password-toggle svg{position:absolute;width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;transition:opacity .18s ease,transform .18s ease}
+.password-toggle .eye-open{opacity:1;transform:scale(1)}
+.password-toggle .eye-closed{opacity:0;transform:scale(.78)}
+.password-field.is-visible .eye-open{opacity:0;transform:scale(.78)}
+.password-field.is-visible .eye-closed{opacity:1;transform:scale(1)}
 .password-field.is-visible .password-toggle{color:#b76b32}
