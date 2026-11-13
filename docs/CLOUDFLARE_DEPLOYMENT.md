@@ -25,8 +25,7 @@ Use Node.js 22+.
 ## Preview and production isolation
 - Production Worker: `cse412-project`
 - Feature Preview branch: `feature/complete-system-integration`
-- Latest unique Preview deployment (commit `29308b2`): https://1fc62c83-cse412-project.nexorabd.workers.dev
-- The branch alias remains stable and is visible in Workers & Pages → `cse412-project` → Deployments.
+- The current Preview URL is generated for the feature branch and is visible in Workers & Pages → `cse412-project` → Deployments. Use the latest deployment entry for this branch rather than a saved unique deployment URL.
 
 The feature branch is deployed using `wrangler preview`, not `wrangler deploy`. The connected `main` branch is configured to auto-deploy production with `wrangler deploy` after a merge; keep changes in Preview until browser and API smoke tests pass.
 
