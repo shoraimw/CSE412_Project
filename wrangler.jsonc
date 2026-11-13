@@ -35,5 +35,6 @@
     "amqplib": "./backend/src/empty-optional-module.ts",
     "amqp-connection-manager": "./backend/src/empty-optional-module.ts"
   },
-  "preview_urls": true
+  "preview_urls": true,
+  "previews": {}
 }
