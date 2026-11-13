@@ -31,15 +31,11 @@ Use Node.js 22+.
 The feature branch is deployed using `wrangler preview`, not `wrangler deploy`. Do not promote it to production until browser and API smoke tests pass.
 
 ## Preview secrets
-The Cloudflare Build trigger has two build-time variables:
-- `SUPABASE_URL` (non-secret project URL)
-- `SUPABASE_ANON_KEY` (stored as a secret; value is the Supabase publishable key)
+Cloudflare Workers Builds supplies two build-time variables for the Preview build:
+- `SUPABASE_URL` (the public project URL)
+- `SUPABASE_ANON_KEY` (the legacy Supabase anon/publishable key; never use the service-role key)
 
-The deployment command writes these to a temporary env file inside the isolated build container, then uses:
-- `wrangler preview base-config secret bulk` to configure future previews.
-- `wrangler preview secret bulk` to configure the current feature preview.
-
-The temporary file is deleted after successful secret upload. Secret values are not committed to Git and are not printed in build logs. The Worker uses only the Supabase publishable key with RLS; never use a service-role key.
+The Preview build command runs `scripts/configure-preview-secrets.mjs`. It writes the two values to a temporary JSON file, runs `wrangler preview base-config secret bulk`, then deletes the file. Each new Preview receives these secrets. Production uses separately configured Worker secrets with the same names. Secret values are not committed to Git or printed in logs.
 
 ## Commands
 - `npm run build`: `wrangler deploy --dry-run`, validates and bundles without deploying.
