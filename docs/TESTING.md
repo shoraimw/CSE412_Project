@@ -50,7 +50,7 @@ The team requirement PDF defines 12 functional requirement groups and five non-f
 | Performance | Indexed relational schema, bounded list endpoints, request validation and CI build checks | No latency SLO or load capacity is claimed until k6 runs are measured |
 | Usability | Responsive pages, consistent forms, map-based booking, accessible show/hide password control | Test desktop and mobile viewport sizes |
 | Scalability | Cloudflare Worker + Supabase managed Postgres; k6 test script included | Free-tier quotas apply; 100,000 concurrent users are not verified |
-| Security | Supabase RLS on public tables, user-scoped clients, server-side role checks and guarded RPCs | RLS and role checks are enabled; the advisor currently flags two SECURITY DEFINER shared-ride RPCs that intentionally enforce auth.uid() and passenger-role checks. Review their function bodies and run role-isolation/abuse tests before claiming a clean audit |
+| Security | Supabase RLS on public tables, user-scoped clients, server-side role checks and guarded RPCs | RLS and role checks are enabled; privileged shared-ride operations now live in the non-exposed private schema behind SECURITY INVOKER public RPC wrappers. The Supabase security advisor returned no lints after this change; still run role-isolation and abuse tests |
 | Portability | Responsive web frontend on modern browsers | Native mobile background GPS and push notifications are outside this web build |
 
 ## $0 academic deployment envelope
