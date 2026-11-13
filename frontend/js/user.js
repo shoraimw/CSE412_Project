@@ -30,10 +30,7 @@ if (profileForm) {
     } catch (error) { showProfileMessage(error.message); }
   });
 }
-const logoutButton = document.getElementById("logoutButton");
-if (logoutButton) {
-  logoutButton.addEventListener("click", () => {
-    localStorage.removeItem(DRIVE_TOKEN_KEY);
-    window.location.href = "login.html";
-  });
-}
+document.getElementById("logoutButton")?.addEventListener("click", () => {
+  localStorage.removeItem(DRIVE_TOKEN_KEY);
+  window.location.href = "login.html";
+});

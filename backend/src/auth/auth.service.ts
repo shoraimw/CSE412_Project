@@ -15,8 +15,9 @@ export class AuthService {
     const user = {
       id: users.length ? Math.max(...users.map(item => item.id)) + 1 : 1,
       name: dto.name.trim(), email, phone: dto.phone?.trim() ?? '',
-      role: dto.role ?? 'Passenger',
-      passwordHash: await bcrypt.hash(dto.password, 10)
+      // Never trust a role supplied by a public registration request.
+      role: 'Passenger' as const,
+      passwordHash: await bcrypt.hash(dto.password, 12)
     };
     users.push(user);
     return this.makeLoginResponse(user);
@@ -33,6 +34,6 @@ export class AuthService {
   private async makeLoginResponse(user: (typeof users)[number]) {
     const accessToken = await this.jwt.signAsync({ sub: user.id, email: user.email });
     const { passwordHash, ...safeUser } = user;
-    return { message: 'Login successful.', accessToken, user: safeUser };
+    return { message: 'Login successful.', accessToken, expiresIn: '1d', user: safeUser };
   }
 }
