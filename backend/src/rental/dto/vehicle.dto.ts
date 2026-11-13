@@ -1,4 +1,4 @@
-import {Type} from 'class-transformer';import {IsArray,IsIn,IsInt,IsNumber,IsOptional,IsString,Max,MaxLength,Min} from 'class-validator';
+import {Type} from 'class-transformer';import {IsArray,IsBoolean,IsIn,IsInt,IsNumber,IsOptional,IsString,Max,MaxLength,Min} from 'class-validator';
 export class CreateVehicleDto{
  @IsString()@MaxLength(80)make!:string;
  @IsString()@MaxLength(100)model!:string;
