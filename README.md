@@ -89,3 +89,7 @@ East West University · CSE412 · Fall 2026
 - Drivers claim requests through a row-locked database function. A shared car/CNG ride receives a fixed demo seat capacity; the original passenger is inserted as the first occupant.
 - Passengers can discover only matched shared rides with remaining seats. Joining is handled by a row-locked database function that checks capacity and recalculates each passenger's fare share atomically.
 - Administrators can review vehicle-owner applications and acknowledge/resolve recorded SOS alerts. SOS recording does not contact emergency services.
+
+
+## First administrator
+Follow [docs/ADMIN_BOOTSTRAP.md](docs/ADMIN_BOOTSTRAP.md) to provision the first trusted admin account safely through the Supabase SQL Editor.
