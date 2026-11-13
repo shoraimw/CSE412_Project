@@ -1,71 +1,62 @@
-# DRIVE — Cloudflare deployment
+# DRIVE — Cloudflare-only deployment
 
-DRIVE is deployed as a Cloudflare Worker with Workers Static Assets. The same Worker serves the frontend and routes `/api/*` requests to the NestJS application through Cloudflare's Node.js HTTP server compatibility layer. Supabase remains the PostgreSQL/Auth provider.
-
-## Cloudflare architecture
-- Cloudflare Workers: frontend edge delivery and API runtime.
-- Workers Static Assets: the existing multi-page HTML/CSS/JS frontend from `frontend/`.
-- NestJS + Express: existing API, adapted through `cloudflare:node` `httpServerHandler`.
-- Supabase: PostgreSQL, Auth and row-level security.
-
-No Vercel deployment is required.
+## Architecture
+- Cloudflare Worker serves the static multi-page frontend from `frontend/`.
+- The same Worker routes `/api/*` to the NestJS REST API through Cloudflare's documented `cloudflare:node` `httpServerHandler` integration.
+- Supabase provides PostgreSQL, Auth and RLS.
+- No Vercel dependency.
 
 ## Local development
-Use Node.js 22.18 or later.
-
+Use Node.js 22+.
 1. Copy `.dev.vars.example` to `.dev.vars`.
-2. Fill in the existing Supabase project URL and publishable/anon key. Keep `.dev.vars` private and never commit it.
-3. Install dependencies: `npm install`.
-4. Start the Cloudflare Workers local runtime: `npm run dev`.
-5. Open the local URL printed by `cf dev`. The frontend and `/api` are same-origin.
+2. Set `SUPABASE_URL` and `SUPABASE_ANON_KEY` locally.
+3. Run `npm install`.
+4. Run `npm run dev` and open the URL printed by Wrangler.
 
-For the standalone NestJS development server, run `cd backend && npm install && npm run start:dev`; if using a separate static server, set `window.__DRIVE_API_BASE__` to that API's `/api` URL before loading `frontend/js/api.js`.
+## Worker configuration
+`wrangler.jsonc` is the deployment source of truth:
+- `main`: `backend/src/worker.ts`
+- `assets.directory`: `./frontend`
+- `assets.run_worker_first`: `/api/*`
+- `compatibility_flags`: `nodejs_compat`
+- Optional NestJS transports unused by this REST-only app are explicitly aliased to a no-op module so Wrangler does not bundle unsupported messaging clients.
 
-## Configure Cloudflare secrets
-The Worker requires these secrets:
+## Preview and production isolation
+The feature branch uses a dedicated Worker name:
+`feature-drive-full-platform-cse412-project`
+
+Preview URL:
+https://feature-drive-full-platform-cse412-project.nexorabd.workers.dev
+
+The production Worker remains:
+`cse412-project`
+
+Do not change the feature branch's Wrangler name to `cse412-project`; that would risk deploying preview code directly over production. Production should only use the production Worker name from the main branch after all preview smoke tests pass.
+
+## Secrets
+Configure encrypted Worker secrets on the feature preview Worker:
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
 
-They are declared as required secrets in `cloudflare.config.ts`. Set them in the Cloudflare Worker settings or with the Cloudflare CLI secret workflow. Never put their values in Git or in `cloudflare.config.ts`.
+Use the existing DRIVE Supabase project. The application uses the publishable/legacy anon key with RLS. Never use or expose a service-role key.
 
-`CORS_ORIGIN` is optional; leave it empty for the same-origin frontend/API deployment. If a separate trusted frontend origin is added later, configure an explicit comma-separated allowlist.
+## Commands
+- `npm run build`: `wrangler deploy --dry-run`, validates and bundles without deploying.
+- `npm run dev`: local Wrangler Worker runtime.
+- `npm run deploy`: deploys to the Worker name declared in `wrangler.jsonc`.
 
-## Build and deploy
-- `npm run build` — build and validate Cloudflare Worker output without deploying.
-- `npm run preview` — deploy a Cloudflare Worker Preview.
-- `npm run deploy` — deploy the Worker to Cloudflare.
-
-The connected Workers Builds project should use:
+Cloudflare Workers Builds for the feature branch:
+- Build command: `npm install && npm run build`
+- Deploy command: `npx wrangler deploy`
 - Root directory: `/`
-- Build command: `npm run build`
-- Deploy command: `npx cf deploy`
-- Preview command: `npx cf previews deploy`
 
-Preview builds need preview secrets configured separately from production secrets.
-
-## Runtime verification required
-The NestJS-on-Workers adapter uses Node.js HTTP server compatibility. A successful TypeScript build is not sufficient to prove runtime compatibility. Verify these in a Cloudflare Preview before promoting:
+## Required runtime tests
+After deploying the feature Worker and adding secrets:
 1. `GET /api/health` returns 200.
-2. Registration/login works against the existing Supabase Auth project.
-3. Authenticated profile and ride APIs work.
-4. Static HTML, CSS, JS and image assets load.
-5. CORS and error responses behave as expected.
+2. Homepage and all CSS/JS/image assets load.
+3. Supabase registration/login work.
+4. Profile, ride booking, driver claim, safety/SOS, rental and admin APIs work.
+5. Verify RLS isolation with two separate test users.
+6. Run staged k6 tests before any capacity claim.
 
-Cloudflare Workers Free currently has a 100,000-request daily limit and 10 ms CPU per invocation. Review current account limits and measure actual concurrent load before making any capacity claim. See [Cloudflare Workers limits](https://developers.cloudflare.com/workers/platform/limits/) and [pricing](https://developers.cloudflare.com/workers/platform/pricing/).
-
-
-## Current Preview deployment (2026-11-13)
-A Cloudflare Preview was successfully deployed from `feature/drive-full-platform`:
-- Preview URL: https://feature-drive-full-platform-cse412-project.nexorabd.workers.dev
-- Unique deployment URL: https://c4a828ae-cse412-project.nexorabd.workers.dev
-- The production Worker has not been promoted or overwritten by this Preview.
-
-### Add Supabase secrets to this Preview
-Preview settings are separate from Production settings:
-1. Open Workers & Pages → `cse412-project`.
-2. Use the environment selector at the top (currently showing Production) and select the Preview named `feature/drive-full-platform` or Preview settings.
-3. Open Settings → Variables and secrets.
-4. Add encrypted secrets `SUPABASE_URL` and `SUPABASE_ANON_KEY` using the existing DRIVE Supabase project's URL and publishable/anon key.
-5. Save and redeploy the Preview if the dashboard asks.
-
-The API health route is expected to be available before secrets are set; database-backed endpoints return a configuration error until both secrets are present. Do not add the service-role key; the app uses the publishable/anon key with Supabase RLS.
+A successful Wrangler dry-run only proves the bundle compiles. It is not proof that the Worker runtime or all application workflows work.
