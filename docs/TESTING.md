@@ -10,11 +10,11 @@
 2. Run `cd backend && npm install && npm run start:dev`.
 3. Serve the `frontend` folder on a local static server.
 4. Register a passenger, confirm the email if required, sign in, and test profile retrieval.
-5. Create a ride request using real Dhaka addresses; verify it appears in the passenger dashboard.
-6. Submit a driver application. An admin approves it, then the driver submits all three required document references.
-7. An admin verifies the documents. The driver can then claim a request and share GPS during a trip.
-8. Test rental listing, owner approval, notifications, safety trip sharing, SOS record creation, tourist plan persistence and payment-intent creation.
-9. Verify that a passenger cannot read another passenger's records, a non-driver cannot claim a ride, and clients cannot mark payments or vehicles verified.
+5. Create a ride request using real Dhaka addresses; verify it appears in the passenger dashboard. Confirm pickup/destination pins and the OSRM road route render when the routing provider is available.\n6. Cancel a still-requested ride as the passenger; verify it disappears from the driver's open requests. Confirm cancellation is rejected after a driver claims the request.
+7. Submit a driver application. An admin approves it, then the driver submits all three required document references.
+8. An admin verifies the documents. The driver can then claim a request and share GPS during a trip.
+9. Test rental listing, owner approval, notifications, safety trip sharing, SOS record creation, tourist plan persistence and payment-intent creation.
+10. Verify that a passenger cannot read another passenger's records, a non-driver cannot claim a ride, and clients cannot mark payments or vehicles verified.
 
 ## k6 load test
 Install k6, then run:
