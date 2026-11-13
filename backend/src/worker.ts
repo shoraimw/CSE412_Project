@@ -8,13 +8,9 @@ import { AppModule } from './app.module';
 import { getCorsOptions } from './config/cors';
 import { setDriveRuntimeConfig } from './config/runtime-config';
 
-if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
-  throw new Error('Cloudflare secrets SUPABASE_URL and SUPABASE_ANON_KEY must be configured.');
-}
-
 setDriveRuntimeConfig({
-  supabaseUrl: env.SUPABASE_URL,
-  supabaseAnonKey: env.SUPABASE_ANON_KEY,
+  supabaseUrl: env.SUPABASE_URL || '',
+  supabaseAnonKey: env.SUPABASE_ANON_KEY || '',
   corsOrigin: env.CORS_ORIGIN || '',
   nodeEnv: 'production',
 });
