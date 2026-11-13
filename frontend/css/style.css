@@ -732,3 +732,14 @@ body > footer {
 .email-otp-panel input{width:100%;min-height:44px;padding:10px 12px;border:1px solid #d8dee7;border-radius:8px;font:14px "DM Sans"}
 .otp-description{margin:0;color:#758078;font-size:12px;line-height:1.6}
 .email-otp-panel .auth-submit{margin-top:0}
+
+/* Password reveal control */
+.password-field{position:relative;display:block;width:100%}
+.password-field input{padding-right:52px!important}
+.password-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:0;border-radius:8px;background:transparent;color:#738096;display:grid;place-items:center;cursor:pointer;transition:background .18s,color .18s}
+.password-toggle:hover{background:#f1f4f8;color:#172b4d}
+.password-toggle svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;transition:opacity .16s,transform .16s}
+.password-toggle .eye-closed{display:none}
+.password-field.is-visible .eye-open{display:none}
+.password-field.is-visible .eye-closed{display:block}
+.password-field.is-visible .password-toggle{color:#b76b32}
