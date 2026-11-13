@@ -463,3 +463,13 @@ footer {
 }
 
 .origin-control { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 0 0 18px; }
+
+
+/* Accessible password visibility control */
+.password-field{position:relative;display:flex;align-items:center;width:100%}
+.password-field input{width:100%;padding-right:76px!important}
+.password-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:transparent;color:#68758a;display:inline-flex;align-items:center;gap:5px;padding:7px 9px;border-radius:8px;cursor:pointer;font:600 12px Arial,sans-serif;transition:background .2s,color .2s}
+.password-toggle:hover{background:#eef2f6;color:#172b4d}
+.password-toggle svg{width:17px;height:17px;transition:transform .2s,opacity .2s}
+.password-toggle:active svg{transform:scale(.88)}
+.password-toggle:focus-visible{outline:2px solid #e98732;outline-offset:2px}
