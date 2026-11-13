@@ -1,48 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DRIVE - Login</title>
-    <link rel="stylesheet" href="css/style.css">
-    <script src="js/api.js" defer></script>
-    <script src="js/auth.js" defer></script>
-</head>
-<body>
-    <header class="topbar">
-        <a class="brand" href="vehicles.html">DRIVE</a>
-        <nav>
-            <a href="register.html">Register</a>
-            <a href="vehicles.html">Vehicle Rental</a>
-        </nav>
-    </header>
-
-    <main class="form-wrap">
-        <section class="panel form-panel">
-            <p class="eyebrow">AUTHENTICATION & SECURITY</p>
-            <h1>Login to DRIVE</h1>
-
-            <form id="loginForm">
-                <label>Email Address
-                    <input type="email" name="email" required
-                           placeholder="Enter your email">
-                </label>
-
-                <label>Password
-                    <input type="password" name="password" required
-                           placeholder="Enter your password">
-                </label>
-
-                <button type="submit" class="button">Login</button>
-                <p id="loginMessage" class="message"></p>
-            </form>
-
-<p>Don't have an account?
-                <a href="register.html">Register here</a>
-            </p>
-        </section>
-    </main>
-
-    <footer>DRIVE Project Demo</footer>
-</body>
-</html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f6f8f7"><title>Sign in · DRIVE</title><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="css/style.css"><script src="js/api.js" defer></script><script src="js/auth.js" defer></script></head>
+<body class="auth-page"><header class="topbar"><a class="brand" href="index.html"><span class="brand-mark">D</span>DRIVE<span class="brand-dot">.</span></a><nav><a href="register.html">Create account</a><a href="vehicles.html">Explore rentals</a></nav></header>
+<main class="form-wrap"><section class="panel form-panel auth-panel"><span class="eyebrow">WELCOME BACK</span><h1>Good to see you again.</h1><p class="auth-intro">Sign in to book a ride, manage your journeys and travel with confidence.</p>
+<form id="loginForm" novalidate><label>Email address<input type="email" name="email" required maxlength="254" autocomplete="username" placeholder="you@example.com"></label><label>Password<span class="password-field"><input id="loginPassword" type="password" name="password" required autocomplete="current-password" placeholder="Enter your password"><button class="password-toggle" type="button" data-password-toggle="loginPassword" aria-label="Show password" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button></span></label><button type="submit" class="button auth-submit">Sign in <span>→</span></button><p id="loginMessage" class="message" role="status" aria-live="polite"></p></form><p class="auth-switch">New to DRIVE? <a href="register.html">Create an account</a></p></section></main><footer>DRIVE · East West University · CSE412</footer></body></html>
