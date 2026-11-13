@@ -47,11 +47,11 @@ startInput.min = localToday; endInput.min = localToday;
 startInput.addEventListener("change", () => { endInput.min = startInput.value || localToday; });
 document.getElementById("bookingForm").addEventListener("submit", async event => {
   event.preventDefault(); const message = document.getElementById("bookingMessage"); message.textContent = "Submitting your request...";
-  const data = { customer_name: document.getElementById("customerName").value.trim(), vehicle_id: Number(selectedVehicle.value), start_date: startInput.value, end_date: endInput.value };
+  const data = { customer_name: document.getElementById("customerName").value.trim(), vehicle_id: selectedVehicle.value, start_date: startInput.value, end_date: endInput.value };
   if (!data.vehicle_id) { message.textContent = "Please select a vehicle."; return; }
   try {
     const result = await driveRequest("/rental/bookings", { method: "POST", body: JSON.stringify(data) });
-    message.textContent = result.message + " (Demo only: booking is stored temporarily.)";
+    message.textContent = result.message;
     event.target.reset(); startInput.min = localToday; endInput.min = localToday;
   } catch (error) { message.textContent = error.message; }
 });
