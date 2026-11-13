@@ -40,11 +40,11 @@ Use Supabase Dashboard → Authentication → URL Configuration to set the produ
 5. Run `npm run dev` and open the Wrangler URL.
 
 ## Implemented modules
-- Supabase Auth registration, login, refresh and profile management
+- Supabase Auth registration, password login, refresh, email OTP and profile management
 - Passenger, driver, vehicle owner and admin role-based workflows
 - Vehicle catalogue, vehicle-owner listings, verification and rental booking
-- Ride requests, driver request claiming, ride status and trip location tracking
-- Rule-based BDT fare estimation and route planning
+- Map-based ride requests, OSRM route/fare estimates, verified-driver claiming, ride status and foreground live GPS tracking
+- Rule-based BDT fare estimation using OSRM road distance when available, plus multi-currency conversion quotes
 - Women Safety Mode, trusted/emergency contacts, monitored safety trips, trip sharing and SOS records
 - Tourist destination catalogue and saved trip plans
 - Payment intent records and currency conversion quotes
