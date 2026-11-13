@@ -1,42 +1,5 @@
-function showAuthMessage(id, message, success = false) {
-  const element = document.getElementById(id);
-  if (!element) return;
-  element.textContent = message;
-  element.className = success ? 'message success' : 'message';
-}
-const registerForm = document.getElementById('registerForm');
-if (registerForm) registerForm.addEventListener('submit', async event => {
-  event.preventDefault();
-  const button = registerForm.querySelector('button[type="submit"]');
-  button.disabled = true;
-  const data = Object.fromEntries(new FormData(registerForm).entries());
-  try {
-    const result = await driveRequest('/auth/register', { method: 'POST', body: JSON.stringify(data) });
-    if (result.accessToken) {
-      localStorage.setItem(DRIVE_TOKEN_KEY, result.accessToken);
-      if (result.user) localStorage.setItem('drive_user', JSON.stringify(result.user));
-      if (result.refreshToken) localStorage.setItem('drive_refresh_token', result.refreshToken);
-      showAuthMessage('registerMessage', 'Account created. Opening your dashboard…', true);
-      window.location.href = 'dashboard.html';
-    } else {
-      showAuthMessage('registerMessage', result.message || 'Check your email to confirm your account.', true);
-    }
-  } catch (error) { showAuthMessage('registerMessage', error.message); }
-  finally { button.disabled = false; }
-});
-const loginForm = document.getElementById('loginForm');
-if (loginForm) loginForm.addEventListener('submit', async event => {
-  event.preventDefault();
-  const button = loginForm.querySelector('button[type="submit"]');
-  button.disabled = true;
-  const data = Object.fromEntries(new FormData(loginForm).entries());
-  try {
-    const result = await driveRequest('/auth/login', { method: 'POST', body: JSON.stringify(data) });
-    localStorage.setItem(DRIVE_TOKEN_KEY, result.accessToken);
-    if (result.user) localStorage.setItem('drive_user', JSON.stringify(result.user));
-    if (result.refreshToken) localStorage.setItem('drive_refresh_token', result.refreshToken);
-    showAuthMessage('loginMessage', 'Login successful. Opening your dashboard…', true);
-    window.location.href = 'dashboard.html';
-  } catch (error) { showAuthMessage('loginMessage', error.message); }
-  finally { button.disabled = false; }
-});
+function showAuthMessage(id,message,success=false){const element=document.getElementById(id);if(!element)return;element.textContent=message;element.className=success?'message success':'message';}
+document.querySelectorAll('[data-password-toggle]').forEach(button=>{const input=document.getElementById(button.dataset.passwordToggle);if(!input)return;button.addEventListener('click',()=>{const visible=input.type==='password';input.type=visible?'text':'password';button.setAttribute('aria-label',visible?'Hide password':'Show password');button.setAttribute('aria-pressed',String(visible));button.classList.toggle('is-visible',visible);input.focus({preventScroll:true});});});
+async function submitAuth(form,endpoint,messageId,successText){form?.addEventListener('submit',async event=>{event.preventDefault();if(!form.reportValidity())return;const button=form.querySelector('button[type="submit"]');button.disabled=true;button.classList.add('is-loading');const data=Object.fromEntries(new FormData(form).entries());try{const result=await driveRequest(endpoint,{method:'POST',body:JSON.stringify(data)});if(result.accessToken){localStorage.setItem(DRIVE_TOKEN_KEY,result.accessToken);if(result.user)localStorage.setItem('drive_user',JSON.stringify(result.user));if(result.refreshToken)localStorage.setItem('drive_refresh_token',result.refreshToken);showAuthMessage(messageId,successText,true);window.location.href='dashboard.html';}else{showAuthMessage(messageId,result.message||'Check your email to confirm your account.',true);}}catch(error){showAuthMessage(messageId,error.message||'Something went wrong. Please try again.');}finally{button.disabled=false;button.classList.remove('is-loading');}});}
+submitAuth(document.getElementById('registerForm'),'/auth/register','registerMessage','Account created. Opening your dashboard…');
+submitAuth(document.getElementById('loginForm'),'/auth/login','loginMessage','Login successful. Opening your dashboard…');
