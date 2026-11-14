@@ -47,10 +47,6 @@ export class PlatformController {
   createRide(@Req() request: AuthenticatedRequest, @Body() body: any) { return this.service.createRide(request.user, body); }
 
   @UseGuards(AuthGuard)
-  @Get('rides/:id')
-  rideDetails(@Req() request: AuthenticatedRequest, @Param('id') id: string) { return this.service.rideDetails(request.user, id); }
-
-  @UseGuards(AuthGuard)
   @Get('rides')
   rides(@Req() request: AuthenticatedRequest) { return this.service.rides(request.user); }
 
@@ -85,6 +81,10 @@ export class PlatformController {
   @UseGuards(AuthGuard)
   @Patch('rides/:id/status')
   status(@Req() request: AuthenticatedRequest, @Param('id') id: string, @Body() body: any) { return this.service.rideStatus(request.user, id, body); }
+
+  @UseGuards(AuthGuard)
+  @Get('rides/:id')
+  rideDetails(@Req() request: AuthenticatedRequest, @Param('id') id: string) { return this.service.rideDetails(request.user, id); }
 
   @UseGuards(AuthGuard)
   @Get('rides/:id/locations')
