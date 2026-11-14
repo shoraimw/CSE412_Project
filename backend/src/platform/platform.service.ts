@@ -75,5 +75,31 @@ const distance=(a:any,b:any)=>{const r=(n:number)=>n*Math.PI/180,d1=r(b.lat-a.la
  async plan(a:Actor,b:any){if(!Array.isArray(b.place_ids)||b.place_ids.length<1||b.place_ids.length>10)throw new BadRequestException('Select 1 to 10 places.');const places=await this.data<any[]>(this.db(a).from('tourist_places').select('id,name,city,latitude,longitude').in('id',b.place_ids));const plan=await this.data<any>(this.db(a).from('tourist_plans').insert({user_id:a.id,city:b.city||places[0]?.city||null,place_ids:b.place_ids,transport_preference:b.transport_preference||'car'}).select().single());return {plan_id:plan.id,stops:places,note:'Saved itinerary; verify live travel conditions.'};}
  fare(b:any){try{return estimateFare({vehicle_type:b.vehicle_type,distance_km:Number(b.distance_km),traffic:b.traffic,demand:b.demand});}catch(e:any){throw new BadRequestException(e.message);}}
  async route(b:any){const p=b.pickup,d=b.destination;if(!p||!d||![p.lat,p.lng,d.lat,d.lng].every((v:any)=>Number.isFinite(Number(v))))throw new BadRequestException('Valid pickup and destination coordinates required.');const coords=[p,d].map((v:any)=>Number(v.lng)+','+Number(v.lat)).join(';');try{const res=await fetch('https://router.project-osrm.org/route/v1/driving/'+coords+'?overview=full&geometries=geojson&alternatives=true');if(!res.ok)throw new Error();const data:any=await res.json();if(data.code!=='Ok')throw new Error();return {provider:'OSRM public demo',routes:data.routes.map((r:any)=>({distance_km:r.distance/1000,duration_minutes:r.duration/60,geometry:r.geometry})),note:'Public demo routing only; no production SLA.'};}catch{throw new ServiceUnavailableException('Routing provider unavailable.');}}
+ private fxCache=new Map<string,{fetchedAt:number;payload:any}>();
+ async currencyRates(base='BDT'){
+  const currency=String(base||'BDT').toUpperCase();
+  if(!/^[A-Z]{3}$/.test(currency))throw new BadRequestException('Use a valid three-letter currency code.');
+  const cached=this.fxCache.get(currency);
+  if(cached&&Date.now()-cached.fetchedAt<10*60*1000)return {...cached.payload,cached:true};
+  try{
+   const response=await fetch('https://open.er-api.com/v6/latest/'+currency);
+   if(!response.ok)throw new Error('Exchange-rate provider returned '+response.status);
+   const payload:any=await response.json();
+   if(payload.result!=='success'||!payload.rates||typeof payload.rates!=='object')throw new Error('Exchange-rate provider returned invalid data.');
+   const rates=Object.fromEntries(Object.entries(payload.rates).filter(([code,value])=>/^[A-Z]{3}$/.test(code)&&typeof value==='number'&&Number.isFinite(value)&&value>0));
+   if(!rates[currency])rates[currency]=1;
+   const result={base:currency,rates,provider:'open.er-api.com',fetchedAt:payload.time_last_update_unix?new Date(payload.time_last_update_unix*1000).toISOString():new Date().toISOString(),nextUpdateAt:payload.time_next_update_unix?new Date(payload.time_next_update_unix*1000).toISOString():null,quoteOnly:true,paymentCollected:false,cached:false};
+   this.fxCache.set(currency,{fetchedAt:Date.now(),payload:result});
+   return result;
+  }catch(error){if(cached)return {...cached.payload,cached:true,stale:true};throw new ServiceUnavailableException('Latest published exchange rates are temporarily unavailable.');}
+ }
+ async convertCurrency(b:any){
+  const amount=Number(b.amount),from=String(b.from||'BDT').toUpperCase(),to=String(b.to||'USD').toUpperCase();
+  if(!Number.isFinite(amount)||amount<=0||amount>1000000000)throw new BadRequestException('Enter a valid amount greater than zero.');
+  if(!/^[A-Z]{3}$/.test(from)||!/^[A-Z]{3}$/.test(to))throw new BadRequestException('Choose valid ISO currency codes.');
+  const data=await this.currencyRates(from),rate=Number(data.rates[to]);
+  if(!Number.isFinite(rate)||rate<=0)throw new BadRequestException('The selected target currency is not supported by the rate provider.');
+  return {from,to,amount,rate,convertedAmount:Number((amount*rate).toFixed(6)),fetchedAt:data.fetchedAt,nextUpdateAt:data.nextUpdateAt,provider:data.provider,cached:!!data.cached,stale:!!data.stale,quoteOnly:true,paymentCollected:false,note:'Indicative exchange-rate quote only. No foreign-currency payment or settlement is collected.'};
+ }
  async quote(a:Actor,b:any){const amount=Number(b.amount_bdt),currency=String(b.currency||'BDT').toUpperCase();if(!Number.isFinite(amount)||amount<=0||amount>10000000)throw new BadRequestException('Valid amount required.');if(currency==='BDT')return {amount,currency,status:'quote_only',payment_collected:false};try{const res=await fetch('https://open.er-api.com/v6/latest/BDT');if(!res.ok)throw new Error();const data:any=await res.json(),rate=data.rates?.[currency];if(typeof rate!=='number')throw new Error();return {amount_bdt:amount,amount_converted:Number((amount*rate).toFixed(2)),currency,rate,status:'quote_only',payment_collected:false,note:'No payment collected.'};}catch{throw new ServiceUnavailableException('Exchange rate unavailable.');}}
 }
