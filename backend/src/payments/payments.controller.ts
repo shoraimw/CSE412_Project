@@ -1,5 +1,5 @@
-import {Body,Controller,Get,Post,Req,UseGuards} from '@nestjs/common';import {Request} from 'express';import {AuthGuard} from '../auth/auth.guard';import {CreatePaymentIntentDto,CreatePaymentQuoteDto} from './payments.dto';import {PaymentsService} from './payments.service';type AR=Request&{user:{id:string;accessToken:string}};
-@Controller('payments')export class PaymentsController{constructor(private readonly payments:PaymentsService){}
+import { Body,Controller,Get,Post,Req,UseGuards, Inject } from '@nestjs/common';import {Request} from 'express';import {AuthGuard} from '../auth/auth.guard';import {CreatePaymentIntentDto,CreatePaymentQuoteDto} from './payments.dto';import {PaymentsService} from './payments.service';type AR=Request&{user:{id:string;accessToken:string}};
+@Controller('payments')export class PaymentsController{constructor(@Inject(PaymentsService) private readonly payments:PaymentsService){}
 @Get('currencies')currencies(){return {currencies:this.payments.supportedCurrencies(),baseCurrency:'BDT'};}
 @Get('rates')rates(){return this.payments.getRates();}
 @Post('quote')quote(@Body()d:CreatePaymentQuoteDto){return this.payments.createQuote(d.amountBDT,d.currency,d.rideId);}

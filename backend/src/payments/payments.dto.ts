@@ -1,4 +1,4 @@
 import {Type} from 'class-transformer';import {IsIn,IsNumber,IsOptional,IsString,IsUUID,MaxLength,Min} from 'class-validator';
-export const CURRENCIES=['BDT','USD','EUR','GBP','INR','AED'] as const;export type CurrencyCode=typeof CURRENCIES[number];
+export const CURRENCIES=['BDT','USD','EUR','GBP','INR','AED','SAR','QAR','KWD','OMR','PKR','NPR','MYR','SGD','THB','CNY','JPY','KRW','AUD','CAD','CHF','NZD','TRY','ZAR'] as const;export type CurrencyCode=typeof CURRENCIES[number];
 export class CreatePaymentQuoteDto{@Type(()=>Number)@IsNumber()@Min(1)amountBDT!:number;@IsIn(CURRENCIES)currency!:CurrencyCode;@IsOptional()@IsString()@MaxLength(100)rideId?:string;}
 export class CreatePaymentIntentDto{@IsOptional()@IsUUID()rideId?:string;@IsOptional()@IsUUID()rentalBookingId?:string;@IsIn(['cash','bkash','nagad','card'])method!:string;@IsIn(CURRENCIES)currency!:CurrencyCode;}

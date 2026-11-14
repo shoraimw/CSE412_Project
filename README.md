@@ -1,84 +1,95 @@
 # DRIVE — Smart Ride & Vehicle Rental Platform
 
-DRIVE is an East West University CSE412 project for ride booking, shared journeys, vehicle rental, passenger safety and tourist planning.
+DRIVE is an East West University CSE412 academic project for ride booking, shared journeys, vehicle rental, passenger safety, and tourist planning.
 
 ## Technology
 - Frontend: HTML, CSS and Vanilla JavaScript
 - Backend: Node.js, NestJS and TypeScript
-- Authentication: Supabase Auth sessions and JWT verification; passwords are managed by Supabase Auth
-- Validation: class-validator / class-transformer
-- Maps and routing: OpenStreetMap ecosystem and OSRM routing endpoint
-- Data persistence: Supabase PostgreSQL with Row Level Security (RLS) and versioned SQL migrations
-- Current deployment configuration: Vercel static frontend + serverless NestJS API; Cloudflare Workers build is a separate target and must be verified independently
-- Cloudflare Worker deployment is a separate deployment target and must be configured/tested independently.
+- Runtime/hosting: Cloudflare Workers + Workers Static Assets
+- Database and authentication: Supabase PostgreSQL, Supabase Auth and Row Level Security
+- Maps/geocoding: OpenStreetMap Nominatim and OSRM routing
+- API prefix: `/api`
+
+## Cloudflare deployment (current target)
+The repository is configured for Cloudflare. Vercel is not the deployment target.
+
+- `wrangler.jsonc` is the source of truth.
+- Worker entrypoint: `backend/src/worker.ts`.
+- Frontend static directory: `frontend/`.
+- The Worker routes `/api/*` to NestJS and delegates all other paths to `env.ASSETS.fetch(request)`.
+- Required encrypted Worker secrets: `SUPABASE_URL`, `SUPABASE_ANON_KEY` (Supabase publishable/anon key only; never service-role).
+- Local dev: copy `.dev.vars.example` to `.dev.vars`, fill the two Supabase values, run `npm install`, then `npm run dev`.
+- Validate bundle: `npm run build`.
+- Deploy production only from the protected `main` branch after Preview verification: `npm run deploy`.
+
+### Cloudflare Preview
+Feature branch: `feature/complete-system-integration`
+
+The feature branch is deployed through Wrangler Preview and must not overwrite the production Worker. Preview URL aliases and unique deployment URLs are shown in Cloudflare Workers & Pages → cse412-project → Deployments.
+
+## Supabase setup
+The connected Supabase project is active and its migration history has been verified through `20261113192334`. This repository tracks the later feature migrations, but the original bootstrap migrations (`drive_initial_schema`, auth/RLS baseline and initial role setup) were applied before they were committed as SQL files. Therefore, this migration folder alone is not yet a complete fresh-database bootstrap. Do not run it against a new project until a reviewed baseline schema export has been added; do not replay migrations manually against the connected production project.
+
+Use Supabase Dashboard → Authentication → URL Configuration to set the production and Preview Site URLs and allowed redirect URLs. Email confirmation settings affect whether signup returns a session immediately.
 
 ## Local development
-1. Install Node.js 20 or newer.
-2. Start the backend:
-   ```bash
-   cd backend
-   npm install
-   cp .env.example .env
-   # Set a unique JWT_SECRET in .env
-   npm run start:dev
-   ```
-   API base: http://localhost:3000/api  
-   Health check: http://localhost:3000/api/health
-3. Serve the `frontend/` directory with VS Code Live Server (for example, http://localhost:5500).
-4. The frontend uses localhost:3000 for local API calls and same-origin `/api` after deployment.
+1. Use Node.js 22+.
+2. Copy `.dev.vars.example` to `.dev.vars`.
+3. Set `SUPABASE_URL` and `SUPABASE_ANON_KEY` in `.dev.vars`.
+4. Run `npm install`.
+5. Run `npm run dev` and open the Wrangler URL.
 
-## Deployment configuration
-For the current Vercel setup:
-- Import this repository with the repository root as the project root.
-- Configure `JWT_SECRET` with a unique random value of at least 32 bytes.
-- If using a separate frontend origin, configure `CORS_ORIGIN` as a comma-separated list of exact trusted origins (scheme + hostname). Do not use `*`.
-- Redeploy after changing environment variables.
-- Never commit `.env`, API keys, service-role keys, JWT secrets or real user data.
+## Implemented modules
+- Supabase Auth registration, password login, refresh, email OTP and profile management
+- Passenger, driver, vehicle owner and admin role-based workflows
+- Vehicle catalogue, vehicle-owner listings, verification and rental booking
+- Map-based ride requests, OSRM route/fare estimates, verified-driver claiming, seat-aware shared rides with transactional fare splitting, ride status and foreground live GPS tracking
+- Rule-based BDT fare estimation using OSRM road distance when available, plus multi-currency conversion quotes
+- Women Safety Mode, trusted/emergency contacts, monitored safety trips, trip sharing and SOS records
+- Tourist destination catalogue and saved trip plans
+- Payment intent records and currency conversion quotes
+- In-app notifications and admin review endpoints
+- Health endpoint
 
-## Implemented academic-demo modules
-- Supabase-backed authentication and profile endpoints with role-aware API authorization
-- Persistent ride, rental, safety, tourist-plan and notification data through Supabase PostgreSQL
-- Vehicle catalogue and rental request endpoints
-- Ride request, verified-driver claim RPC, shared ride and ride-status endpoints
-- Passenger cancellation before driver acceptance; driver GPS writes restricted to assigned in-progress trips
-- Rule-based fare estimate
-- Road-route recommendation using the public OSRM demo provider, with labelled straight-line fallback
-- Currency conversion quote (not a payment)
-- Women Safety Mode settings, trip monitoring, trip sharing and SOS recording
-- Tourist destination recommendations and itinerary planning
-- API health endpoint
+## Important service limitations
+This is an academic project and Preview deployment. Do not describe the following as production integrations:
+- **Payments:** no bKash, Nagad, card or other payment gateway is connected; payment records are pending intents only.
+- **SOS delivery:** SOS is persisted and admin in-app notifications are generated; no police/emergency-service, SMS, WhatsApp or guaranteed external contact dispatch is configured.
+- **Driver dispatch:** ride claim is database-backed, but a real commercial driver network, background dispatch, and operational monitoring are not established.
+- **Maps:** geocoding/routing depends on public OpenStreetMap ecosystem services and their availability/rate limits.
+- **Notifications:** current database triggers create in-app notifications; external email/SMS/push delivery requires a configured provider.
+- **Scale:** no load-test evidence establishes a user/concurrency capacity. Run staged tests and monitor database/Worker limits before making capacity claims.
 
-## Important limitations — not production-ready yet
-The current codebase is an academic prototype. The following are not yet complete and must not be represented as live production services:
-- **Persistence and migration parity:** domain data is designed around Supabase PostgreSQL and RLS. Keep the repository migration history synchronized with the connected Supabase project before fresh-environment setup; a database that already has manually-applied or untracked migrations may not be reproducible from this repository alone.
-- **Driver/owner onboarding:** sample driver records are demo data. Real identity, licence, vehicle and ownership verification is not integrated.
-- **Driver operations:** driver claim is database/RPC-backed, but production-grade dispatch, proximity ranking, availability scheduling and operational conflict handling still need end-to-end validation.
-- **Live tracking:** the passenger dashboard polls authenticated trip location and the driver browser shares GPS only while a trip is in progress. This is not a continuously connected production tracking service and requires HTTPS, browser permission and a running driver session.
-- **Emergency notifications:** SOS is recorded in the application only. It does not contact police, emergency services, SMS, WhatsApp or trusted contacts.
-- **Payments:** currency conversion is a quote only. No payment gateway collects or settles money.
-- **AI claims:** fare estimation is rule-based; route planning is provider-based. Neither should be described as a trained AI/ML system.
-- **Scale and reliability:** the connected Supabase security advisor currently reports no security lint findings, but no production load test, uptime target, monitoring, alerting, backup or disaster-recovery verification has been completed.
-
-Do not use this prototype to arrange real rides, handle real emergencies or collect real payments until the above controls have been implemented and independently tested.
-
-## Security baseline
+## Security and release checklist
 - Public registration creates Passenger accounts only.
-- Users cannot assign themselves Driver or Vehicle Owner privileges through registration or profile editing.
-- Request validation rejects unexpected fields.
-- CORS is disabled for cross-origin traffic in production unless exact trusted origins are configured.
-- Passwords are hashed with bcrypt. Production deployment requires a unique `JWT_SECRET`.
-- Use HTTPS, persistent storage, rate limiting, audit logs, account verification and security testing before real-world use.
+- Driver/vehicle-owner access requires application and verification workflows.
+- Authenticated API calls validate Supabase access tokens and use user-scoped Supabase clients.
+- RLS is enabled on application tables; review Supabase Security Advisor findings before production.
+- Do not expose service-role keys in browser code, Worker build logs, Git or this repository.
+- Configure Supabase Auth Site URL/redirect allow-list for the actual domains.
+- Configure Cloudflare production branch control to `main`; keep feature Preview separate.
+- Verify CSS/JS/static asset delivery, registration, login, profile, ride request/claim, rental, safety/SOS, notifications and admin workflows on Preview.
+- Test cross-user data isolation with at least two separate test accounts.
+- Run security and load tests, backups, monitoring and recovery checks before real-world use.
 
 ## API overview
 - `POST /api/auth/register`, `POST /api/auth/login`
 - `GET/PATCH /api/users/me`
 - `GET /api/rental/vehicles`, `POST /api/rental/bookings`
-- `GET/POST /api/rides`, `POST /api/rides/:id/match`, `GET /api/rides/:id/track`
-- `POST /api/fare/predict`
-- `POST /api/routes/optimize`
-- `GET /api/payments/currencies`, `GET /api/payments/rates`, `POST /api/payments/quote`
-- `/api/safety/*`, `/api/tourist/*`
+- `GET/POST /api/rides`, driver claim and ride tracking endpoints
+- `/api/fare/*`, `/api/routes/*`, `/api/payments/*`
+- `/api/safety/*`, `/api/tourist/*`, `/api/notifications/*`, `/api/admin/*`
 - `GET /api/health`
 
 ## Team
-East West University · CSE412 · Fall 2026 · Group 5
+East West University · CSE412 · Fall 2026
+
+
+## Shared rides and safety administration
+- Drivers claim requests through a row-locked database function. A shared car/CNG ride receives a fixed demo seat capacity; the original passenger is inserted as the first occupant.
+- Passengers can discover only matched shared rides with remaining seats. Joining is handled by a row-locked database function that checks capacity and recalculates each passenger's fare share atomically.
+- Administrators can review vehicle-owner applications and acknowledge/resolve recorded SOS alerts. SOS recording does not contact emergency services.
+
+
+## First administrator
+Follow [docs/ADMIN_BOOTSTRAP.md](docs/ADMIN_BOOTSTRAP.md) to provision the first trusted admin account safely through the Supabase SQL Editor.

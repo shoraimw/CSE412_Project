@@ -1,10 +1,10 @@
-import {BadRequestException,Injectable,NotFoundException,ServiceUnavailableException} from '@nestjs/common';
+import { BadRequestException,Injectable,NotFoundException,ServiceUnavailableException, Inject } from '@nestjs/common';
 import {DatabaseService} from '../database/database.service';
 import {CURRENCIES,CurrencyCode,CreatePaymentIntentDto} from './payments.dto';
 @Injectable()
 export class PaymentsService{
  private cachedRates:{rates:Record<string,number>;fetchedAt:number}|null=null;
- constructor(private readonly database:DatabaseService){}
+ constructor(@Inject(DatabaseService) private readonly database:DatabaseService){}
  async getRates(){if(this.cachedRates&&Date.now()-this.cachedRates.fetchedAt<3600000)return {base:'BDT',rates:this.pickRates(this.cachedRates.rates),fetchedAt:new Date(this.cachedRates.fetchedAt).toISOString(),cached:true};try{const response=await fetch('https://open.er-api.com/v6/latest/BDT',{signal:AbortSignal.timeout(8000)});if(!response.ok)throw new Error('FX provider request failed');const data:any=await response.json();if(data.result!=='success'||!data.rates)throw new Error('Invalid FX response');this.cachedRates={rates:data.rates,fetchedAt:Date.now()};return {base:'BDT',rates:this.pickRates(data.rates),fetchedAt:new Date().toISOString(),cached:false,provider:'open.er-api.com'};}catch{if(this.cachedRates)return {base:'BDT',rates:this.pickRates(this.cachedRates.rates),fetchedAt:new Date(this.cachedRates.fetchedAt).toISOString(),cached:true,stale:true};throw new ServiceUnavailableException('Live exchange rates are temporarily unavailable.');}}
  private pickRates(all:Record<string,number>){return Object.fromEntries(CURRENCIES.map(code=>[code,code==='BDT'?1:all[code]]).filter(([,rate])=>typeof rate==='number'));}
  async createQuote(amountBDT:number,currency:CurrencyCode,rideId?:string){const rates=currency==='BDT'?{rates:{BDT:1},fetchedAt:new Date().toISOString()}:await this.getRates();const rate=rates.rates[currency];if(typeof rate!=='number')throw new ServiceUnavailableException('Exchange rate unavailable.');const converted=Number((amountBDT*rate).toFixed(2));return {quoteId:'quote_'+Date.now(),rideId:rideId||null,originalAmount:amountBDT,originalCurrency:'BDT',convertedAmount:converted,currency,exchangeRate:rate,rateFetchedAt:rates.fetchedAt,status:'quote_only',paymentGateway:null,paymentCollected:false,message:'Currency conversion quote only. No payment has been initiated or collected.'};}

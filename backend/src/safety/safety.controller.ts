@@ -1,5 +1,5 @@
-import {Body,Controller,Get,Param,Post,Put,Req,UseGuards} from '@nestjs/common';import {Request} from 'express';import {AuthGuard} from '../auth/auth.guard';import {CreateSafetyTripDto,LocationUpdateDto,SafetySettingsDto,ShareTripDto,SosDto} from './safety.dto';import {SafetyService} from './safety.service';type AR=Request&{user:{id:string;accessToken:string}};
-@Controller('safety')export class SafetyController{constructor(private readonly safety:SafetyService){}
+import { Body,Controller,Get,Param,Post,Put,Req,UseGuards, Inject } from '@nestjs/common';import {Request} from 'express';import {AuthGuard} from '../auth/auth.guard';import {CreateSafetyTripDto,LocationUpdateDto,SafetySettingsDto,ShareTripDto,SosDto} from './safety.dto';import {SafetyService} from './safety.service';type AR=Request&{user:{id:string;accessToken:string}};
+@Controller('safety')export class SafetyController{constructor(@Inject(SafetyService) private readonly safety:SafetyService){}
 @Get('settings')@UseGuards(AuthGuard)getSettings(@Req()r:AR){return this.safety.getSettings(r.user.id,r.user.accessToken);}
 @Put('settings')@UseGuards(AuthGuard)saveSettings(@Req()r:AR,@Body()d:SafetySettingsDto){return this.safety.saveSettings(r.user.id,r.user.accessToken,d);}
 @Get('drivers/verified')@UseGuards(AuthGuard)getVerifiedDrivers(@Req()r:AR){return this.safety.getVerifiedDrivers(r.user.accessToken);}

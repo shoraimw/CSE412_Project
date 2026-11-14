@@ -1,4 +1,4 @@
-import {BadRequestException,Injectable,NotFoundException,ServiceUnavailableException} from '@nestjs/common';
+import { BadRequestException,Injectable,NotFoundException,ServiceUnavailableException, Inject } from '@nestjs/common';
 import {createHash,randomBytes,randomUUID} from 'crypto';
 import {DatabaseService} from '../database/database.service';
 import {CreateSafetyTripDto,GeoPointDto,SafetyContactDto,SafetySettingsDto,SosDto} from './safety.dto';
@@ -7,7 +7,7 @@ type Warning={id:string;type:'ROUTE_DEVIATION'|'UNEXPECTED_DELAY';message:string
 function segmentDistance(point:GeoPointDto,start:GeoPointDto,end:GeoPointDto){const mean=((point.lat+start.lat+end.lat)/3)*Math.PI/180,sx=111320*Math.cos(mean),sy=110540,px=(point.lng-start.lng)*sx,py=(point.lat-start.lat)*sy,bx=(end.lng-start.lng)*sx,by=(end.lat-start.lat)*sy,l=bx*bx+by*by,t=l===0?0:Math.max(0,Math.min(1,(px*bx+py*by)/l));return Math.sqrt((px-t*bx)**2+(py-t*by)**2);}
 @Injectable()
 export class SafetyService{
- constructor(private readonly database:DatabaseService){}
+ constructor(@Inject(DatabaseService) private readonly database:DatabaseService){}
  private db(token:string){return this.database.userClient(token);}
  private async tripHasStarted(db:any,trip:any){if(!trip.ride_request_id)return true;if(!trip.ride_id)return false;const {data,error}=await db.from('rides').select('status').eq('id',trip.ride_id).maybeSingle();if(error)throw new ServiceUnavailableException(error.message);return data?.status==='in_progress';}
  async getSettings(userId:string,token:string){const db=this.db(token);const [{data:p,error:pe},{data:c,error:ce}]=await Promise.all([db.from('user_safety_preferences').select('*').eq('user_id',userId).maybeSingle(),db.from('trusted_contacts').select('id,contact_name,phone,relationship,contact_type').eq('user_id',userId).order('created_at')]);if(pe||ce)throw new ServiceUnavailableException(pe?.message||ce?.message);const contacts=c||[];const map=(x:any)=>({id:x.id,name:x.contact_name,phone:x.phone,relation:x.relationship||'Trusted contact'});return {womenSafetyEnabled:p?.women_safety_enabled??false,preferVerifiedDrivers:p?.prefer_verified_drivers??true,trustedContacts:contacts.filter(x=>x.contact_type==='trusted').map(map),emergencyContacts:contacts.filter(x=>x.contact_type==='emergency').map(map)};}
