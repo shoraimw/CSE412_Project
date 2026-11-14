@@ -20,3 +20,5 @@ jobs:
       - run: npm run build
       - run: npm test
       - run: node --check ../frontend/js/app.js
+      - run: node --check ../frontend/js/admin.js
+      - run: node --check ../frontend/js/config.js
