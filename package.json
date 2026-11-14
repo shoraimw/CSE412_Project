@@ -1,0 +1,16 @@
+{
+  "name": "drive-platform",
+  "private": true,
+  "workspaces": [
+    "backend"
+  ],
+  "scripts": {
+    "build": "npm --workspace drive-api run build",
+    "typecheck": "npm --workspace drive-api run typecheck",
+    "test": "npm --workspace drive-api run test",
+    "check:frontend": "node --check frontend/js/app.js"
+  },
+  "devDependencies": {
+    "wrangler": "4.161.0"
+  }
+}
