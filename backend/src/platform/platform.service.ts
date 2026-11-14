@@ -11,7 +11,28 @@ const distance=(a:any,b:any)=>{const r=(n:number)=>n*Math.PI/180,d1=r(b.lat-a.la
  updateMe(a:Actor,b:any){const p:any={};if(typeof b.full_name==='string')p.full_name=b.full_name.trim();if(typeof b.phone==='string')p.phone=b.phone.trim();if(!Object.keys(p).length)throw new BadRequestException('No valid profile fields.');return this.data(this.db(a).from('profiles').update(p).eq('id',a.id).select().single());}
  async vehicles(q:any){let x=this.database.publicClient().from('vehicles').select('id,vehicle_type,make,model,model_year,plate_number,color,city,seats,description,photo_paths,price_per_day,price_per_km,is_available,is_verified').eq('is_available',true).eq('is_verified',true);if(q.type&&q.type!=='all')x=x.eq('vehicle_type',q.type);if(q.city)x=x.ilike('city','%'+q.city+'%');if(q.maxPrice)x=x.lte('price_per_day',Number(q.maxPrice));return this.data(x.order('price_per_day'));}
  addVehicle(a:Actor,b:any){if(!['vehicle_owner','admin'].includes(a.role))throw new ForbiddenException('Vehicle owner role required.');if(!b.make||!b.model||!b.plate_number||!b.city||!rates[b.vehicle_type]||Number(b.price_per_day)<=0)throw new BadRequestException('Complete valid vehicle details.');return this.data(this.db(a).from('vehicles').insert({owner_id:a.id,vehicle_type:b.vehicle_type,make:b.make,model:b.model,plate_number:b.plate_number,city:b.city,price_per_day:Number(b.price_per_day),seats:Number(b.seats||4),description:b.description||''}).select().single());}
- async createRide(a:Actor,b:any){if(a.role!=='passenger')throw new ForbiddenException('Passenger role required.');if(!b.pickup_address||!b.destination_address||!rates[b.vehicle_type])throw new BadRequestException('Pickup, destination and vehicle type required.');const prefs=await this.db(a).from('user_safety_preferences').select('women_safety_enabled,prefer_verified_drivers').eq('user_id',a.id).maybeSingle();const womenSafety=!!b.women_safety_preference||!!prefs.data?.women_safety_enabled;const km=b.pickup&&b.destination?distance(b.pickup,b.destination):5;const fare=Math.round((rates[b.vehicle_type].base+km*rates[b.vehicle_type].km)*1.2);return this.data(this.db(a).from('ride_requests').insert({passenger_id:a.id,pickup_label:b.pickup_address,destination_label:b.destination_address,pickup_lat:b.pickup?.lat??null,pickup_lng:b.pickup?.lng??null,destination_lat:b.destination?.lat??null,destination_lng:b.destination?.lng??null,requested_vehicle:b.vehicle_type,is_shared:!!b.is_shared,women_safety_preference:womenSafety,estimated_distance_km:km,estimated_fare:fare,currency:'BDT'}).select().single());}
+ async createRide(a:Actor,b:any){
+  if(a.role!=='passenger')throw new ForbiddenException('Passenger role required.');
+  if(!b.pickup_address||!b.destination_address||!rates[b.vehicle_type])throw new BadRequestException('Pickup, destination and vehicle type required.');
+  const pickup={lat:Number(b.pickup?.lat),lng:Number(b.pickup?.lng)};
+  const destination={lat:Number(b.destination?.lat),lng:Number(b.destination?.lng)};
+  if(![pickup.lat,pickup.lng,destination.lat,destination.lng].every(Number.isFinite)||Math.abs(pickup.lat)>90||Math.abs(destination.lat)>90||Math.abs(pickup.lng)>180||Math.abs(destination.lng)>180)throw new BadRequestException('Choose both pickup and destination on the map or from the location suggestions.');
+  const seats=Number(b.seats_requested||1);
+  if(!Number.isInteger(seats)||seats<1||seats>8)throw new BadRequestException('Seats required must be between 1 and 8.');
+  const route=await this.route({pickup,destination});
+  const best=route.routes[0];
+  if(!best||!Number.isFinite(best.distance_km)||best.distance_km<=0)throw new ServiceUnavailableException('A road route could not be calculated for these locations.');
+  const estimate=estimateFare({vehicle_type:b.vehicle_type,distance_km:best.distance_km,traffic:'moderate',demand:'medium'});
+  const prefs=await this.db(a).from('user_safety_preferences').select('women_safety_enabled,prefer_verified_drivers').eq('user_id',a.id).maybeSingle();
+  const womenSafety=b.women_safety_preference===true||!!prefs.data?.women_safety_enabled;
+  return this.data(this.db(a).from('ride_requests').insert({
+    passenger_id:a.id,pickup_label:String(b.pickup_address).trim(),destination_label:String(b.destination_address).trim(),
+    pickup_lat:pickup.lat,pickup_lng:pickup.lng,destination_lat:destination.lat,destination_lng:destination.lng,
+    requested_vehicle:b.vehicle_type,seats_requested:seats,is_shared:!!b.is_shared,women_safety_preference:womenSafety,
+    estimated_distance_km:best.distance_km,estimated_duration_minutes:Math.max(1,Math.round(best.duration_minutes)),
+    estimated_fare:estimate.estimated_fare,currency:'BDT'
+  }).select().single());
+ }
  rides(a:Actor){if(a.role==='driver')return this.data(this.db(a).from('rides').select('*,ride_requests(*)').eq('driver_id',a.id).order('created_at',{ascending:false}));return this.data(this.db(a).from('ride_requests').select('*,rides(*)').eq('passenger_id',a.id).order('created_at',{ascending:false}));}
  openRequests(a:Actor){if(a.role!=='driver'||!a.isVerified)throw new ForbiddenException('Verified driver account required.');return this.data(this.db(a).from('ride_requests').select('*').eq('status','requested').order('created_at',{ascending:false}));}
  openShared(a:Actor){if(a.role!=='driver'||!a.isVerified)throw new ForbiddenException('Verified driver account required.');return this.data(this.db(a).from('ride_requests').select('id,pickup_label,destination_label,requested_vehicle,estimated_fare,status,is_shared,women_safety_preference').eq('is_shared',true).eq('status','requested'));}
