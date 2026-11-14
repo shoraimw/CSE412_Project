@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Inject, Post } from '@nestjs/common';
 import { IsString, MinLength } from 'class-validator';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -8,7 +8,7 @@ class RefreshDto { @IsString() @MinLength(20) refreshToken!: string; }
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(@Inject(AuthService) private readonly auth: AuthService) {}
   @Post('register') register(@Body() dto: RegisterDto) { return this.auth.register(dto); }
   @Post('login') login(@Body() dto: LoginDto) { return this.auth.login(dto); }
   @Post('email-otp') sendEmailOtp(@Body() dto: EmailOtpDto) { return this.auth.sendEmailOtp(dto); }
