@@ -122,6 +122,21 @@ export class PlatformController {
   @Get('safety/contacts')
   contacts(@Req() request: AuthenticatedRequest) { return this.service.contacts(request.user); }
 
+  @Get('safety/shared/:token')
+  sharedTrip(@Param('token') token: string) { return this.service.sharedTrip(token); }
+
+  @UseGuards(AuthGuard)
+  @Post('safety/trips/share')
+  createTripShare(@Req() request: AuthenticatedRequest, @Body() body: any) { return this.service.createTripShare(request.user, body); }
+
+  @UseGuards(AuthGuard)
+  @Post('safety/trips/:id/location')
+  updateSafetyTripLocation(@Req() request: AuthenticatedRequest, @Param('id') id: string, @Body() body: any) { return this.service.updateSafetyTripLocation(request.user, id, body); }
+
+  @UseGuards(AuthGuard)
+  @Patch('safety/trips/:id/complete')
+  completeSafetyTrip(@Req() request: AuthenticatedRequest, @Param('id') id: string) { return this.service.completeSafetyTrip(request.user, id); }
+
   @UseGuards(AuthGuard)
   @Post('safety/sos')
   sos(@Req() request: AuthenticatedRequest, @Body() body: any) { return this.service.sos(request.user, body); }
