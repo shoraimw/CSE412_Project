@@ -1,6 +1,5 @@
 import 'reflect-metadata';
 import { httpServerHandler } from 'cloudflare:node';
-import { env } from 'cloudflare:workers';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
@@ -9,11 +8,11 @@ import { setDriveRuntimeConfig } from './config/runtime-config';
 
 let handlerPromise: Promise<ReturnType<typeof httpServerHandler>> | undefined;
 
-async function createHandler() {
+async function createHandler(bindings: Env) {
   setDriveRuntimeConfig({
-    supabaseUrl: env.SUPABASE_URL || '',
-    supabaseAnonKey: env.SUPABASE_ANON_KEY || '',
-    corsOrigin: env.CORS_ORIGIN || '',
+    supabaseUrl: bindings.SUPABASE_URL || '',
+    supabaseAnonKey: bindings.SUPABASE_ANON_KEY || '',
+    corsOrigin: bindings.CORS_ORIGIN || '',
     nodeEnv: 'production',
   });
 
@@ -35,7 +34,15 @@ async function createHandler() {
 
 export default {
   async fetch(request: Request, envBindings: Env, ctx: ExecutionContext): Promise<Response> {
-    handlerPromise ??= createHandler();
+    const url = new URL(request.url);
+
+    // Only API routes should enter NestJS. All other requests must be served
+    // by Workers Static Assets (HTML, CSS, JS, images, favicon, etc.).
+    if (!url.pathname.startsWith('/api/')) {
+      return envBindings.ASSETS.fetch(request);
+    }
+
+    handlerPromise ??= createHandler(envBindings);
     const handler = await handlerPromise;
     return handler.fetch(request);
   },
