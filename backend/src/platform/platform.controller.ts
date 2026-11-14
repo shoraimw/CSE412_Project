@@ -55,6 +55,22 @@ export class PlatformController {
   openShared(@Req() request: AuthenticatedRequest) { return this.service.openShared(request.user); }
 
   @UseGuards(AuthGuard)
+  @Get('rides/shared')
+  sharedRides(@Req() request: AuthenticatedRequest) { return this.service.sharedRides(request.user); }
+
+  @UseGuards(AuthGuard)
+  @Get('rides/shared/me')
+  mySharedRides(@Req() request: AuthenticatedRequest) { return this.service.mySharedRides(request.user); }
+
+  @UseGuards(AuthGuard)
+  @Post('rides/:id/join-shared')
+  joinSharedRide(@Req() request: AuthenticatedRequest, @Param('id') id: string) { return this.service.joinSharedRide(request.user, id); }
+
+  @UseGuards(AuthGuard)
+  @Post('rides/:id/leave-shared')
+  leaveSharedRide(@Req() request: AuthenticatedRequest, @Param('id') id: string) { return this.service.leaveSharedRide(request.user, id); }
+
+  @UseGuards(AuthGuard)
   @Post('rides/:id/accept')
   accept(@Req() request: AuthenticatedRequest, @Param('id') id: string) { return this.service.acceptRide(request.user, id); }
 
