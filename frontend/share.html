@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#17271f">
+  <title>DRIVE · Shared Trip</title>
+  <link rel="stylesheet" href="css/app.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+  <link rel="stylesheet" href="css/share.css">
+</head>
+<body class="share-body">
+  <header class="share-top"><a class="brand" href="index.html">DRIVE<span>.</span></a><span>Private trip link</span></header>
+  <main class="share-shell">
+    <section class="share-intro">
+      <small>LIVE JOURNEY SHARING</small>
+      <h1>Someone is sharing their journey with you.</h1>
+      <p>This page shows only the trip details and location shared by the passenger.</p>
+    </section>
+    <section class="share-card">
+      <div class="share-status-row"><span id="shareStatus" class="share-status">Connecting…</span><span id="shareUpdated">Waiting for update</span></div>
+      <h2 id="shareDestination">Loading destination…</h2>
+      <div class="share-facts"><div><small>EXPECTED ARRIVAL</small><strong id="shareEta">—</strong></div><div><small>TRIP STARTED</small><strong id="shareStarted">—</strong></div></div>
+      <div id="shareMap" class="share-map"></div>
+      <div id="shareWarnings" class="share-warnings" hidden></div>
+      <p id="shareError" class="share-error" hidden></p>
+      <p id="sharePrivacy" class="share-privacy">The link is private to anyone who has it and expires automatically.</p>
+    </section>
+    <footer class="share-footer">DRIVE · Smart ride-sharing and vehicle rental platform</footer>
+  </main>
+  <script src="js/config.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+  <script src="js/share.js"></script>
+</body>
+</html>
