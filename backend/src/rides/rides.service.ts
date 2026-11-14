@@ -1,4 +1,4 @@
-import {BadRequestException,ForbiddenException,Injectable,NotFoundException,ServiceUnavailableException} from '@nestjs/common';
+import { BadRequestException,ForbiddenException,Injectable,NotFoundException,ServiceUnavailableException, Inject } from '@nestjs/common';
 import {createHash,randomBytes} from 'crypto';
 import {DatabaseService} from '../database/database.service';
 import {CreateRideDto,RideLocationDto} from './rides.dto';
@@ -8,7 +8,7 @@ const rates={bike:{base:30,km:12},cng:{base:40,km:18},car:{base:60,km:25}};
 function haversine(a:{lat:number;lng:number},b:{lat:number;lng:number}){const rad=(n:number)=>n*Math.PI/180;const dLat=rad(b.lat-a.lat),dLng=rad(b.lng-a.lng);const x=Math.sin(dLat/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dLng/2)**2;return 6371*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
 @Injectable()
 export class RidesService{
- constructor(private readonly database:DatabaseService){}
+ constructor(@Inject(DatabaseService) private readonly database:DatabaseService){}
  private db(token:string){return this.database.userClient(token);}
  private async geocode(address:string){const url='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=bd&q='+encodeURIComponent(address+', Bangladesh');const response=await fetch(url,{headers:{'User-Agent':process.env.NOMINATIM_USER_AGENT||'DRIVE-CSE412-Academic-Project/1.0'},signal:AbortSignal.timeout(8000)});if(!response.ok)throw new ServiceUnavailableException('Map geocoding is temporarily unavailable.');const rows:any[]=await response.json();if(!rows.length)throw new BadRequestException('Could not find this location. Add a more specific Dhaka address.');return {lat:Number(rows[0].lat),lng:Number(rows[0].lon)};}
  async create(userId:string,token:string,dto:CreateRideDto){
