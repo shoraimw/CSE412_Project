@@ -14,6 +14,10 @@ type AuthenticatedRequest = Request & {
 export class PlatformController {
   constructor(private readonly service: PlatformService) {}
 
+  @UseGuards(AuthGuard)
+  @Get('vehicles/mine')
+  myVehicles(@Req() request: AuthenticatedRequest) { return this.service.myVehicles(request.user); }
+
   @Get('vehicles')
   vehicles(@Query() query: any) { return this.service.vehicles(query); }
 
@@ -89,6 +93,10 @@ export class PlatformController {
   @UseGuards(AuthGuard)
   @Post('rentals')
   rental(@Req() request: AuthenticatedRequest, @Body() body: any) { return this.service.rental(request.user, body); }
+
+  @UseGuards(AuthGuard)
+  @Patch('rentals/:id/status')
+  updateRentalStatus(@Req() request: AuthenticatedRequest, @Param('id') id: string, @Body() body: any) { return this.service.updateRentalStatus(request.user, id, body); }
 
   @UseGuards(AuthGuard)
   @Get('rentals')
