@@ -1,6 +1,6 @@
-import {Body,Controller,Get,Param,Patch,Post,Req,UseGuards} from '@nestjs/common';import {Request} from 'express';import {AuthGuard} from '../auth/auth.guard';import {CreateRideDto,RideLocationDto,RideStatusDto} from './rides.dto';import {RidesService} from './rides.service';
+import { Body,Controller,Get,Param,Patch,Post,Req,UseGuards, Inject } from '@nestjs/common';import {Request} from 'express';import {AuthGuard} from '../auth/auth.guard';import {CreateRideDto,RideLocationDto,RideStatusDto} from './rides.dto';import {RidesService} from './rides.service';
 type AuthReq=Request&{user:{id:string;accessToken:string;role:'passenger'|'driver'|'vehicle_owner'|'admin'}};
-@Controller('rides')@UseGuards(AuthGuard)export class RidesController{constructor(private readonly rides:RidesService){}
+@Controller('rides')@UseGuards(AuthGuard)export class RidesController{constructor(@Inject(RidesService) private readonly rides:RidesService){}
 @Get()list(@Req()r:AuthReq){return this.rides.list(r.user.id,r.user.accessToken,r.user.role);}
 @Get('open-requests')open(@Req()r:AuthReq){return this.rides.openRequests(r.user.accessToken,r.user.role);}
 @Get('shared')shared(@Req()r:AuthReq){return this.rides.openShared(r.user.accessToken,r.user.role);}
