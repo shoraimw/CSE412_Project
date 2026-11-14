@@ -1,11 +1,11 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto, EmailOtpDto, VerifyEmailOtpDto } from './dto/login.dto';
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(@Inject(DatabaseService) private readonly db: DatabaseService) {}
 
   async register(dto: RegisterDto) {
     const { data, error } = await this.db.publicClient().auth.signUp({
