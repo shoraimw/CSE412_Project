@@ -1,6 +1,6 @@
 name = "cse412-drive"
 main = "backend/src/worker.ts"
-compatibility_date = "2026-11-15"
+compatibility_date = "2026-11-10"
 compatibility_flags = ["nodejs_compat", "enable_nodejs_http_server_modules"]
 workers_dev = true
 
