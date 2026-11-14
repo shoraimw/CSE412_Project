@@ -1,0 +1,14 @@
+name = "cse412-drive"
+main = "backend/src/worker.ts"
+compatibility_date = "2026-11-15"
+compatibility_flags = ["nodejs_compat", "enable_nodejs_http_server_modules"]
+workers_dev = true
+previews = {}
+
+[assets]
+directory = "./frontend"
+binding = "ASSETS"
+run_worker_first = true
+
+[vars]
+CORS_ORIGINS = "http://localhost:5500,http://127.0.0.1:5500"
