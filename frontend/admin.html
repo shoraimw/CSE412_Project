@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#15251f">
+  <title>DRIVE Admin Console</title>
+  <link rel="stylesheet" href="css/app.css">
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body class="admin-body">
+  <header class="admin-topbar">
+    <a class="brand" href="index.html">DRIVE<span>.</span></a>
+    <div class="admin-top-actions">
+      <span class="admin-secure"><i></i> Secure operations</span>
+      <a href="index.html" class="admin-home">Customer site</a>
+      <button id="adminRefresh" class="admin-refresh">Refresh data</button>
+      <button id="adminLogout" class="admin-logout">Sign out</button>
+    </div>
+  </header>
+  <div class="admin-shell">
+    <aside class="admin-sidebar">
+      <div class="admin-side-label">WORKSPACE</div>
+      <button class="admin-tab active" data-tab="overview"><span>◫</span> Overview</button>
+      <div class="admin-side-label">OPERATIONS</div>
+      <button class="admin-tab" data-tab="drivers"><span>♙</span> Driver applications <b id="driverBadge">—</b></button>
+      <button class="admin-tab" data-tab="owners"><span>▣</span> Owner applications <b id="ownerBadge">—</b></button>
+      <button class="admin-tab" data-tab="users"><span>♧</span> Users</button>
+      <button class="admin-tab" data-tab="vehicles"><span>▱</span> Vehicles</button>
+      <button class="admin-tab" data-tab="rides"><span>⇄</span> Rides</button>
+      <button class="admin-tab" data-tab="safety"><span>♡</span> Safety alerts <b id="safetyBadge">—</b></button>
+      <button class="admin-tab" data-tab="payments"><span>৳</span> Payments</button>
+      <div class="admin-sidebar-foot"><span class="admin-avatar">D</span><div><strong id="adminName">DRIVE Admin</strong><small>Platform administrator</small></div></div>
+    </aside>
+    <main class="admin-main">
+      <div id="adminError" class="admin-error" hidden></div>
+      <section class="admin-panel active" id="panel-overview">
+        <div class="admin-heading"><div><small>CONTROL CENTER</small><h1>Good to see you.</h1><p>Monitor your DRIVE platform and manage daily operations.</p></div><span class="admin-live"><i></i> Live database</span></div>
+        <div class="admin-stats">
+          <article><span>Total users</span><strong id="statUsers">—</strong><small>Registered accounts</small></article>
+          <article><span>Driver approvals</span><strong id="statDrivers">—</strong><small>Awaiting review</small></article>
+          <article><span>Owner approvals</span><strong id="statOwners">—</strong><small>Awaiting review</small></article>
+          <article><span>Safety alerts</span><strong id="statSafety">—</strong><small>Open incidents</small></article>
+          <article><span>Vehicles</span><strong id="statVehicles">—</strong><small>In the catalogue</small></article>
+          <article><span>Total rides</span><strong id="statRides">—</strong><small>Ride records</small></article>
+        </div>
+        <div class="admin-overview-grid">
+          <article class="admin-card"><div class="admin-card-head"><div><h2>Needs your attention</h2><p>Pending reviews and safety items.</p></div></div><div id="attentionList" class="admin-attention"><div class="admin-skeleton"></div><div class="admin-skeleton"></div></div></article>
+          <article class="admin-card"><div class="admin-card-head"><div><h2>Platform snapshot</h2><p>Current record counts.</p></div></div><div id="snapshotList" class="admin-snapshot"></div></article>
+        </div>
+      </section>
+      <section class="admin-panel" id="panel-drivers"><div class="admin-heading"><div><small>VERIFICATION</small><h1>Driver applications</h1><p>Review applicants before granting driver access.</p></div></div><div id="driversContent" class="admin-card"><div class="admin-skeleton"></div></div></section>
+      <section class="admin-panel" id="panel-owners"><div class="admin-heading"><div><small>PARTNERS</small><h1>Vehicle owner applications</h1><p>Approve trusted vehicle partners.</p></div></div><div id="ownersContent" class="admin-card"><div class="admin-skeleton"></div></div></section>
+      <section class="admin-panel" id="panel-users"><div class="admin-heading"><div><small>ACCOUNTS</small><h1>User management</h1><p>Review account status. Roles are assigned only through approved workflows.</p></div></div><div id="usersContent" class="admin-card"><div class="admin-skeleton"></div></div></section>
+      <section class="admin-panel" id="panel-vehicles"><div class="admin-heading"><div><small>FLEET</small><h1>Vehicle verification</h1><p>Review vehicle listings before they appear to passengers.</p></div></div><div id="vehiclesContent" class="admin-card"><div class="admin-skeleton"></div></div></section>
+      <section class="admin-panel" id="panel-rides"><div class="admin-heading"><div><small>TRIP OPERATIONS</small><h1>Ride monitoring</h1><p>Review recent ride assignments and trip status.</p></div></div><div id="ridesContent" class="admin-card"><div class="admin-skeleton"></div></div></section>
+      <section class="admin-panel" id="panel-safety"><div class="admin-heading"><div><small>TRUST & SAFETY</small><h1>Safety alerts</h1><p>Review SOS and safe-trip alerts. This console does not contact emergency services.</p></div></div><div id="safetyContent" class="admin-card"><div class="admin-skeleton"></div></div></section>
+      <section class="admin-panel" id="panel-payments"><div class="admin-heading"><div><small>FINANCE</small><h1>Payment records</h1><p>Academic quote and payment records. A quote is not a settled payment.</p></div></div><div id="paymentsContent" class="admin-card"><div class="admin-skeleton"></div></div></section>
+      <footer class="admin-footer">DRIVE Operations · Access is logged through authenticated API requests.</footer>
+    </main>
+  </div>
+  <dialog id="reviewDialog" class="admin-dialog">
+    <form method="dialog" id="reviewForm">
+      <div class="admin-dialog-mark">!</div><h2 id="reviewTitle">Review application</h2><p id="reviewDescription">Confirm your decision.</p>
+      <label id="rejectReasonWrap" hidden>Reason for rejection<textarea id="rejectReason" maxlength="500" placeholder="Explain what needs to be corrected."></textarea></label>
+      <div class="admin-dialog-actions"><button type="button" id="reviewCancel">Cancel</button><button type="submit" id="reviewConfirm" class="danger">Confirm decision</button></div>
+    </form>
+  </dialog>
+  <script src="js/config.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>
