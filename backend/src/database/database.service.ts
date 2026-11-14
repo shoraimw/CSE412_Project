@@ -8,8 +8,6 @@ export class DatabaseService {
  private readonly url = this.config.supabaseUrl;
  private readonly key = this.config.supabaseAnonKey;
 
- constructor() {}
-
  configurationStatus() {
   return { configured: Boolean(this.url && this.key), urlConfigured: Boolean(this.url), keyConfigured: Boolean(this.key) };
  }
