@@ -21,7 +21,6 @@ async function startApi(env: DriveEnv): Promise<void> {
   // Nest providers read process.env when they are instantiated.
   process.env.SUPABASE_URL = env.SUPABASE_URL;
   process.env.SUPABASE_ANON_KEY = env.SUPABASE_ANON_KEY;
-  process.env.NODE_ENV = 'production';
 
   const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn'],
