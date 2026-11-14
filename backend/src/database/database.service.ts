@@ -15,7 +15,7 @@ export class DatabaseService {
  async checkConnection() {
   if (!this.url || !this.key) return { status: 'not_configured', ...this.configurationStatus() };
   try {
-   const response = await fetch(this.url.replace(/\\/$/, '') + '/auth/v1/settings', {
+   const response = await fetch(this.url.replace(/\/+$/, '') + '/auth/v1/settings', {
     method: 'GET', headers: { apikey: this.key },
    });
    if (!response.ok) return { status: 'unreachable', configured: true, httpStatus: response.status };
