@@ -33,6 +33,10 @@ const distance=(a:any,b:any)=>{const r=(n:number)=>n*Math.PI/180,d1=r(b.lat-a.la
     estimated_fare:estimate.estimated_fare,currency:'BDT'
   }).select().single());
  }
+ sharedRides(a:Actor){if(a.role!=='passenger')throw new ForbiddenException('Passenger role required.');return this.data(this.db(a).rpc('drive_list_shared_rides'));}
+ mySharedRides(a:Actor){if(a.role!=='passenger')throw new ForbiddenException('Passenger role required.');return this.data(this.db(a).rpc('drive_my_shared_rides_v2'));}
+ async joinSharedRide(a:Actor,id:string){if(a.role!=='passenger')throw new ForbiddenException('Passenger role required.');return this.data(this.db(a).rpc('drive_join_shared_ride',{p_ride_id:id}));}
+ async leaveSharedRide(a:Actor,id:string){if(a.role!=='passenger')throw new ForbiddenException('Passenger role required.');return this.data(this.db(a).rpc('drive_leave_shared_ride_v2',{p_ride_id:id}));}
  rides(a:Actor){if(a.role==='driver')return this.data(this.db(a).from('rides').select('*,ride_requests(*)').eq('driver_id',a.id).order('created_at',{ascending:false}));return this.data(this.db(a).from('ride_requests').select('*,rides(*)').eq('passenger_id',a.id).order('created_at',{ascending:false}));}
  openRequests(a:Actor){if(a.role!=='driver'||!a.isVerified)throw new ForbiddenException('Verified driver account required.');return this.data(this.db(a).from('ride_requests').select('*').eq('status','requested').order('created_at',{ascending:false}));}
  openShared(a:Actor){if(a.role!=='driver'||!a.isVerified)throw new ForbiddenException('Verified driver account required.');return this.data(this.db(a).from('ride_requests').select('id,pickup_label,destination_label,requested_vehicle,estimated_fare,status,is_shared,women_safety_preference').eq('is_shared',true).eq('status','requested'));}
