@@ -1,3 +1,4 @@
+import {createHash,randomBytes} from 'node:crypto';
 import {estimateFare} from './fare.util';
 import {BadRequestException,ForbiddenException,Injectable,NotFoundException,ServiceUnavailableException} from '@nestjs/common';
 import {DatabaseService} from '../database/database.service';
@@ -50,6 +51,49 @@ const distance=(a:any,b:any)=>{const r=(n:number)=>n*Math.PI/180,d1=r(b.lat-a.la
  async updateRentalStatus(a:Actor,id:string,b:any){if(!['vehicle_owner','admin'].includes(a.role))throw new ForbiddenException('Vehicle owner or administrator role required.');const booking=await this.data<any>(this.db(a).from('rental_bookings').select('id,status,vehicles(owner_id)').eq('id',id).maybeSingle());if(!booking)throw new NotFoundException('Rental booking not found.');if(a.role==='vehicle_owner'&&booking.vehicles?.owner_id!==a.id)throw new ForbiddenException('You can only manage bookings for your own vehicles.');const allowed:any={pending:['approved','rejected','cancelled'],approved:['active','cancelled'],active:['completed']};if(!allowed[booking.status]?.includes(b.status))throw new BadRequestException('Invalid rental status transition.');return this.data(this.db(a).from('rental_bookings').update({status:b.status,updated_at:new Date().toISOString()}).eq('id',id).select().single());}
  addContact(a:Actor,b:any){if(!b.name||!b.phone)throw new BadRequestException('Contact name and phone required.');return this.data(this.db(a).from('trusted_contacts').insert({user_id:a.id,contact_name:b.name.trim(),phone:b.phone.trim(),relationship:b.relationship||null}).select().single());}
  contacts(a:Actor){return this.data(this.db(a).from('trusted_contacts').select('*').eq('user_id',a.id));}
+ async createTripShare(a:Actor,b:any){
+  if(a.role!=='passenger')throw new ForbiddenException('Passenger role required.');
+  if(!b.ride_id)throw new BadRequestException('Choose an active ride to share.');
+  const ride=await this.data<any>(this.db(a).from('rides').select('id,request_id,status,ride_requests(id,passenger_id,destination_label,pickup_lat,pickup_lng,destination_lat,destination_lng,estimated_duration_minutes)').eq('id',b.ride_id).maybeSingle());
+  if(!ride)throw new NotFoundException('Ride not found.');
+  const request=Array.isArray(ride.ride_requests)?ride.ride_requests[0]:ride.ride_requests;
+  if(!request)throw new NotFoundException('Ride request details not found.');
+  if(!['matched','driver_arriving','in_progress'].includes(ride.status))throw new BadRequestException('Only an assigned or active ride can be shared.');
+  if(request.passenger_id!==a.id){const member=await this.data<any>(this.db(a).from('ride_passengers').select('ride_id').eq('ride_id',ride.id).eq('passenger_id',a.id).maybeSingle());if(!member)throw new ForbiddenException('You are not a passenger on this ride.');}
+  const contactIds=Array.isArray(b.contact_ids)?[...new Set(b.contact_ids.map((x:any)=>String(x)))]:[];
+  let contacts:any[]=[];
+  if(contactIds.length){contacts=await this.data<any[]>(this.db(a).from('trusted_contacts').select('id,contact_name,phone').eq('user_id',a.id).in('id',contactIds));if(contacts.length!==contactIds.length)throw new BadRequestException('One or more selected trusted contacts are invalid.');}
+  let plannedRoute:any[]=[];
+  try{const route=await this.route({pickup:{lat:request.pickup_lat,lng:request.pickup_lng},destination:{lat:request.destination_lat,lng:request.destination_lng}});const coords=route.routes[0]?.geometry?.coordinates||[];const step=Math.max(1,Math.ceil(coords.length/200));plannedRoute=coords.filter((_:any,i:number)=>i%step===0||i===coords.length-1).map((p:any)=>({lat:Number(p[1]),lng:Number(p[0])}));}catch{}
+  const etaMinutes=Math.max(15,Number(request.estimated_duration_minutes||30)+15);
+  const expectedArrival=new Date(Date.now()+etaMinutes*60000);
+  const expiresAt=new Date(Math.min(expectedArrival.getTime()+2*3600000,Date.now()+24*3600000));
+  const session=await this.data<any>(this.db(a).from('safety_trip_sessions').insert({user_id:a.id,ride_id:ride.id,ride_request_id:request.id,destination:request.destination_label,expected_arrival_at:expectedArrival.toISOString(),planned_route:plannedRoute,status:'ACTIVE'}).select().single());
+  const token=randomBytes(32).toString('hex');
+  const tokenHash=createHash('sha256').update(token).digest('hex');
+  try{await this.data(this.db(a).from('trip_shares').insert({safety_trip_id:session.id,user_id:a.id,token_hash:tokenHash,contact_ids:contactIds,expires_at:expiresAt.toISOString()}).select().single());}
+  catch(error){await this.db(a).from('safety_trip_sessions').delete().eq('id',session.id);throw error;}
+  return {safety_trip_id:session.id,token,expires_at:expiresAt.toISOString(),expected_arrival_at:expectedArrival.toISOString(),destination:request.destination_label,contacts};
+ }
+ async updateSafetyTripLocation(a:Actor,id:string,b:any){
+  const lat=Number(b.lat),lng=Number(b.lng);
+  if(!Number.isFinite(lat)||!Number.isFinite(lng)||Math.abs(lat)>90||Math.abs(lng)>180)throw new BadRequestException('Valid GPS coordinates required.');
+  const session=await this.data<any>(this.db(a).from('safety_trip_sessions').select('*').eq('id',id).eq('user_id',a.id).maybeSingle());
+  if(!session)throw new NotFoundException('Safe-trip session not found.');
+  if(['COMPLETED','EMERGENCY'].includes(session.status))throw new BadRequestException('This safe-trip session is no longer active.');
+  const warnings=Array.isArray(session.warnings)?[...session.warnings]:[];
+  const alerts:any[]=[];
+  const route=Array.isArray(session.planned_route)?session.planned_route:[];
+  if(route.length){const nearest=Math.min(...route.map((p:any)=>distance({lat,lng},{lat:Number(p.lat),lng:Number(p.lng)})));if(nearest>0.5&&!warnings.includes('ROUTE_DEVIATION')){warnings.push('ROUTE_DEVIATION');alerts.push({user_id:a.id,ride_id:session.ride_id||null,alert_type:'ROUTE_DEVIATION',message:'Shared trip location moved more than 500 metres from the planned route.',latitude:lat,longitude:lng,status:'open'});}}
+  const eta=new Date(session.expected_arrival_at);
+  if(Number.isFinite(+eta)&&Date.now()>eta.getTime()+10*60000&&!warnings.includes('UNEXPECTED_DELAY')){warnings.push('UNEXPECTED_DELAY');alerts.push({user_id:a.id,ride_id:session.ride_id||null,alert_type:'UNEXPECTED_DELAY',message:'Shared trip is more than 10 minutes past its expected arrival time.',latitude:lat,longitude:lng,status:'open'});}
+  await this.data(this.db(a).from('safety_trip_locations').insert({safety_trip_id:id,user_id:a.id,latitude:lat,longitude:lng}).select().single());
+  const updated=await this.data(this.db(a).from('safety_trip_sessions').update({current_lat:lat,current_lng:lng,status:warnings.length?'DELAYED':'ACTIVE',warnings,updated_at:new Date().toISOString()}).eq('id',id).eq('user_id',a.id).select().single());
+  for(const alert of alerts)await this.data(this.db(a).from('safety_alerts').insert(alert).select().single());
+  return {status:updated.status,warnings,alerts_created:alerts.length,updated_at:updated.updated_at};
+ }
+ async completeSafetyTrip(a:Actor,id:string){const session=await this.data<any>(this.db(a).from('safety_trip_sessions').select('id,status').eq('id',id).eq('user_id',a.id).maybeSingle());if(!session)throw new NotFoundException('Safe-trip session not found.');if(session.status==='COMPLETED')return session;return this.data(this.db(a).from('safety_trip_sessions').update({status:'COMPLETED',updated_at:new Date().toISOString()}).eq('id',id).eq('user_id',a.id).select('id,status,updated_at').single());}
+ async sharedTrip(token:string){if(!/^[a-f0-9]{64}$/i.test(String(token||'')))throw new NotFoundException('This trip link is invalid or expired.');const tokenHash=createHash('sha256').update(token).digest('hex');const data=await this.data<any>(this.database.publicClient().rpc('drive_get_shared_trip',{p_token_hash:tokenHash}));if(!data)throw new NotFoundException('This trip link is invalid or expired.');return data;}
  sos(a:Actor,b:any){return this.data(this.db(a).from('safety_alerts').insert({user_id:a.id,ride_id:b.ride_id||null,alert_type:'SOS',message:String(b.message||'Emergency assistance requested').slice(0,500),latitude:b.lat??null,longitude:b.lng??null,status:'open'}).select().single());}
 
  safetyPreferences(a:Actor){return this.data(this.db(a).from('user_safety_preferences').select('*').eq('user_id',a.id).maybeSingle());}
