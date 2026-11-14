@@ -88,7 +88,7 @@ const distance=(a:any,b:any)=>{const r=(n:number)=>n*Math.PI/180,d1=r(b.lat-a.la
   const eta=new Date(session.expected_arrival_at);
   if(Number.isFinite(+eta)&&Date.now()>eta.getTime()+10*60000&&!warnings.includes('UNEXPECTED_DELAY')){warnings.push('UNEXPECTED_DELAY');alerts.push({user_id:a.id,ride_id:session.ride_id||null,alert_type:'UNEXPECTED_DELAY',message:'Shared trip is more than 10 minutes past its expected arrival time.',latitude:lat,longitude:lng,status:'open'});}
   await this.data(this.db(a).from('safety_trip_locations').insert({safety_trip_id:id,user_id:a.id,latitude:lat,longitude:lng}).select().single());
-  const updated=await this.data(this.db(a).from('safety_trip_sessions').update({current_lat:lat,current_lng:lng,status:warnings.length?'DELAYED':'ACTIVE',warnings,updated_at:new Date().toISOString()}).eq('id',id).eq('user_id',a.id).select().single());
+  const updated=await this.data<any>(this.db(a).from('safety_trip_sessions').update({current_lat:lat,current_lng:lng,status:warnings.length?'DELAYED':'ACTIVE',warnings,updated_at:new Date().toISOString()}).eq('id',id).eq('user_id',a.id).select().single());
   for(const alert of alerts)await this.data(this.db(a).from('safety_alerts').insert(alert).select().single());
   return {status:updated.status,warnings,alerts_created:alerts.length,updated_at:updated.updated_at};
  }
