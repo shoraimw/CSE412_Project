@@ -1,5 +1,5 @@
 import {estimateFare} from './fare.util';
-import {BadRequestException,ForbiddenException,Injectable,ServiceUnavailableException} from '@nestjs/common';
+import {BadRequestException,ForbiddenException,Injectable,NotFoundException,ServiceUnavailableException} from '@nestjs/common';
 import {DatabaseService} from '../database/database.service';
 type Actor={id:string;role:string;token:string;isVerified:boolean};
 const rates:any={car:{base:60,km:25},bike:{base:30,km:12},cng:{base:40,km:18}};
