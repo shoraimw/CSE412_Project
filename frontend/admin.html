@@ -36,7 +36,7 @@
     .admin-access p{color:#6c7971;font-size:13px;line-height:1.75;margin:0 0 18px}
     .admin-access a{color:#455e2b;font-weight:800;text-decoration:underline;text-underline-offset:3px}
     .admin-access-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:20px}
-    .admin-stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:22px 0 34px}
+    .admin-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:22px 0 34px}
     .admin-stat{background:#fff;border:1px solid #e6ebe6;border-radius:15px;padding:17px 18px;min-width:0}
     .admin-stat-label{display:block;color:#7a867e;font-size:11px;font-weight:700;line-height:1.4}
     .admin-stat strong{display:block;color:#17212b;font:800 29px/1.1 "DM Sans",Inter,system-ui,sans-serif;letter-spacing:-1px;margin:10px 0 5px;font-variant-numeric:tabular-nums}
@@ -123,10 +123,13 @@
     </section>
 
     <div id="adminShell" hidden>
-      <section class="admin-stats" aria-label="Pending work summary">
+      <section class="admin-stats" aria-label="DRIVE operations overview">
+        <article class="admin-stat"><span class="admin-stat-label">Registered users</span><strong id="statUsers">—</strong><small>Passenger, driver and owner accounts</small></article>
         <article class="admin-stat"><span class="admin-stat-label">Driver applications</span><strong id="statDrivers">—</strong><small>Waiting for review</small></article>
         <article class="admin-stat"><span class="admin-stat-label">Owner applications</span><strong id="statOwners">—</strong><small>Waiting for review</small></article>
         <article class="admin-stat"><span class="admin-stat-label">Vehicles</span><strong id="statVehicles">—</strong><small>Awaiting verification</small></article>
+        <article class="admin-stat"><span class="admin-stat-label">Active rides</span><strong id="statRides">—</strong><small>Matched, arriving or in progress</small></article>
+        <article class="admin-stat"><span class="admin-stat-label">Rental requests</span><strong id="statRentals">—</strong><small>Waiting for review</small></article>
         <article class="admin-stat"><span class="admin-stat-label">Active safety alerts</span><strong id="statSafety">—</strong><small>Open or acknowledged</small></article>
         <article class="admin-stat"><span class="admin-stat-label">Pending payments</span><strong id="statPayments">—</strong><small>Not yet settled</small></article>
       </section>
@@ -164,11 +167,33 @@
           <div class="admin-card-head"><div class="admin-card-icon">৳</div><div class="admin-card-title"><h2>Pending payments</h2><p>Reconcile cash received in person</p></div><span class="admin-count" id="countPayments">0</span></div>
           <div class="admin-list" id="payments" aria-live="polite"><div class="admin-empty">Loading payments…</div></div>
         </article>
+
+        <article class="admin-card" data-queue="users">
+          <div class="admin-card-head"><div class="admin-card-icon">US</div><div class="admin-card-title"><h2>User management</h2><p>Review accounts and suspend or reactivate access</p></div><span class="admin-count" id="countUsers">0</span></div>
+          <div class="admin-list" id="users" aria-live="polite"><div class="admin-empty">Loading users…</div></div>
+        </article>
+
+        <article class="admin-card" data-queue="rides">
+          <div class="admin-card-head"><div class="admin-card-icon">↗</div><div class="admin-card-title"><h2>Live ride monitoring</h2><p>Review trip status, passenger, driver and route</p></div><span class="admin-count" id="countRides">0</span></div>
+          <div class="admin-list" id="rides" aria-live="polite"><div class="admin-empty">Loading rides…</div></div>
+        </article>
+
+        <article class="admin-card" data-queue="rentals">
+          <div class="admin-card-head"><div class="admin-card-icon">RE</div><div class="admin-card-title"><h2>Rental bookings</h2><p>Approve, reject and resolve rental requests</p></div><span class="admin-count" id="countRentals">0</span></div>
+          <div class="admin-list" id="rentalBookings" aria-live="polite"><div class="admin-empty">Loading rental bookings…</div></div>
+        </article>
+
+        <article class="admin-card" data-queue="audit">
+          <div class="admin-card-head"><div class="admin-card-icon">LOG</div><div class="admin-card-title"><h2>Admin activity log</h2><p>Trace privileged changes and review decisions</p></div><span class="admin-count" id="countAudit">0</span></div>
+          <div class="admin-list" id="auditLogs" aria-live="polite"><div class="admin-empty">Loading audit history…</div></div>
+        </article>
       </section>
 
       <section class="admin-footnotes" aria-label="Operational limitations">
-        <div class="admin-footnote"><strong>Verification:</strong> the current driver application uses an NID or driving-licence number. The old driver-document upload/review card is no longer part of this flow.</div>
+        <div class="admin-footnote"><strong>Verification:</strong> the current driver application uses an NID or driving-licence number. Vehicle approval updates both verification status and public catalogue eligibility.</div>
         <div class="admin-footnote"><strong>Payments &amp; emergencies:</strong> no bKash/Nagad/card gateway or external SOS dispatch is connected. Only physically received cash can be marked as paid here; SOS records are handled inside DRIVE.</div>
+        <div class="admin-footnote"><strong>Account security:</strong> admin actions are server-authorized. Admins cannot suspend their own account or another administrator from User Management.</div>
+        <div class="admin-footnote"><strong>Auditability:</strong> privileged reviews, account status changes, payment updates, safety resolutions and rental decisions are recorded in the admin activity log.</div>
       </section>
     </div>
   </main>
