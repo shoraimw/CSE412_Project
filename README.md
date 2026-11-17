@@ -45,7 +45,7 @@ Use Supabase Dashboard → Authentication → URL Configuration to set the produ
 - Passenger, driver, vehicle owner and admin role-based workflows
 - Vehicle catalogue, vehicle-owner listings, verification and rental booking
 - Map-based ride requests, Google traffic-aware route estimates when configured (OSRM fallback otherwise), server-calculated fares, nearest-first driver discovery, online driver GPS presence, in-app/browser ride alerts, atomic first-accept matching, seat-aware shared rides and foreground live GPS tracking
-- Automatic BDT fare estimation from route distance and traffic ratio when Google Routes API is configured; fallback estimates use OSRM road distance. Fare logic is transparent/rule-based, not a trained ML model. Multi-currency conversion quotes remain available.
+- Automatic BDT fare estimation from the server-calculated road route, vehicle rate and Google traffic-aware duration when configured; OSRM provides a standard-route fallback. The fare formula is deterministic and transparent. No ML model or training pipeline is used. Multi-currency conversion quotes remain available.
 - Women Safety Mode, trusted/emergency contacts, monitored safety trips, trip sharing and SOS records
 - Tourist destination catalogue and saved trip plans
 - Payment intent records and currency conversion quotes
