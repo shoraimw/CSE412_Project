@@ -178,12 +178,9 @@ $('newRide').addEventListener('submit',async event=>{
   const trafficNote=route?.trafficStatus==='live'
    ?'Google traffic-aware ETA: '+route.durationMinutes+' min.'
    :'Live traffic is not configured yet; standard route estimate: '+(route?.durationMinutes||'—')+' min.';
-  msg('rideMsg','Ride request submitted successfully. Estimated fare: ৳'+ride.estimatedFare+'. '+trafficNote+' Checking nearby drivers…');
-  if(ride.womenSafety?.warning){
-   const warning=document.createElement('p');
-   warning.textContent='Women Safety setup warning: '+ride.womenSafety.warning;
-   $('rideMsg').append(warning);
-  }
+  const dispatchMessage=document.createElement('p');
+  dispatchMessage.textContent='Ride request submitted successfully. Estimated fare: ৳'+ride.estimatedFare+'. '+trafficNote+' Checking nearby drivers…';
+  $('rideMsg').append(dispatchMessage);
   await loadRides();
   await refreshNearbyDrivers();
   watchRideRequest(ride.requestId);
