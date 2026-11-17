@@ -1,1 +1,1 @@
-import {Module} from '@nestjs/common';import {AuthModule} from '../auth/auth.module';import {DriversController} from './drivers.controller';@Module({imports:[AuthModule],controllers:[DriversController]})export class DriversModule{}
+import {Module} from '@nestjs/common';import {AuthModule} from '../auth/auth.module';import {DatabaseModule} from '../database/database.module';import {DriversController} from './drivers.controller';@Module({imports:[AuthModule,DatabaseModule],controllers:[DriversController]})export class DriversModule{}
