@@ -1,3 +1,8 @@
+function getAuthDestination(form){
+  const requested=new URLSearchParams(window.location.search).get('next');
+  return form?.id==='loginForm'&&requested==='admin'?'admin':'dashboard.html';
+}
+
 function showAuthMessage(id,message,success=false){
   const element=document.getElementById(id);
   if(!element)return;
@@ -37,7 +42,7 @@ async function submitAuth(form,endpoint,messageId,successText){
         if(result.user)localStorage.setItem('drive_user',JSON.stringify(result.user));
         if(result.refreshToken)localStorage.setItem('drive_refresh_token',result.refreshToken);
         showAuthMessage(messageId,successText,true);
-        window.location.href='dashboard.html';
+        window.location.href=getAuthDestination(form);
       }else{
         showAuthMessage(messageId,result.message||'Check your email to confirm your account.',true);
       }
@@ -96,7 +101,7 @@ document.getElementById('verifyOtpButton')?.addEventListener('click',async()=>{
     localStorage.setItem('drive_refresh_token',result.refreshToken);
     localStorage.setItem('drive_user',JSON.stringify(result.user));
     showAuthMessage('otpMessage','Verified. Opening your dashboard…',true);
-    location.href='dashboard.html';
+    location.href=getAuthDestination(document.getElementById('loginForm'));
   }catch(error){
     showAuthMessage('otpMessage',error.message);
   }finally{
