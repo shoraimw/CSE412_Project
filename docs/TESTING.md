@@ -42,15 +42,15 @@ The team requirement PDF defines 12 functional requirement groups and five non-f
 | Smart Ride Match & Cost Sharing | Atomic verified-driver claim RPC; passenger shared-ride discovery/join; seat-capacity guard and per-passenger fare recalculation | Verify concurrent joins, full-ride rejection and final fare shares |
 | Real-Time Ride Tracking | Driver foreground GPS watchPosition; authenticated location writes; passenger map refreshes every 6 seconds | Browser tab must remain open; this is not native background tracking or WebSocket streaming |
 | Smart Fare Prediction | Rule-based BDT estimate with distance, vehicle, traffic, demand and time multipliers | Not a trained ML model; final fare is subject to trip conditions |
-| AI Route Optimization | OSRM fastest/shortest road-route selection and alternatives when returned | Algorithmic route selection, not AI/ML; public demo endpoint is best-effort |
+| AI Route Optimization | OSRM fastest, shortest and balanced road-route selection with alternatives when returned | Balanced scoring minimizes normalized distance and duration; algorithmic route selection, not AI/ML; public demo endpoint is best-effort |
 | Multi-Currency Payment | Live BDT-to-currency conversion quotes and payment-intent records | Cash payment intents can be recorded and manually confirmed by an admin after cash is physically received; no card/bKash/Nagad gateway or foreign-currency settlement is connected |
-| Women Safety Mode | Preference stored with ride request; verified-driver claim guard; trusted contacts and expiring private trip-share links | SMS/WhatsApp notification delivery is not configured |
+| Women Safety Mode | Preference stored with ride request; verified-driver claim guard; trusted contacts, expiring private trip-share links and planned-route monitoring during an active trip | SMS/WhatsApp delivery is not configured; keep the passenger dashboard open for foreground GPS |
 | Smart Emergency & Safe Trip | SOS incident records, emergency contacts, expected-arrival delay and route-deviation checks | No emergency-services dispatch or guaranteed contact notification |
 | Tourist Mode | Seeded tourist places, recommendations and saved multi-stop plans | Validate location accuracy and route provider availability |
 | Performance | Indexed relational schema, bounded list endpoints, request validation and CI build checks | No latency SLO or load capacity is claimed until k6 runs are measured |
 | Usability | Responsive pages, consistent forms, map-based booking, accessible show/hide password control | Test desktop and mobile viewport sizes |
 | Scalability | Cloudflare Worker + Supabase managed Postgres; k6 test script included | Free-tier quotas apply; 100,000 concurrent users are not verified |
-| Security | Supabase RLS on public tables, user-scoped clients, server-side role checks and guarded RPCs | RLS and role checks are enabled; privileged shared-ride operations now live in the non-exposed private schema behind SECURITY INVOKER public RPC wrappers. The Supabase security advisor returned no lints after this change; still run role-isolation and abuse tests |
+| Security | Supabase RLS on public tables, user-scoped clients, server-side role checks and guarded RPCs | Shared-ride privileged functions live in the private schema behind SECURITY INVOKER wrappers. The anonymous live-share RPC is intentionally SECURITY DEFINER and accepts only a high-entropy, expiring token hash. Enable Supabase leaked-password protection before public launch and run role-isolation/abuse tests |
 | Portability | Responsive web frontend on modern browsers | Native mobile background GPS and push notifications are outside this web build |
 
 ## $0 academic deployment envelope
@@ -70,6 +70,8 @@ The team requirement PDF defines 12 functional requirement groups and five non-f
 5. Start the ride, start foreground GPS sharing from the driver browser, and verify passenger A sees the marker update on the tracking map.
 6. Confirm a different passenger cannot read the ride or its tracking data.
 7. Test rental booking overlap, owner approval, fare quote, currency quote, safety settings, private share expiry, SOS record, tourist plan and notification history.
+8. Open a valid private trip-share link in a logged-out/private browser and verify it loads; test a random or expired token and verify it returns an invalid/expired message.
+9. Verify a Women Safety session receives the claimed ride ID, begins route-deviation checks only after the ride starts, and closes when the ride completes or is cancelled.
 8. Run the staged k6 profile against a dedicated test environment. Record error rate and p50/p95/p99 latency; never infer 100k concurrency from registered-user count.
 
 ## Manual UI and route tests
