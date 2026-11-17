@@ -1,10 +1,6 @@
 const el=id=>document.getElementById(id);
-const user=JSON.parse(localStorage.getItem('drive_user')||'null');
-if(!localStorage.getItem(DRIVE_TOKEN_KEY))location.href='login.html';
-if(user?.role!=='driver'){
-  el('driverMessage').textContent='This workspace is only available to approved driver accounts.';
-  el('openRequests').textContent='Your account role is '+(user?.role||'unknown')+'.';
-}
+let user=JSON.parse(localStorage.getItem('drive_user')||'null');
+if(!localStorage.getItem(DRIVE_TOKEN_KEY))location.replace('login.html');
 
 let driverOnline=localStorage.getItem('drive_driver_online')==='true';
 let driverMap=null,driverMarker=null,driverRouteLayers=[];
@@ -333,9 +329,45 @@ el('driverLogout').addEventListener('click',async()=>{
   location.href='login.html';
 });
 
-if(user?.role==='driver'){
-  initDriverMap();
-  updatePresenceStatus(driverOnline?'Connecting to GPS…':'Offline · go online to accept rides');
-  refresh();
-  setInterval(refresh,7000);
+async function bootDriverWorkspace(){
+  if(!localStorage.getItem(DRIVE_TOKEN_KEY))return;
+  try{
+    // The database role is authoritative. A cached Passenger role can remain
+    // in localStorage after an admin approves the application.
+    user=await driveRequest('/users/me');
+    localStorage.setItem('drive_user',JSON.stringify(user));
+
+    if(user.role!=='driver'||!user.is_verified){
+      driverOnline=false;
+      localStorage.removeItem('drive_driver_online');
+      el('driverOnlineToggle').disabled=true;
+      updatePresenceStatus('Access not enabled · administrator approval required');
+      if(user.role==='passenger'){
+        el('driverMessage').textContent='Your account is a Passenger. Apply to become a verified Driver Partner to unlock this workspace.';
+        const link=document.createElement('a');
+        link.href='driver-apply.html';
+        link.textContent='Apply to become a driver →';
+        link.style.display='inline-block';
+        link.style.marginTop='8px';
+        el('driverMessage').append(document.createElement('br'),link);
+      }else{
+        el('driverMessage').textContent='This workspace is available only to approved and verified Driver accounts. Current account role: '+String(user.role||'unknown')+'.';
+      }
+      el('openRequests').textContent='Driver access is not enabled for this account.';
+      return;
+    }
+
+    el('driverOnlineToggle').disabled=false;
+    initDriverMap();
+    updatePresenceStatus(driverOnline?'Connecting to GPS…':'Offline · go online to accept rides');
+    await refresh();
+    setInterval(refresh,7000);
+  }catch(error){
+    el('driverMessage').textContent=error.message||'Could not verify Driver access.';
+    if(/session|log in|invalid/i.test(error.message||'')){
+      setTimeout(()=>location.replace('login.html'),900);
+    }
+  }
 }
+
+bootDriverWorkspace();
