@@ -2,6 +2,7 @@ interface Env {
   SUPABASE_URL?: string;
   SUPABASE_ANON_KEY?: string;
   CORS_ORIGIN?: string;
+  GOOGLE_MAPS_API_KEY?: string;
   ASSETS: Fetcher;
 }
 declare module 'cloudflare:node' {
