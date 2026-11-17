@@ -25,9 +25,18 @@ export class RoutesService {
         durationMinutes: Math.round(route.duration / 60),
         geometry: route.geometry,
       }));
+      const fastest = [...routes].sort((a: any, b: any) => a.durationMinutes - b.durationMinutes)[0];
+      const shortest = [...routes].sort((a: any, b: any) => a.distanceKm - b.distanceKm)[0];
+      const minDistance = Math.max(0.01, Math.min(...routes.map((route: any) => route.distanceKm)));
+      const minDuration = Math.max(1, Math.min(...routes.map((route: any) => route.durationMinutes)));
       const selected = dto.preference === 'shortest'
-        ? [...routes].sort((a: any, b: any) => a.distanceKm - b.distanceKm)[0]
-        : [...routes].sort((a: any, b: any) => a.durationMinutes - b.durationMinutes)[0];
+        ? shortest
+        : dto.preference === 'balanced'
+          ? [...routes].sort((a: any, b: any) =>
+              ((a.distanceKm / minDistance) + (a.durationMinutes / minDuration)) -
+              ((b.distanceKm / minDistance) + (b.durationMinutes / minDuration))
+            )[0]
+          : fastest;
       return {
         provider: 'OpenStreetMap OSRM public demo service',
         optimization: dto.preference || 'fastest',
