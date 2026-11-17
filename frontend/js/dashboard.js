@@ -33,11 +33,7 @@ async function previewRoute(){
   lastRouteMetrics={
    distanceKm:r.selectedRoute.distanceKm,
    durationMinutes:r.selectedRoute.durationMinutes,
-   staticDurationMinutes:r.selectedRoute.staticDurationMinutes||r.selectedRoute.durationMinutes,
-   trafficDelayMinutes:r.selectedRoute.trafficDelayMinutes||0,
-   trafficRatio:r.selectedRoute.trafficRatio||1,
-   trafficLevel:r.trafficLevel||r.selectedRoute.trafficLevel||'unknown',
-   trafficStatus:r.trafficStatus||'unavailable',
+    trafficStatus:'unavailable',
    note:r.note,provider:r.provider,
   };
   sessionStorage.setItem('drive_route_geometry',JSON.stringify(lastRouteGeometry));
