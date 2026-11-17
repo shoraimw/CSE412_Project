@@ -164,6 +164,7 @@ $('newRide').addEventListener('submit',async event=>{
    destinationAddress:$('destination').value,
    vehicleType:$('vehicle').value,
    routePreference:$('routePreference').value,
+   ...(lastRouteMetrics?{routeDistanceKm:Number(lastRouteMetrics.distanceKm),routeDurationMinutes:Number(lastRouteMetrics.durationMinutes),routeStaticDurationMinutes:Number(lastRouteMetrics.staticDurationMinutes),trafficRatio:Number(lastRouteMetrics.trafficRatio||1),trafficDataAvailable:lastRouteMetrics.trafficStatus==='live',routeProvider:lastRouteMetrics.provider}:{}),
    isShared:$('shared').value==='true',
    seatsRequested:Number($('seatsRequested').value),
    womenSafetyPreference:enabled,
