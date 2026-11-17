@@ -160,6 +160,9 @@ function stopPresenceWatchIfIdle(){
 
 async function setDriverOnline(online){
   if(online){
+    if('Notification'in window&&Notification.permission==='default'){
+      try{await Notification.requestPermission();}catch{}
+    }
     if(!navigator.geolocation)throw new Error('This browser does not support GPS location.');
     await new Promise((resolve,reject)=>{
       navigator.geolocation.getCurrentPosition(
@@ -170,9 +173,6 @@ async function setDriverOnline(online){
     });
     driverOnline=true;
     localStorage.setItem('drive_driver_online','true');
-    if('Notification'in window&&Notification.permission==='default'){
-      try{await Notification.requestPermission();}catch{}
-    }
     startPresenceWatch();
     await sendPresence(lastDriverPoint);
     updatePresenceStatus('Online · checking nearby ride requests');
