@@ -55,9 +55,20 @@ async function previewRoute(){
 }
 $('previewRoute').addEventListener('click',previewRoute);
 $('routePreference').addEventListener('change',()=>{if(pickupPoint&&destinationPoint)previewRoute().then(refreshFareFromRoute);});
-const geocodeCache=new Map();let geocodeTimers={pickup:null,destination:null};
+const geocodeCache=new Map();let geocodeTimers={pickup:null,destination:null};let lastGeocodeRequestAt=0;let geocodeQueue=Promise.resolve();
 function locationLabel(item){return item.name||item.display_name||'Selected location';}
-async function searchPlaces(query){const q=String(query||'').trim();if(q.length<3)return[];const key=q.toLowerCase();if(geocodeCache.has(key))return geocodeCache.get(key);const url='https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=7&countrycodes=bd&q='+encodeURIComponent(q);const res=await fetch(url,{headers:{'Accept':'application/json'}});if(!res.ok)throw new Error('Place search is temporarily unavailable. Please select the point on the map.');const data=await res.json();geocodeCache.set(key,data);return data;}
+async function fetchNominatim(url){
+ const execute=async()=>{
+  const waitMs=Math.max(0,1100-(Date.now()-lastGeocodeRequestAt));
+  if(waitMs>0)await new Promise(resolve=>setTimeout(resolve,waitMs));
+  lastGeocodeRequestAt=Date.now();
+  return fetch(url,{headers:{'Accept':'application/json'}});
+ };
+ const request=geocodeQueue.then(execute,execute);
+ geocodeQueue=request.then(()=>undefined,()=>undefined);
+ return request;
+}
+async function searchPlaces(query){const q=String(query||'').trim();if(q.length<3)return[];const key=q.toLowerCase();if(geocodeCache.has(key))return geocodeCache.get(key);const url='https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=7&countrycodes=bd&q='+encodeURIComponent(q);const res=await fetchNominatim(url);if(!res.ok)throw new Error('Place search is temporarily unavailable. Please select the point on the map.');const data=await res.json();geocodeCache.set(key,data);return data;}
 function bindPlaceAutocomplete(which){const input=$(which),list=$(which==='pickup'?'pickupSuggestions':'destinationSuggestions');input.addEventListener('input',()=>{clearTimeout(geocodeTimers[which]);const q=input.value.trim();if(q.length<3)return;geocodeTimers[which]=setTimeout(async()=>{try{const items=await searchPlaces(q);list.replaceChildren();items.forEach(item=>{const option=document.createElement('option');option.value=item.display_name;list.append(option);});}catch(e){msg('mapMessage',e.message);}},1000);});input.addEventListener('change',()=>resolveTypedPlace(which));}
 async function resolveTypedPlace(which){const input=$(which),q=input.value.trim();if(q.length<3)return;msg('mapMessage','Finding '+(which==='pickup'?'pickup':'destination')+' on the map…');try{const items=await searchPlaces(q);if(!items.length)throw new Error('No matching Bangladesh location found. Try a nearby landmark or choose on the map.');const exact=items.find(x=>x.display_name.toLowerCase()===q.toLowerCase())||items[0];const lat=Number(exact.lat),lng=Number(exact.lon);setPoint(which==='pickup'?'pickup':'destination',lat,lng,exact.display_name);bookingMap.setView([lat,lng],15);msg('mapMessage','Selected: '+exact.display_name+'.');if(pickupPoint&&destinationPoint)await previewRoute();}catch(e){msg('mapMessage',e.message);}}
 bindPlaceAutocomplete('pickup');bindPlaceAutocomplete('destination');
