@@ -23,7 +23,7 @@
     .admin-hero-actions{display:flex;flex-direction:column;align-items:flex-end;gap:9px;flex:none}
     .admin-status{display:inline-flex;align-items:center;gap:7px;border-radius:999px;padding:7px 11px;background:#edf3e6;color:#4d672d;font-size:11px;font-weight:800}
     .admin-status:before{content:"";width:7px;height:7px;border-radius:50%;background:#91b34a}
-    .admin-refresh{border:0;border-radius:999px;background:#26332d;color:#fff;padding:11px 16px;font:700 12px inherit;cursor:pointer;transition:transform .18s,opacity .18s}
+    .admin-refresh{border:0;border-radius:999px;background:#26332d;color:#fff;padding:11px 16px;font:700 12px "DM Sans",Inter,system-ui,sans-serif;cursor:pointer;transition:transform .18s,opacity .18s}
     .admin-refresh:hover{transform:translateY(-1px)}
     .admin-refresh:disabled{opacity:.55;cursor:wait;transform:none}
     .admin-updated{color:#89938d;font-size:10px}
@@ -72,6 +72,9 @@
     .admin-action.reject{background:#fff0ed;color:#a33e32}
     .admin-action.reject:hover{background:#ffe2dc}
     .admin-action:disabled{opacity:.5;cursor:wait}
+    .admin-item .admin-actions{padding-top:2px}
+    .admin-item a{display:inline-block;margin-top:8px;overflow-wrap:anywhere}
+    .admin-stat strong{white-space:nowrap}
     .admin-empty{padding:17px 12px;border:1px dashed #e4eae3;border-radius:11px;color:#89948c;text-align:center;font-size:11px;line-height:1.6}
     .admin-queue-error{padding:12px;border-radius:10px;background:#fff6f3;color:#a64a3c;font-size:11px;line-height:1.6}
     .admin-footnotes{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}
