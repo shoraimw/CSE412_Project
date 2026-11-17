@@ -69,7 +69,40 @@ async function resolveTypedPlace(which){const input=$(which),q=input.value.trim(
 bindPlaceAutocomplete('pickup');bindPlaceAutocomplete('destination');
 $('findPickup').addEventListener('click',()=>resolveTypedPlace('pickup'));
 $('findDestination').addEventListener('click',()=>resolveTypedPlace('destination'));
-async function refreshFareFromRoute(){if(!lastRouteMetrics?.distanceKm)return;$('fareResult').hidden=false;$('fareResult').textContent='Calculating fare from road distance and traffic data…';try{const r=await driveRequest('/fare/estimate',{method:'POST',body:JSON.stringify({distanceKm:Number(lastRouteMetrics.distanceKm),vehicleType:$('vehicle').value,durationMinutes:Number(lastRouteMetrics.durationMinutes),staticDurationMinutes:Number(lastRouteMetrics.staticDurationMinutes),trafficRatio:Number(lastRouteMetrics.trafficRatio||1),trafficDataAvailable:lastRouteMetrics.trafficStatus==='live'})});$('fareResult').hidden=false;$('fareResult').textContent='Estimated: ৳'+r.estimatedFare+' · Range: ৳'+r.estimatedRange.min+'–৳'+r.estimatedRange.max+' · '+r.calculationMethod;$('amountBdt').value=r.estimatedFare;}catch(error){$('fareResult').hidden=false;$('fareResult').textContent='Fare estimate unavailable: '+error.message;}}
+async function refreshFareFromRoute(){
+ if(!lastRouteMetrics?.distanceKm)return;
+ $('fareResult').hidden=false;
+ $('fareResult').textContent='Calculating fare from road distance and traffic data…';
+ const body=JSON.stringify({
+  distanceKm:Number(lastRouteMetrics.distanceKm),
+  vehicleType:$('vehicle').value,
+  durationMinutes:Number(lastRouteMetrics.durationMinutes),
+  staticDurationMinutes:Number(lastRouteMetrics.staticDurationMinutes),
+  trafficRatio:Number(lastRouteMetrics.trafficRatio||1),
+  trafficDataAvailable:lastRouteMetrics.trafficStatus==='live',
+ });
+ try{
+  let r;
+  try{
+   r=await driveRequest('/fare/estimate',{method:'POST',body});
+  }catch(error){
+   // Existing production Worker versions expose /fare/predict. Keep a
+   // temporary compatibility fallback while the updated Worker is deployed.
+   if(!/404|Cannot POST|not found/i.test(error.message))throw error;
+   r=await driveRequest('/fare/predict',{method:'POST',body});
+  }
+  const range=r.estimatedRange||r.predictedRange;
+  const method=r.calculationMethod||r.predictionMethod||'Automatic fare calculation';
+  $('fareResult').hidden=false;
+  $('fareResult').textContent='Estimated: ৳'+r.estimatedFare
+   +(range?' · Range: ৳'+range.min+'–৳'+range.max:'')
+   +' · '+method;
+  $('amountBdt').value=r.estimatedFare;
+ }catch(error){
+  $('fareResult').hidden=false;
+  $('fareResult').textContent='Fare estimate unavailable: '+error.message;
+ }
+}
 $('vehicle').addEventListener('change',()=>{refreshFareFromRoute();refreshNearbyDrivers();});
 
 async function loadSharedRides(){try{const rides=await driveRequest('/rides/shared');const root=$('sharedRideList');root.replaceChildren();if(!rides.length){root.textContent='No shared rides with available seats right now.';return;}rides.forEach(ride=>{const card=document.createElement('article');card.className='ride-item';const title=document.createElement('strong');title.textContent=ride.pickup_label+' → '+ride.destination_label;const meta=document.createElement('div');meta.className='ride-meta';meta.textContent=(ride.vehicle_type||'').toUpperCase()+' · '+formatMoney(ride.estimated_fare)+' total estimated fare · '+ride.seats_available+' seat(s) available · '+(ride.distance_km||'—')+' km';const button=document.createElement('button');button.className='primary';button.textContent='Join shared ride';button.addEventListener('click',async()=>{button.disabled=true;try{const result=await driveRequest('/rides/'+ride.ride_id+'/share',{method:'POST'});meta.textContent='Your estimated share: '+formatMoney(result.passengerFare)+' · '+result.seatsRemaining+' seat(s) remain.';button.textContent='Joined ✓';button.disabled=true;await loadRides();await loadSharedRides();}catch(e){meta.textContent=e.message;button.disabled=false;}});const actions=document.createElement('div');actions.className='ride-actions';actions.append(button);card.append(title,meta,actions);root.append(card);});}catch(e){msg('sharedRideList',e.message);}}
