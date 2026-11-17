@@ -140,7 +140,7 @@ function startPresenceWatch(){
     await sendPresence(point);
     for(const rideId of activeRideIds){
       try{
-        await driveRequest('/rides/'+rideId+'/location',{method:'POST',body:JSON.stringify({lat:point.lat,lng:point.lng})});
+        await driveRequest('/rides/'+rideId+'/location',{method:'POST',body:JSON.stringify({lat:point.lat,lng:point.lng,heading:point.heading,speedKph:point.speedKph})});
       }catch(error){
         el('driverMessage').textContent='Trip GPS update failed: '+error.message;
       }
