@@ -1,0 +1,10 @@
+/admin
+  Cache-Control: no-cache, max-age=0, must-revalidate
+/admin.html
+  Cache-Control: no-cache, max-age=0, must-revalidate
+/*.html
+  Cache-Control: no-cache, max-age=0, must-revalidate
+/js/*
+  Cache-Control: no-cache, max-age=0, must-revalidate
+/css/*
+  Cache-Control: no-cache, max-age=0, must-revalidate
