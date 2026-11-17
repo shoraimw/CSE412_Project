@@ -142,7 +142,6 @@ export class RoutesService {
       return {
         provider: 'Straight-line fallback',
         trafficStatus: 'unavailable',
-        trafficLevel: 'unknown',
         optimization: 'straight-line-fallback',
         selectedRoute: {
           id: 1,
