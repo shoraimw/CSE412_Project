@@ -1,4 +1,4 @@
-import {BadRequestException,Controller,ForbiddenException,Get,Post,Body,Query,Req,UseGuards} from '@nestjs/common';
+import {BadRequestException,Controller,ForbiddenException,Get,Post,Body,Query,Req,UseGuards,Inject} from '@nestjs/common';
 import {Request} from 'express';
 import {AuthGuard} from '../auth/auth.guard';
 import {DatabaseService} from '../database/database.service';
@@ -9,7 +9,7 @@ type AR=Request&{user:{id:string;accessToken:string;role:string;isVerified:boole
 @Controller('drivers')
 @UseGuards(AuthGuard)
 export class DriversController {
-  constructor(private db:DatabaseService){}
+  constructor(@Inject(DatabaseService) private db:DatabaseService){}
 
   @Get('nearby')
   async nearby(@Req()r:AR,@Query()q:NearbyDriversQuery){
@@ -63,8 +63,8 @@ export class DriversController {
     const {data,error}=await this.db.userClient(r.user.accessToken).from('driver_applications').insert({
       user_id:r.user.id,
       license_number:d.license_number.trim(),
-      experience_years:d.experience_years,
-      requested_vehicle_type:d.requested_vehicle_type,
+      experience_years:d.experience_years??0,
+      requested_vehicle_type:d.requested_vehicle_type||'bike',
       note:d.note?.trim()||null,
     }).select('*').single();
     if(error||!data)throw new BadRequestException(error?.message||'Driver application could not be submitted.');
