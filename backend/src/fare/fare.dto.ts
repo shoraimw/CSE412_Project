@@ -1,4 +1,4 @@
-import { IsIn, IsNumber, IsOptional, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsNumber, IsOptional, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export const VEHICLE_RATES = {
@@ -10,6 +10,13 @@ export const VEHICLE_RATES = {
 export class PredictFareDto {
   @Type(() => Number) @IsNumber() @Min(0.1) distanceKm!: number;
   @IsIn(['bike', 'cng', 'car']) vehicleType!: keyof typeof VEHICLE_RATES;
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(1) durationMinutes?: number;
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(1) staticDurationMinutes?: number;
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(1) trafficRatio?: number;
+  @IsOptional() @IsBoolean() trafficDataAvailable?: boolean;
+
+  // Kept optional for older clients; new booking screens no longer ask users
+  // to manually classify traffic, demand, or peak hours.
   @IsOptional() @IsIn(['light', 'moderate', 'heavy']) traffic?: 'light' | 'moderate' | 'heavy';
   @IsOptional() @IsIn(['low', 'medium', 'high']) demand?: 'low' | 'medium' | 'high';
   @IsOptional() @IsIn(['offPeak', 'peak']) time?: 'offPeak' | 'peak';
