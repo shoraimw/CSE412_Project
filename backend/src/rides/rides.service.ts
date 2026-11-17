@@ -205,7 +205,21 @@ export class RidesService{
   if(role==='admin'){const {data,error}=await this.db(token).from('ride_requests').select('*,rides(id,driver_id,vehicle_id,status,accepted_at,started_at,completed_at,actual_fare)').order('created_at',{ascending:false}).limit(200);if(error)throw new ServiceUnavailableException(error.message);return (data||[]).map(x=>this.formatRequest(x,Array.isArray(x.rides)?x.rides[0]||null:x.rides));}
   return [];
  }
- async openRequests(token:string,role:Role){if(role!=='driver')throw new ForbiddenException('Only drivers can view open ride requests.');const {data,error}=await this.db(token).from('ride_requests').select('*').eq('status','requested').order('created_at',{ascending:true}).limit(50);if(error)throw new ServiceUnavailableException(error.message);return data||[];}
+ async openRequests(userId:string,token:string,role:Role){
+  if(role!=='driver')throw new ForbiddenException('Only drivers can view open ride requests.');
+  const db=this.db(token);
+  const {data:application,error:applicationError}=await db.from('driver_applications')
+    .select('requested_vehicle_type,status').eq('user_id',userId).maybeSingle();
+  if(applicationError||!application||application.status!=='approved'){
+    throw new ForbiddenException('Your approved driver application is required to view ride requests.');
+  }
+  const {data,error}=await db.from('ride_requests').select('*')
+    .eq('status','requested')
+    .eq('requested_vehicle',application.requested_vehicle_type)
+    .order('created_at',{ascending:true}).limit(50);
+  if(error)throw new ServiceUnavailableException(error.message);
+  return data||[];
+ }
  async cancelRequest(userId:string,token:string,requestId:string,role:Role){if(role!=='passenger')throw new ForbiddenException('Only the passenger who created this request can cancel it.');const {data,error}=await this.db(token).from('ride_requests').update({status:'cancelled'}).eq('id',requestId).eq('passenger_id',userId).eq('status','requested').select('id,status').maybeSingle();if(error)throw new BadRequestException(error.message);if(!data)throw new BadRequestException('This ride can no longer be cancelled. It may already have been accepted or cancelled.');return {requestId:data.id,status:data.status,message:'Ride request cancelled.'};}
  async claimRequest(userId:string,token:string,role:Role,requestId:string){
   if(role!=='driver')throw new ForbiddenException('Only drivers can accept ride requests.');
