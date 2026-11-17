@@ -63,7 +63,6 @@ export class DriversController {
     const {data,error}=await this.db.userClient(r.user.accessToken).from('driver_applications').insert({
       user_id:r.user.id,
       license_number:d.license_number.trim(),
-      verification_type:d.verification_type,
       experience_years:d.experience_years??0,
       requested_vehicle_type:d.requested_vehicle_type||'bike',
       note:d.note?.trim()||null,
