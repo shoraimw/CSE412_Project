@@ -14,7 +14,6 @@ async function createHandler(bindings: Env) {
     supabaseAnonKey: bindings.SUPABASE_ANON_KEY || '',
     corsOrigin: bindings.CORS_ORIGIN || '',
     nodeEnv: 'production',
-    googleMapsApiKey: bindings.GOOGLE_MAPS_API_KEY || '',
   });
 
   const app = await NestFactory.create(AppModule, { bodyParser: true });
