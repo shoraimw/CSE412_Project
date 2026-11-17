@@ -1,4 +1,4 @@
-import {BadRequestException,Body,Controller,ForbiddenException,Get,Param,Patch,Post,Query,Req,UseGuards,ServiceUnavailableException,NotFoundException} from '@nestjs/common';
+import {BadRequestException,Body,Controller,ForbiddenException,Get,Param,Patch,Post,Query,Req,UseGuards,ServiceUnavailableException,NotFoundException,Inject} from '@nestjs/common';
 import {Request} from 'express';
 import {DatabaseService} from '../database/database.service';
 import {AuthGuard} from '../auth/auth.guard';
@@ -9,7 +9,7 @@ function validDate(s:string){const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s);if(!m)r
 function dhakaToday(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Dhaka',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());}
 @Controller('rental')
 export class RentalController{
- constructor(private readonly database:DatabaseService){}
+ constructor(@Inject(DatabaseService) private readonly database:DatabaseService){}
  @Get('vehicles')async getVehicles(@Query('type')type='All',@Query('location')location='',@Query('max_price')maxPrice=''){
   const max=maxPrice===''?null:Number(maxPrice);if(max!==null&&(!Number.isFinite(max)||max<0))throw new BadRequestException('Maximum price must be a valid positive number.');
   let query=this.database.publicClient().from('vehicles').select('id,make,model,vehicle_type,city,seats,price_per_day,price_per_km,photo_paths,description,model_year,color').eq('is_verified',true).eq('is_available',true);
