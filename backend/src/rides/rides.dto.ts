@@ -25,5 +25,5 @@ export class CreateRideDto{
  @IsOptional()@IsIn(['offPeak','peak'])time?:'offPeak'|'peak';
  @IsOptional()@IsArray()@ArrayMinSize(2)@ArrayMaxSize(100)@ValidateNested({each:true})@Type(()=>RideLocationDto)safetyPlannedRoute?:RideLocationDto[];
 }
-export class RideLocationDto{@Type(()=>Number)@IsNumber()@Min(-90)@Max(90)lat!:number;@Type(()=>Number)@IsNumber()@Min(-180)@Max(180)lng!:number;}
+export class RideLocationDto{@Type(()=>Number)@IsNumber()@Min(-90)@Max(90)lat!:number;@Type(()=>Number)@IsNumber()@Min(-180)@Max(180)lng!:number;@IsOptional()@Type(()=>Number)@IsNumber()@Min(0)@Max(360)heading?:number;@IsOptional()@Type(()=>Number)@IsNumber()@Min(0)@Max(300)speedKph?:number;}
 export class RideStatusDto{@IsIn(['driver_arriving','in_progress','completed','cancelled'])status!:string;}
