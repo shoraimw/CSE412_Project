@@ -15,7 +15,8 @@ export async function onRequest({ request, env }) {
 
   // Browser requests are same-origin on drive-ewu.pages.dev. Strip the
   // browser Origin header before forwarding so the backend does not apply
-  // cross-origin CORS rules to this internal service-binding request.
+  // cross-origin CORS rules to this internal service-binding request. The
+  // binding uses the DRIVE Worker internally, without a public upstream URL.
   const forwarded = new Request(request);
   const headers = new Headers(forwarded.headers);
   headers.delete("origin");
