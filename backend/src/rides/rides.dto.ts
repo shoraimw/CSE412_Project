@@ -15,10 +15,15 @@ export class CreateRideDto{
  @IsOptional()@Type(()=>Number)@IsNumber()@Min(-180)@Max(180)destinationLng?:number;
  @IsOptional()@Type(()=>Number)@IsNumber()@Min(0.1)@Max(1000)routeDistanceKm?:number;
  @IsOptional()@Type(()=>Number)@IsNumber()@Min(1)@Max(1440)routeDurationMinutes?:number;
+ @IsOptional()@Type(()=>Number)@IsNumber()@Min(1)@Max(1440)routeStaticDurationMinutes?:number;
+ @IsOptional()@Type(()=>Number)@IsNumber()@Min(1)@Max(2.5)trafficRatio?:number;
+ @IsOptional()@IsBoolean()trafficDataAvailable?:boolean;
+ @IsOptional()@IsString()@MaxLength(80)routeProvider?:string;
+ @IsOptional()@IsIn(['fastest','shortest','balanced'])routePreference?:'fastest'|'shortest'|'balanced';
  @IsOptional()@IsIn(['light','moderate','heavy'])traffic?:'light'|'moderate'|'heavy';
  @IsOptional()@IsIn(['low','medium','high'])demand?:'low'|'medium'|'high';
  @IsOptional()@IsIn(['offPeak','peak'])time?:'offPeak'|'peak';
  @IsOptional()@IsArray()@ArrayMinSize(2)@ArrayMaxSize(100)@ValidateNested({each:true})@Type(()=>RideLocationDto)safetyPlannedRoute?:RideLocationDto[];
 }
-export class RideLocationDto{@Type(()=>Number)@IsNumber()@Min(-90)@Max(90)lat!:number;@Type(()=>Number)@IsNumber()@Min(-180)@Max(180)lng!:number;}
+export class RideLocationDto{@Type(()=>Number)@IsNumber()@Min(-90)@Max(90)lat!:number;@Type(()=>Number)@IsNumber()@Min(-180)@Max(180)lng!:number;@IsOptional()@Type(()=>Number)@IsNumber()@Min(0)@Max(360)heading?:number;@IsOptional()@Type(()=>Number)@IsNumber()@Min(0)@Max(300)speedKph?:number;}
 export class RideStatusDto{@IsIn(['driver_arriving','in_progress','completed','cancelled'])status!:string;}

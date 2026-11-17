@@ -1,7 +1,7 @@
 # DRIVE verification and load testing
 
 ## Automated checks
-- Backend: GitHub Actions runs `npm install` and `npm run build`.
+- Backend: GitHub Actions runs `npm install`, `npx tsc --noEmit -p backend/tsconfig.json` and `npm run build`.
 - Frontend: GitHub Actions runs `node --check` on every JavaScript file under `frontend/js`.
 - Supabase: migrations are versioned under `supabase/migrations`; security advisor should be checked after schema changes.
 - Cloudflare: `.github/workflows/cloudflare-deploy.yml` validates and deploys the Worker. Add repository secret `CLOUDFLARE_API_TOKEN` with Workers Scripts:Edit permission, then run Actions → Deploy DRIVE to Cloudflare Workers.
@@ -12,10 +12,12 @@
 3. Serve the `frontend` folder on a local static server.
 4. Register a passenger, confirm the email if required, sign in, and test profile retrieval.
 5. Create a ride request using real Dhaka addresses; verify it appears in the passenger dashboard.
-6. Submit a driver application. An admin approves it, then the driver submits all three required document references.
-7. An admin verifies the documents. The driver can then claim a request and share GPS during a trip.
-8. Test rental listing, owner approval, notifications, safety trip sharing, SOS record creation, tourist plan persistence and payment-intent creation.
-9. Verify that a passenger cannot read another passenger's records, a non-driver cannot claim a ride, and clients cannot mark payments or vehicles verified.
+6. Submit a driver application. An admin approves it and verifies the driver profile.
+7. The approved driver opens Driver workspace, selects **Go online**, and grants browser location permission. Confirm their marker appears on the passenger map and their nearest-first request list refreshes.
+8. Submit a passenger ride request. Confirm matching vehicle-type drivers receive an in-app ride alert; if the Driver workspace is open and browser notifications are allowed, a browser alert also appears.
+9. Have two eligible online drivers try to accept the same request. The first valid claim wins; the other receives a no-longer-available response. Confirm the passenger receives an acceptance notification and sees the driver's live location while the driver approaches.
+10. Test rental listing, owner approval, safety trip sharing, SOS record creation, tourist plan persistence and payment-intent creation.
+11. Verify that a passenger cannot read another passenger's records, a non-driver cannot claim a ride, and clients cannot mark payments or vehicles verified.
 
 ## k6 load test
 Install k6, then run:
@@ -41,9 +43,9 @@ The team requirement PDF defines 12 functional requirement groups and five non-f
 | Vehicle Rental | Vehicle catalogue, owner workflow, rental booking and database overlap guard | Test two overlapping bookings for the same vehicle |
 | Smart Ride Booking | Map-selected pickup/destination, ride type, fare quote and persistent ride request | Requires browser location permission only for current-location pickup |
 | Smart Ride Match & Cost Sharing | Atomic verified-driver claim RPC; passenger shared-ride discovery/join; seat-capacity guard and per-passenger fare recalculation | Verify concurrent joins, full-ride rejection and final fare shares |
-| Real-Time Ride Tracking | Driver foreground GPS watchPosition; authenticated location writes; passenger map refreshes every 6 seconds | Browser tab must remain open; this is not native background tracking or WebSocket streaming |
-| Smart Fare Prediction | Rule-based BDT estimate with distance, vehicle, traffic, demand and time multipliers | Not a trained ML model; final fare is subject to trip conditions |
-| AI Route Optimization | OSRM fastest, shortest and balanced road-route selection with alternatives when returned | Balanced scoring minimizes normalized distance and duration; algorithmic route selection, not AI/ML; public demo endpoint is best-effort |
+| Real-Time Ride Tracking | Driver foreground GPS heartbeat starts when the driver goes online; passenger sees nearby markers refresh every 10 seconds and accepted ride GPS every 6 seconds | Browser tab must remain open; this is near-real-time polling, not native background tracking or WebSocket streaming |
+| Smart Fare Prediction | Automatic BDT estimate from server-calculated road distance and Google live-traffic ratio when configured | Without Google Routes API key, OSRM provides standard route estimates only. Fare rules are not a trained ML model; final fare is subject to trip conditions |
+| Route Optimization | Google Routes API traffic-aware alternatives when configured; OSRM fastest, shortest and balanced fallback | Google `TRAFFIC_AWARE_OPTIMAL` requires an API key and billing. Balanced scoring minimizes normalized distance and duration; route selection is algorithmic, not AI/ML |
 | Multi-Currency Payment | Live BDT-to-currency conversion quotes and payment-intent records | Cash payment intents can be recorded and manually confirmed by an admin after cash is physically received; no card/bKash/Nagad gateway or foreign-currency settlement is connected |
 | Women Safety Mode | Preference stored with ride request; verified-driver claim guard; trusted contacts, expiring private trip-share links and planned-route monitoring during an active trip | SMS/WhatsApp delivery is not configured; keep the passenger dashboard open for foreground GPS |
 | Smart Emergency & Safe Trip | SOS incident records, emergency contacts, expected-arrival delay and route-deviation checks | No emergency-services dispatch or guaranteed contact notification |

@@ -7,7 +7,7 @@ DRIVE is an East West University CSE412 academic project for ride booking, share
 - Backend: Node.js, NestJS and TypeScript
 - Runtime/hosting: Cloudflare Workers + Workers Static Assets
 - Database and authentication: Supabase PostgreSQL, Supabase Auth and Row Level Security
-- Maps/geocoding: OpenStreetMap Nominatim and OSRM routing
+- Maps/geocoding: OpenStreetMap Nominatim/Leaflet; optional Google Maps Routes API traffic-aware routing with OSRM fallback
 - API prefix: `/api`
 
 ## Cloudflare deployment (current target)
@@ -18,7 +18,8 @@ The repository is configured for Cloudflare. Vercel is not the deployment target
 - Frontend static directory: `frontend/`.
 - The Worker routes `/api/*` to NestJS and delegates all other paths to `env.ASSETS.fetch(request)`.
 - Required encrypted Worker secrets: `SUPABASE_URL`, `SUPABASE_ANON_KEY` (Supabase publishable/anon key only; never service-role).
-- Local dev: copy `.dev.vars.example` to `.dev.vars`, fill the two Supabase values, run `npm install`, then `npm run dev`.
+- Optional encrypted Worker secret: `GOOGLE_MAPS_API_KEY`. Enable Google Routes API and restrict the key to Routes API. `TRAFFIC_AWARE_OPTIMAL` is a billable Google Maps Platform feature; without this key the app falls back to OSRM and clearly marks live traffic unavailable.
+- Local dev: copy `.dev.vars.example` to `.dev.vars`, fill the Supabase values and optional Google Routes API key, run `npm install`, then `npm run dev`.
 - Validate bundle: `npm run build`.
 - Deploy production only from the protected `main` branch after Preview verification: `npm run deploy`.
 
@@ -35,7 +36,7 @@ Use Supabase Dashboard → Authentication → URL Configuration to set the produ
 ## Local development
 1. Use Node.js 22+.
 2. Copy `.dev.vars.example` to `.dev.vars`.
-3. Set `SUPABASE_URL` and `SUPABASE_ANON_KEY` in `.dev.vars`.
+3. Set `SUPABASE_URL` and `SUPABASE_ANON_KEY` in `.dev.vars`. Add `GOOGLE_MAPS_API_KEY` only if live traffic-aware routing is enabled.
 4. Run `npm install`.
 5. Run `npm run dev` and open the Wrangler URL.
 
@@ -43,8 +44,8 @@ Use Supabase Dashboard → Authentication → URL Configuration to set the produ
 - Supabase Auth registration, password login, refresh, email OTP and profile management
 - Passenger, driver, vehicle owner and admin role-based workflows
 - Vehicle catalogue, vehicle-owner listings, verification and rental booking
-- Map-based ride requests, OSRM route/fare estimates, verified-driver claiming, seat-aware shared rides with transactional fare splitting, ride status and foreground live GPS tracking
-- Rule-based BDT fare estimation using OSRM road distance when available, plus multi-currency conversion quotes
+- Map-based ride requests, Google traffic-aware route estimates when configured (OSRM fallback otherwise), server-calculated fares, nearest-first driver discovery, online driver GPS presence, in-app/browser ride alerts, atomic first-accept matching, seat-aware shared rides and foreground live GPS tracking
+- Automatic BDT fare estimation from route distance and traffic ratio when Google Routes API is configured; fallback estimates use OSRM road distance. Fare logic is transparent/rule-based, not a trained ML model. Multi-currency conversion quotes remain available.
 - Women Safety Mode, trusted/emergency contacts, monitored safety trips, trip sharing and SOS records
 - Tourist destination catalogue and saved trip plans
 - Payment intent records and currency conversion quotes
@@ -55,9 +56,9 @@ Use Supabase Dashboard → Authentication → URL Configuration to set the produ
 This is an academic project and Preview deployment. Do not describe the following as production integrations:
 - **Payments:** no bKash, Nagad, card or other payment gateway is connected; payment records are pending intents only.
 - **SOS delivery:** SOS is persisted and admin in-app notifications are generated; no police/emergency-service, SMS, WhatsApp or guaranteed external contact dispatch is configured.
-- **Driver dispatch:** ride claim is database-backed, but a real commercial driver network, background dispatch, and operational monitoring are not established.
-- **Maps:** geocoding/routing depends on public OpenStreetMap ecosystem services and their availability/rate limits.
-- **Notifications:** current database triggers create in-app notifications; external email/SMS/push delivery requires a configured provider.
+- **Driver dispatch:** verified drivers must explicitly go online and allow browser GPS. Their fresh locations appear to nearby passengers; matching notifications are persisted in-app and browser notifications appear while the Driver workspace is open. The first eligible driver within 20 km to claim wins atomically. No native background GPS or push notification is configured.
+- **Maps:** the visual map and geocoding use OpenStreetMap services. Google Routes API supplies live-traffic-aware route durations only when `GOOGLE_MAPS_API_KEY` is configured; that Google feature requires billing and may incur charges. Without the key, OSRM is a no-live-traffic fallback.
+- **Notifications:** database triggers create in-app alerts for eligible drivers and passengers. Browser notifications require the driver workspace to remain open and notification permission; background Web Push, SMS and email delivery are not configured.
 - **Scale:** no load-test evidence establishes a user/concurrency capacity. Run staged tests and monitor database/Worker limits before making capacity claims.
 
 ## Security and release checklist
@@ -77,7 +78,7 @@ This is an academic project and Preview deployment. Do not describe the followin
 - `GET/PATCH /api/users/me`
 - `GET /api/rental/vehicles`, `POST /api/rental/bookings`
 - `GET/POST /api/rides`, driver claim and ride tracking endpoints
-- `/api/fare/*`, `/api/routes/*`, `/api/payments/*`
+- `/api/fare/*`, `/api/routes/*`, `/api/drivers/nearby`, `POST /api/drivers/location`, `/api/payments/*`
 - `/api/safety/*`, `/api/tourist/*`, `/api/notifications/*`, `/api/admin/*`
 - `GET /api/health`
 
