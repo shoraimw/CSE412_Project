@@ -21,7 +21,7 @@ async function previewRoute(){
   msg('mapMessage','Finding your route…');return false;
  }
  lastRouteCallAt=Date.now();
- msg('mapMessage','Finding the best available road route and checking traffic…');
+ msg('mapMessage','Finding the best available road route…');
  try{
   const r=await driveRequest('/routes/optimize',{method:'POST',body:JSON.stringify({
    pickupLat:pickupPoint.lat,pickupLng:pickupPoint.lng,
@@ -47,9 +47,7 @@ async function previewRoute(){
    routeLine=L.polyline(coords,{color:'#647f27',weight:5,opacity:.9,dashArray:'10 9',lineCap:'round'}).addTo(bookingMap);
    bookingMap.fitBounds(routeLine.getBounds().pad(.18));
   }
-  const trafficText=lastRouteMetrics.trafficStatus==='live'
-   ?'Live traffic: '+lastRouteMetrics.trafficLevel+' · delay '+lastRouteMetrics.trafficDelayMinutes+' min.'
-   :'Live traffic unavailable; showing standard route duration.';
+  const trafficText='Live traffic is not included; showing standard road-route duration.';
   msg('mapMessage',r.provider+' · '+lastRouteMetrics.distanceKm+' km · '+lastRouteMetrics.durationMinutes+' min. '+trafficText+' '+r.note);
   await refreshFareFromRoute();
   await refreshNearbyDrivers();
@@ -72,14 +70,11 @@ $('findDestination').addEventListener('click',()=>resolveTypedPlace('destination
 async function refreshFareFromRoute(){
  if(!lastRouteMetrics?.distanceKm)return;
  $('fareResult').hidden=false;
- $('fareResult').textContent='Calculating fare from road distance and traffic data…';
+ $('fareResult').textContent='Calculating fare from road distance…';
  const body=JSON.stringify({
   distanceKm:Number(lastRouteMetrics.distanceKm),
   vehicleType:$('vehicle').value,
   durationMinutes:Number(lastRouteMetrics.durationMinutes),
-  staticDurationMinutes:Number(lastRouteMetrics.staticDurationMinutes),
-  trafficRatio:Number(lastRouteMetrics.trafficRatio||1),
-  trafficDataAvailable:lastRouteMetrics.trafficStatus==='live',
  });
  try{
   let r;
