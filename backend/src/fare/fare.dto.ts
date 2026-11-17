@@ -1,4 +1,4 @@
-import { IsBoolean, IsIn, IsNumber, IsOptional, Min } from 'class-validator';
+import { IsIn, IsNumber, IsOptional, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export const VEHICLE_RATES = {
@@ -11,8 +11,4 @@ export class EstimateFareDto {
   @Type(() => Number) @IsNumber() @Min(0.1) distanceKm!: number;
   @IsIn(['bike', 'cng', 'car']) vehicleType!: keyof typeof VEHICLE_RATES;
   @IsOptional() @Type(() => Number) @IsNumber() @Min(1) durationMinutes?: number;
-  @IsOptional() @Type(() => Number) @IsNumber() @Min(1) staticDurationMinutes?: number;
-  @IsOptional() @Type(() => Number) @IsNumber() @Min(1) trafficRatio?: number;
-  @IsOptional() @IsBoolean() trafficDataAvailable?: boolean;
-
 }
