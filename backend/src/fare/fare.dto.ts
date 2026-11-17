@@ -7,7 +7,7 @@ export const VEHICLE_RATES = {
   car: { base: 60, perKm: 25, speedKmh: 20 },
 } as const;
 
-export class PredictFareDto {
+export class EstimateFareDto {
   @Type(() => Number) @IsNumber() @Min(0.1) distanceKm!: number;
   @IsIn(['bike', 'cng', 'car']) vehicleType!: keyof typeof VEHICLE_RATES;
   @IsOptional() @Type(() => Number) @IsNumber() @Min(1) durationMinutes?: number;
@@ -15,9 +15,4 @@ export class PredictFareDto {
   @IsOptional() @Type(() => Number) @IsNumber() @Min(1) trafficRatio?: number;
   @IsOptional() @IsBoolean() trafficDataAvailable?: boolean;
 
-  // Kept optional for older clients; new booking screens no longer ask users
-  // to manually classify traffic, demand, or peak hours.
-  @IsOptional() @IsIn(['light', 'moderate', 'heavy']) traffic?: 'light' | 'moderate' | 'heavy';
-  @IsOptional() @IsIn(['low', 'medium', 'high']) demand?: 'low' | 'medium' | 'high';
-  @IsOptional() @IsIn(['offPeak', 'peak']) time?: 'offPeak' | 'peak';
 }

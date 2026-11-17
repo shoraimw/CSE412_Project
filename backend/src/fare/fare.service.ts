@@ -1,9 +1,9 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { PredictFareDto, VEHICLE_RATES } from './fare.dto';
+import { EstimateFareDto, VEHICLE_RATES } from './fare.dto';
 
 @Injectable()
 export class FareService {
-  predict(input: PredictFareDto) {
+  estimate(input: EstimateFareDto) {
     const rate = VEHICLE_RATES[input.vehicleType];
     if (!rate || !Number.isFinite(input.distanceKm) || input.distanceKm <= 0) {
       throw new BadRequestException('A positive route distance and supported vehicle type are required.');
@@ -26,7 +26,7 @@ export class FareService {
     return {
       currency: 'BDT',
       estimatedFare,
-      predictedRange: {
+      estimatedRange: {
         min: Math.round(estimatedFare * 0.95),
         max: Math.round(estimatedFare * 1.1),
       },
@@ -43,9 +43,9 @@ export class FareService {
         trafficMultiplier: Number(trafficMultiplier.toFixed(3)),
       },
       trafficStatus: trafficDataAvailable ? 'live' : 'unavailable',
-      predictionMethod: trafficDataAvailable
-        ? 'Google Maps live-traffic-aware route with transparent fare rules; not a trained ML model.'
-        : 'Automatic road-route estimate; live traffic is unavailable until Google Routes API is configured. Not a trained ML model.',
+      calculationMethod: trafficDataAvailable
+        ? 'Google Maps live-traffic-aware route + transparent BDT fare formula.'
+        : 'Automatic road-route estimate + transparent BDT fare formula; live traffic is unavailable until Google Routes API is configured.',
       disclaimer: 'This is an estimate. Final fare may differ due to waiting time, route changes and operational charges.',
     };
   }

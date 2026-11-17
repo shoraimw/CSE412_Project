@@ -3,7 +3,6 @@ import {createHash,randomBytes} from 'crypto';
 import {DatabaseService} from '../database/database.service';
 import {FareService} from '../fare/fare.service';
 import {RoutesService} from '../routes/routes.service';
-import {getDriveRuntimeConfig} from '../config/runtime-config';
 import {CreateRideDto,RideLocationDto} from './rides.dto';
 
 type Role='passenger'|'driver'|'vehicle_owner'|'admin';
@@ -28,30 +27,9 @@ export class RidesService{
 
   // The server computes the authoritative road route and fare. The browser
   // no longer supplies a hand-entered distance, traffic level or demand level.
-  const clientDistance=Number(dto.routeDistanceKm);
-  const clientDuration=Number(dto.routeDurationMinutes);
-  const canReusePreview=Number.isFinite(clientDistance)&&clientDistance>=straightKm*0.95&&clientDistance<=straightKm*5
-    &&Number.isFinite(clientDuration)&&clientDuration>=1&&clientDuration<=1440;
-  const googleTrafficConfigured=!!getDriveRuntimeConfig().googleMapsApiKey;
-  const routeResult=canReusePreview?{
-    provider:dto.routeProvider||'Previously calculated road route',
-    trafficStatus:(dto.trafficDataAvailable&&googleTrafficConfigured?'live':'unavailable') as 'live'|'unavailable',
-    trafficLevel:'unknown' as const,
-    optimization:dto.routePreference||'balanced',
-    selectedRoute:{
-      id:1,
-      distanceKm:clientDistance,
-      durationMinutes:clientDuration,
-      staticDurationMinutes:Math.max(1,Number(dto.routeStaticDurationMinutes||clientDuration)),
-      trafficDelayMinutes:Math.max(0,clientDuration-Number(dto.routeStaticDurationMinutes||clientDuration)),
-      trafficRatio:googleTrafficConfigured?Math.max(1,Number(dto.trafficRatio||1)):1,
-      trafficLevel:'unknown' as const,
-      geometry:null,
-    },
-    alternativeRoutes:[],
-    isRoadRoute:true,
-    note:'Using the route preview already calculated for this pickup and destination.',
-  }:await this.routes.optimize({
+  // Always obtain the authoritative route on the server. Browser-supplied
+  // distance, duration or traffic values are never trusted for the fare.
+  const routeResult=await this.routes.optimize({
     pickupLat:pickup.lat,
     pickupLng:pickup.lng,
     destinationLat:destination.lat,
@@ -69,7 +47,7 @@ export class RidesService{
     ?Math.max(1,Math.round(Number(selectedRoute.staticDurationMinutes)))
     :durationMinutes;
   const trafficDataAvailable=routeResult.trafficStatus==='live';
-  const fareEstimate=this.fare.predict({
+  const fareEstimate=this.fare.estimate({
     distanceKm:estimatedKm,
     vehicleType:dto.vehicleType,
     durationMinutes,
