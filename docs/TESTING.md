@@ -75,7 +75,7 @@ The team requirement PDF defines 12 functional requirement groups and five non-f
 7. Test rental booking overlap, owner approval, fare quote, currency quote, safety settings, private share expiry, SOS record, tourist plan and notification history.
 8. Open a valid private trip-share link in a logged-out/private browser and verify it loads; test a random or expired token and verify it returns an invalid/expired message.
 9. Verify a Women Safety session receives the claimed ride ID, begins route-deviation checks only after the ride starts, and closes when the ride completes or is cancelled.
-11. Confirm the Fare Prediction result and the saved ride-request fare match for the same route, vehicle, traffic and demand inputs; test Fastest, Shortest and Balanced route preferences.
+11. Confirm the automatic fare estimate and saved ride-request fare match for the same route and vehicle; test Fastest, Shortest and Balanced route preferences.
 12. Test an expired access token with a valid refresh token, then verify the profile name, email and phone render and save correctly.
 10. Run the staged k6 profile against a dedicated test environment. Record error rate and p50/p95/p99 latency; never infer 100k concurrency from registered-user count.
 
