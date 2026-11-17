@@ -22,8 +22,9 @@
   }
 
   function profileFor(row) {
-    if (Array.isArray(row?.profiles)) return row.profiles[0] || {};
-    return row?.profiles || {};
+    const related = row?.applicant || row?.owner || row?.reporter || row?.payer || row?.driver || row?.profiles;
+    if (Array.isArray(related)) return related[0] || {};
+    return related || {};
   }
 
   function addText(parent, tag, value, className) {
@@ -122,7 +123,7 @@
   function renderOwnerApplication(box, application) {
     const profile = profileFor(application);
     const meta = [
-      profileName(application, 'Owner applicant'),
+      profile.full_name || 'Owner applicant',
       application.contact_phone || profile.phone || 'No contact phone',
       application.business_address || 'No business address',
       'Submitted ' + formatDate(application.created_at)
@@ -157,7 +158,9 @@
       (vehicle.vehicle_type || 'Vehicle').toUpperCase(),
       vehicle.city || 'City not specified',
       vehicle.model_year || '',
-      vehicle.seats ? vehicle.seats + ' seats' : ''
+      vehicle.seats ? vehicle.seats + ' seats' : '',
+      profileFor(vehicle).full_name ? 'Owner: ' + profileFor(vehicle).full_name : 'Owner details unavailable',
+      profileFor(vehicle).phone || ''
     ].filter(Boolean).join(' · ');
     const card = makeItem([vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'Vehicle listing', meta, vehicle.description || '');
     addAction(card.actions, 'Verify vehicle', () => confirmAction(
@@ -168,14 +171,18 @@
       }),
       'Vehicle verified.'
     ));
-    addAction(card.actions, 'Reject', () => confirmAction(
-      'Reject this vehicle verification?',
-      () => driveRequest('/admin/vehicles/' + encodeURIComponent(vehicle.id), {
-        method: 'PATCH',
-        body: JSON.stringify({ status: 'rejected' })
-      }),
-      'Vehicle verification rejected.'
-    ), 'reject');
+    addAction(card.actions, 'Reject', async () => {
+      const reason = window.prompt('Why is this vehicle being rejected?', 'Please update the vehicle details and resubmit for verification.');
+      if (reason === null) return;
+      await confirmAction(
+        'Reject this vehicle verification?',
+        () => driveRequest('/admin/vehicles/' + encodeURIComponent(vehicle.id), {
+          method: 'PATCH',
+          body: JSON.stringify({ status: 'rejected', rejection_reason: reason.trim() })
+        }),
+        'Vehicle rejected. The owner can review the reason and resubmit it.'
+      );
+    }, 'reject');
     box.append(card.item);
   }
 
@@ -233,6 +240,8 @@
     const meta = [
       (payment.method || 'method unavailable').toUpperCase(),
       payment.currency || 'BDT',
+      profileFor(payment).full_name || 'Customer name unavailable',
+      profileFor(payment).phone || 'No phone number',
       'Created ' + formatDate(payment.created_at)
     ].join(' · ');
     const card = makeItem((payment.currency || 'BDT') + ' ' + payment.amount, meta, reference);
@@ -323,28 +332,32 @@
   }
 
   async function loadQueues() {
-    $('refreshButton').disabled = true;
-    $('refreshButton').textContent = 'Refreshing…';
+    const refreshButton = $('refreshButton');
+    refreshButton.disabled = true;
+    refreshButton.textContent = 'Refreshing…';
     state.errors = {};
-    const results = await Promise.allSettled(queueConfig.map(config => driveRequest(config.endpoint)));
-    results.forEach((result, index) => {
-      const config = queueConfig[index];
-      if (result.status === 'fulfilled' && Array.isArray(result.value)) {
-        state.queues[config.key] = result.value;
-      } else if (result.status === 'fulfilled') {
-        state.queues[config.key] = [];
-        state.errors[config.key] = 'The server returned an unexpected response for this queue.';
-      } else {
-        state.errors[config.key] = result.reason?.message || 'This queue could not be loaded.';
-      }
-    });
-    renderQueues();
-    const failed = Object.values(state.errors).length;
-    $('lastUpdated').textContent = 'Last refreshed ' + new Date().toLocaleTimeString();
-    $('refreshButton').disabled = false;
-    $('refreshButton').textContent = '↻ Refresh queues';
-    if (failed) setMessage(failed + ' queue(s) could not be loaded. Other queues remain available; refresh after checking the error.', 'error');
-    else setMessage('All five review queues are up to date.', 'success');
+    try {
+      const results = await Promise.allSettled(queueConfig.map(config => driveRequest(config.endpoint)));
+      results.forEach((result, index) => {
+        const config = queueConfig[index];
+        if (result.status === 'fulfilled' && Array.isArray(result.value)) {
+          state.queues[config.key] = result.value;
+        } else if (result.status === 'fulfilled') {
+          state.queues[config.key] = [];
+          state.errors[config.key] = 'The server returned an unexpected response for this queue.';
+        } else {
+          state.errors[config.key] = result.reason?.message || 'This queue could not be loaded.';
+        }
+      });
+      renderQueues();
+      const failed = Object.values(state.errors).length;
+      $('lastUpdated').textContent = 'Last refreshed ' + new Date().toLocaleTimeString();
+      if (failed) setMessage(failed + ' queue(s) could not be loaded. Other queues remain available; refresh after checking the error.', 'error');
+      else setMessage('All five review queues are up to date.', 'success');
+    } finally {
+      refreshButton.disabled = false;
+      refreshButton.textContent = '↻ Refresh queues';
+    }
   }
 
   function signOut() {
