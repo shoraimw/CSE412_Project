@@ -199,9 +199,7 @@ $('newRide').addEventListener('submit',async event=>{
   const ride=await driveRequest('/rides',{method:'POST',body:JSON.stringify(data)});
   renderWomenSafetyHandoff(ride);
   const route=ride.routeSummary;
-  const trafficNote=route?.trafficStatus==='live'
-   ?'Google traffic-aware ETA: '+route.durationMinutes+' min.'
-   :'Live traffic is not configured yet; standard route estimate: '+(route?.durationMinutes||'—')+' min.';
+  const trafficNote='Standard OSRM route estimate: '+(route?.durationMinutes||'—')+' min. Live traffic is not included.';
   const dispatchMessage=document.createElement('p');
   dispatchMessage.textContent='Ride request submitted successfully. Estimated fare: ৳'+ride.estimatedFare+'. '+trafficNote+' Checking nearby drivers…';
   $('rideMsg').append(dispatchMessage);
