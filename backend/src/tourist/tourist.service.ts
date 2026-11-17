@@ -1,11 +1,11 @@
-import {BadRequestException,Injectable,ServiceUnavailableException} from '@nestjs/common';
+import {BadRequestException,Injectable,ServiceUnavailableException,Inject} from '@nestjs/common';
 import {DatabaseService} from '../database/database.service';
 import {CreateTouristPlanDto} from './tourist.dto';
 type Point={lat:number;lng:number};
 function distance(a:Point,b:Point){const rad=(n:number)=>n*Math.PI/180,dLat=rad(b.lat-a.lat),dLng=rad(b.lng-a.lng),x=Math.sin(dLat/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dLng/2)**2;return 6371*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
 @Injectable()
 export class TouristService{
- constructor(private readonly database:DatabaseService){}
+ constructor(@Inject(DatabaseService) private readonly database:DatabaseService){}
  private mapPlace(p:any){return {id:p.id,name:p.name,city:p.city,category:p.category||'Explore',description:p.description||'',lat:p.latitude,lng:p.longitude,tags:p.tags||[],nearbyFacilities:p.nearby_facilities||[],estimatedVisitHours:Number(p.estimated_visit_hours||1.5)};}
  async getPlaces(city?:string,category?:string,search?:string){let q=this.database.publicClient().from('tourist_places').select('*').eq('is_active',true);if(city)q=q.ilike('city',city);if(category)q=q.ilike('category',category);const {data,error}=await q.order('name');if(error)throw new ServiceUnavailableException(error.message);const needle=search?.trim().toLowerCase();return (data||[]).map(x=>this.mapPlace(x)).filter(p=>!needle||(p.name+' '+p.description+' '+p.tags.join(' ')).toLowerCase().includes(needle));}
  async getRecommendations(city:string,interests:string,origin?:Point){const selected=interests.split(',').map(x=>x.trim().toLowerCase()).filter(Boolean);const places=await this.getPlaces(city);return places.map(p=>({...p,matchScore:p.tags.filter(t=>selected.includes(t)).length,distanceFromCurrentLocationKm:origin&&p.lat!==null&&p.lng!==null?Number(distance(origin,{lat:p.lat,lng:p.lng}).toFixed(2)):null})).sort((a,b)=>b.matchScore-a.matchScore||(origin?(a.distanceFromCurrentLocationKm??Infinity)-(b.distanceFromCurrentLocationKm??Infinity):a.name.localeCompare(b.name))).slice(0,8);}

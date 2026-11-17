@@ -1,4 +1,4 @@
-import {BadRequestException,Body,Controller,ForbiddenException,Get,Post,Req,UseGuards} from '@nestjs/common';
+import {BadRequestException,Body,Controller,ForbiddenException,Get,Post,Req,UseGuards,Inject} from '@nestjs/common';
 import {Request} from 'express';
 import {AuthGuard} from '../auth/auth.guard';
 import {DatabaseService} from '../database/database.service';
@@ -6,7 +6,7 @@ import {OwnerApplicationDto} from './owner.dto';
 type AR=Request&{user:{id:string;accessToken:string;role:string}};
 @Controller('owners') @UseGuards(AuthGuard)
 export class OwnersController {
-  constructor(private readonly db:DatabaseService){}
+  constructor(@Inject(DatabaseService) private readonly db:DatabaseService){}
   @Get('application') async getApplication(@Req()r:AR){
     const {data,error}=await this.db.userClient(r.user.accessToken).from('vehicle_owner_applications').select('*').eq('user_id',r.user.id).maybeSingle();
     if(error)throw new BadRequestException(error.message);return data;
