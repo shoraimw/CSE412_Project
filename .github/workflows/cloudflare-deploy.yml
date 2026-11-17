@@ -23,6 +23,10 @@ jobs:
         with:
           node-version: 22
       - run: npm install
+      - name: Validate admin dashboard JavaScript
+        run: |
+          node --check frontend/js/admin.js
+          node --check frontend/js/api.js
       - name: Validate Cloudflare bundle
         run: npm run build
       - name: Deploy to Cloudflare Workers
