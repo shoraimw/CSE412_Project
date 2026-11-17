@@ -5,5 +5,5 @@ import { EstimateFareDto } from './fare.dto';
 @Controller('fare')
 export class FareController {
   constructor(@Inject(FareService) private readonly fare: FareService) {}
-  @Post(['estimate', 'predict']) estimate(@Body() body: EstimateFareDto) { return this.fare.estimate(body); }
+  @Post('estimate') estimate(@Body() body: EstimateFareDto) { return this.fare.estimate(body); }
 }
