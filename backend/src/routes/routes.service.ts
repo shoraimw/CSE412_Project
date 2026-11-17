@@ -128,10 +128,6 @@ export class RoutesService {
   }
 
   private async optimizeWithOsrm(dto: OptimizeRouteDto, googleFallbackNote = '') {
-    const coordinates = [
-      String(dto.pickupLng), String(dto.pickupLat),
-      String(dto.destinationLng), String(dto.destinationLat),
-    ].join(',');
     const url = 'https://router.project-osrm.org/route/v1/driving/'
       + String(dto.pickupLng) + ',' + String(dto.pickupLat) + ';'
       + String(dto.destinationLng) + ',' + String(dto.destinationLat)
