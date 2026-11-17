@@ -160,11 +160,8 @@ export class RidesService{
     routeSummary:{
       provider:routeResult.provider,
       trafficStatus:routeResult.trafficStatus,
-      trafficLevel:routeResult.trafficLevel,
       distanceKm:estimatedKm,
       durationMinutes,
-      staticDurationMinutes,
-      trafficDelayMinutes:Math.max(0,durationMinutes-staticDurationMinutes),
       note:routeResult.note,
     },
     fareEstimate,
