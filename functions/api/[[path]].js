@@ -1,5 +1,6 @@
 /**
- * Same-origin API gateway for the DRIVE Pages frontend.
+ * Same-origin /api gateway for the DRIVE Pages frontend.
+ * Pages maps this optional catch-all route to every API path below /api.
  *
  * The backend is the existing, separate CSE412 Cloudflare Worker. A Pages
  * Service Binding keeps this hop inside Cloudflare and avoids depending on
