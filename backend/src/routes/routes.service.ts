@@ -4,6 +4,29 @@ import { OptimizeRouteDto } from './routes.dto';
 
 const EARTH_RADIUS_KM = 6371;
 
+type RouteOption = {
+  id: number;
+  distanceKm: number;
+  durationMinutes: number;
+  staticDurationMinutes: number;
+  trafficDelayMinutes: number;
+  trafficRatio: number;
+  trafficLevel: 'light' | 'moderate' | 'heavy' | 'unknown';
+  geometry: any | null;
+  routeLabels?: string[];
+};
+
+type RouteResult = {
+  provider: string;
+  trafficStatus: 'live' | 'unavailable';
+  trafficLevel: 'light' | 'moderate' | 'heavy' | 'unknown';
+  optimization: string;
+  selectedRoute: RouteOption;
+  alternativeRoutes: RouteOption[];
+  isRoadRoute: boolean;
+  note: string;
+};
+
 function haversine(aLat: number, aLng: number, bLat: number, bLng: number) {
   const rad = (value: number) => value * Math.PI / 180;
   const dLat = rad(bLat - aLat);
@@ -24,10 +47,10 @@ function trafficLevel(ratio: number): 'light' | 'moderate' | 'heavy' {
   return 'heavy';
 }
 
-function chooseRoute<T extends { distanceKm: number; durationMinutes: number }>(
-  routes: T[],
+function chooseRoute(
+  routes: RouteOption[],
   preference: string,
-): T {
+): RouteOption {
   if (preference === 'shortest') {
     return [...routes].sort((a, b) => a.distanceKm - b.distanceKm)[0];
   }
@@ -44,7 +67,7 @@ function chooseRoute<T extends { distanceKm: number; durationMinutes: number }>(
 
 @Injectable()
 export class RoutesService {
-  async optimize(dto: OptimizeRouteDto) {
+  async optimize(dto: OptimizeRouteDto): Promise<RouteResult> {
     const apiKey = getDriveRuntimeConfig().googleMapsApiKey;
     let googleFallbackNote = '';
 
@@ -59,7 +82,7 @@ export class RoutesService {
     return this.optimizeWithOsrm(dto, googleFallbackNote);
   }
 
-  private async optimizeWithGoogle(dto: OptimizeRouteDto, apiKey: string) {
+  private async optimizeWithGoogle(dto: OptimizeRouteDto, apiKey: string): Promise<RouteResult> {
     const response = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
       method: 'POST',
       headers: {
@@ -127,7 +150,7 @@ export class RoutesService {
     };
   }
 
-  private async optimizeWithOsrm(dto: OptimizeRouteDto, googleFallbackNote = '') {
+  private async optimizeWithOsrm(dto: OptimizeRouteDto, googleFallbackNote = ''): Promise<RouteResult> {
     const url = 'https://router.project-osrm.org/route/v1/driving/'
       + String(dto.pickupLng) + ',' + String(dto.pickupLat) + ';'
       + String(dto.destinationLng) + ',' + String(dto.destinationLat)
@@ -179,6 +202,7 @@ export class RoutesService {
         trafficLevel: 'unknown',
         optimization: 'straight-line-fallback',
         selectedRoute: {
+          id: 1,
           distanceKm: Number(estimatedDistance.toFixed(2)),
           durationMinutes: minutes,
           staticDurationMinutes: minutes,
