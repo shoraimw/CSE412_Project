@@ -16,4 +16,28 @@ export class OwnersController {
     const {data,error}=await this.db.userClient(r.user.accessToken).from('vehicle_owner_applications').insert({user_id:r.user.id,business_name:d.business_name.trim(),contact_phone:d.contact_phone.trim(),business_address:d.business_address.trim(),note:d.note?.trim()||null}).select('*').single();
     if(error||!data)throw new BadRequestException(error?.message||'Owner application could not be submitted.');return {message:'Vehicle owner application submitted for administrator review.',application:data};
   }
+
+  @Post('application/resubmit') async resubmit(@Req() r: AR, @Body() d: OwnerApplicationDto) {
+    if (r.user.role !== 'passenger') throw new ForbiddenException('Only passenger accounts can resubmit a vehicle owner application.');
+    const { data, error } = await this.db.userClient(r.user.accessToken)
+      .from('vehicle_owner_applications')
+      .update({
+        business_name: d.business_name.trim(),
+        contact_phone: d.contact_phone.trim(),
+        business_address: d.business_address.trim(),
+        note: d.note?.trim() || null,
+        status: 'pending',
+        reviewer_id: null,
+        reviewed_at: null,
+        rejection_reason: null,
+      })
+      .eq('user_id', r.user.id)
+      .eq('status', 'rejected')
+      .select('*')
+      .maybeSingle();
+    if (error) throw new BadRequestException(error.message);
+    if (!data) throw new BadRequestException('Only a rejected vehicle owner application can be resubmitted.');
+    return { message: 'Vehicle owner application resubmitted for review.', application: data };
+  }
+
 }
