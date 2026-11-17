@@ -10,17 +10,12 @@ type RouteOption = {
   id: number;
   distanceKm: number;
   durationMinutes: number;
-  staticDurationMinutes: number;
-  trafficDelayMinutes: number;
-  trafficRatio: number;
-  trafficLevel: 'unknown';
   geometry: any | null;
 };
 
 type RouteResult = {
   provider: string;
   trafficStatus: 'unavailable';
-  trafficLevel: 'unknown';
   optimization: string;
   selectedRoute: RouteOption;
   alternativeRoutes: RouteOption[];
@@ -125,10 +120,6 @@ export class RoutesService {
           id: index + 1,
           distanceKm: Number((Number(route.distance) / 1000).toFixed(2)),
           durationMinutes: minutes,
-          staticDurationMinutes: minutes,
-          trafficDelayMinutes: 0,
-          trafficRatio: 1,
-          trafficLevel: 'unknown',
           geometry: route.geometry || null,
         };
       }).filter((route: RouteOption) => Number.isFinite(route.distanceKm) && route.distanceKm > 0);
@@ -138,7 +129,6 @@ export class RoutesService {
       return {
         provider: 'OpenStreetMap OSRM',
         trafficStatus: 'unavailable',
-        trafficLevel: 'unknown',
         optimization: preference,
         selectedRoute: selected,
         alternativeRoutes: routes.filter(route => route.id !== selected.id),
@@ -158,10 +148,6 @@ export class RoutesService {
           id: 1,
           distanceKm: Number(estimatedDistance.toFixed(2)),
           durationMinutes: minutes,
-          staticDurationMinutes: minutes,
-          trafficDelayMinutes: 0,
-          trafficRatio: 1,
-          trafficLevel: 'unknown',
           geometry: null,
         },
         alternativeRoutes: [],
