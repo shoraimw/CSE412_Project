@@ -1,14 +1,14 @@
 import { BadRequestException,ForbiddenException,Injectable,NotFoundException,ServiceUnavailableException, Inject } from '@nestjs/common';
 import {createHash,randomBytes} from 'crypto';
 import {DatabaseService} from '../database/database.service';
+import {FareService} from '../fare/fare.service';
 import {CreateRideDto,RideLocationDto} from './rides.dto';
 
 type Role='passenger'|'driver'|'vehicle_owner'|'admin';
-const rates={bike:{base:30,km:12},cng:{base:40,km:18},car:{base:60,km:25}};
 function haversine(a:{lat:number;lng:number},b:{lat:number;lng:number}){const rad=(n:number)=>n*Math.PI/180;const dLat=rad(b.lat-a.lat),dLng=rad(b.lng-a.lng);const x=Math.sin(dLat/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dLng/2)**2;return 6371*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
 @Injectable()
 export class RidesService{
- constructor(@Inject(DatabaseService) private readonly database:DatabaseService){}
+ constructor(@Inject(DatabaseService) private readonly database:DatabaseService,@Inject(FareService) private readonly fare:FareService){}
  private db(token:string){return this.database.userClient(token);}
  private async geocode(address:string){const url='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=bd&q='+encodeURIComponent(address+', Bangladesh');const response=await fetch(url,{headers:{'User-Agent':process.env.NOMINATIM_USER_AGENT||'DRIVE-CSE412-Academic-Project/1.0'},signal:AbortSignal.timeout(8000)});if(!response.ok)throw new ServiceUnavailableException('Map geocoding is temporarily unavailable.');const rows:any[]=await response.json();if(!rows.length)throw new BadRequestException('Could not find this location. Add a more specific Dhaka address.');return {lat:Number(rows[0].lat),lng:Number(rows[0].lon)};}
  async create(userId:string,token:string,dto:CreateRideDto){
@@ -16,7 +16,7 @@ export class RidesService{
   const pickup=dto.pickupLat!==undefined&&dto.pickupLng!==undefined?{lat:dto.pickupLat,lng:dto.pickupLng}:await this.geocode(dto.pickupAddress);
   if(dto.destinationLat===undefined||dto.destinationLng===undefined)await new Promise(resolve=>setTimeout(resolve,1100));const destination=dto.destinationLat!==undefined&&dto.destinationLng!==undefined?{lat:dto.destinationLat,lng:dto.destinationLng}:await this.geocode(dto.destinationAddress);
   const straightKm=haversine(pickup,destination);if(!Number.isFinite(straightKm)||straightKm<=0)throw new BadRequestException('Pickup and destination must be different valid locations.');
-  const proposedKm=Number(dto.routeDistanceKm);const validRouteQuote=Number.isFinite(proposedKm)&&proposedKm>=straightKm*0.95&&proposedKm<=straightKm*5;const estimatedKm=Number((validRouteQuote?proposedKm:straightKm*1.25).toFixed(2));const durationMinutes=validRouteQuote&&Number.isFinite(Number(dto.routeDurationMinutes))?Math.max(1,Math.round(Number(dto.routeDurationMinutes))):Math.max(1,Math.round(estimatedKm/25*60));const rate=rates[dto.vehicleType];const fare=Math.round((rate.base+estimatedKm*rate.km)*1.2);
+  const proposedKm=Number(dto.routeDistanceKm);const validRouteQuote=Number.isFinite(proposedKm)&&proposedKm>=straightKm*0.95&&proposedKm<=straightKm*5;const estimatedKm=Number((validRouteQuote?proposedKm:straightKm*1.25).toFixed(2));const durationMinutes=validRouteQuote&&Number.isFinite(Number(dto.routeDurationMinutes))?Math.max(1,Math.round(Number(dto.routeDurationMinutes))):Math.max(1,Math.round(estimatedKm/25*60));const fareEstimate=this.fare.predict({distanceKm:estimatedKm,vehicleType:dto.vehicleType,traffic:dto.traffic||'moderate',demand:dto.demand||'medium',time:dto.time||'offPeak'});const fare=fareEstimate.estimatedFare;
   const payload={passenger_id:userId,pickup_label:dto.pickupAddress.trim(),pickup_lat:pickup.lat,pickup_lng:pickup.lng,destination_label:dto.destinationAddress.trim(),destination_lat:destination.lat,destination_lng:destination.lng,requested_vehicle:dto.vehicleType,is_shared:!!dto.isShared,women_safety_preference:!!dto.womenSafetyPreference,estimated_distance_km:estimatedKm,estimated_duration_minutes:durationMinutes,estimated_fare:fare,currency:'BDT',notes:dto.notes?.trim()||null,seats_requested:dto.seatsRequested||1};
   const db=this.db(token);
   const {data,error}=await db.from('ride_requests').insert(payload).select('*').single();
@@ -33,7 +33,7 @@ export class RidesService{
    const {data:session,error:sessionError}=await db.from('safety_trip_sessions').insert({
     user_id:userId,ride_request_id:data.id,destination:dto.destinationAddress.trim(),started_at:now.toISOString(),
     expected_arrival_at:expected.toISOString(),status:'ACTIVE',current_lat:point?.lat??null,current_lng:point?.lng??null,
-    planned_route:[],warnings:[]
+    planned_route:dto.safetyPlannedRoute||[],warnings:[]
    }).select('*').single();
    if(sessionError||!session)throw new ServiceUnavailableException(sessionError?.message||'Automatic Women Safety session could not be started.');
    if(point){
