@@ -3,7 +3,6 @@ import {Type} from 'class-transformer';
 
 export class DriverApplicationDto{
  @IsString()@MinLength(5)@MaxLength(80)license_number!:string;
- @IsIn(['national_id','driving_license'])verification_type!:string;
  @IsOptional()@Type(()=>Number)@IsInt()@Min(0)@Max(60)experience_years?:number;
  @IsOptional()@IsIn(['car','bike','cng'])requested_vehicle_type?:string;
  @IsOptional()@IsString()@MaxLength(500)note?:string;
