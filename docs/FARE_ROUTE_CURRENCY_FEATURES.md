@@ -21,8 +21,8 @@ These features are implemented in the NestJS + TypeScript backend under \`backen
 ## Example requests
 
 \`\`\`json
-POST /api/fare/predict
-{ "distanceKm": 8.5, "vehicleType": "car", "traffic": "heavy", "demand": "medium", "time": "peak" }
+POST /api/fare/estimate
+{ "distanceKm": 8.5, "vehicleType": "car", "durationMinutes": 24 }
 \`\`\`
 
 \`\`\`json
