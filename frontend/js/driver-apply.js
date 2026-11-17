@@ -4,6 +4,11 @@ const user=JSON.parse(localStorage.getItem('drive_user')||'null');
 const form=$('applicationForm');
 const status=$('applicationStatus');
 async function refresh(){
+  if(user?.role==='driver'){
+    form.hidden=true;
+    status.textContent='Your driver account is active. Open the Driver workspace to continue.';
+    return;
+  }
   if(user?.role!=='passenger'){
     form.hidden=true;
     status.textContent='Only passenger accounts can apply to become a driver.';
@@ -14,7 +19,7 @@ async function refresh(){
     if(app){
       form.hidden=true;
       const kind=app.license_number?.startsWith('NID:')?'National ID':'Driving licence';
-      status.textContent='Application status: '+String(app.status).toUpperCase()+' · '+kind+' number: '+app.license_number.replace(/^(NID|Driving licence):\\s*/,'');
+      status.textContent='Application status: '+String(app.status).toUpperCase()+' · '+kind+' number: '+app.license_number.replace(/^(NID|Driving licence):\s*/,'');
       if(app.status==='approved')status.textContent+=' · Driver access is enabled. Sign out and sign in again to refresh your account.';
       if(app.status==='rejected'&&app.rejection_reason)status.textContent+=' · '+app.rejection_reason;
     }else{
