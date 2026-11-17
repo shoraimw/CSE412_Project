@@ -2,57 +2,178 @@ import { BadRequestException,ForbiddenException,Injectable,NotFoundException,Ser
 import {createHash,randomBytes} from 'crypto';
 import {DatabaseService} from '../database/database.service';
 import {FareService} from '../fare/fare.service';
+import {RoutesService} from '../routes/routes.service';
 import {CreateRideDto,RideLocationDto} from './rides.dto';
 
 type Role='passenger'|'driver'|'vehicle_owner'|'admin';
 function haversine(a:{lat:number;lng:number},b:{lat:number;lng:number}){const rad=(n:number)=>n*Math.PI/180;const dLat=rad(b.lat-a.lat),dLng=rad(b.lng-a.lng);const x=Math.sin(dLat/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dLng/2)**2;return 6371*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
 @Injectable()
 export class RidesService{
- constructor(@Inject(DatabaseService) private readonly database:DatabaseService,@Inject(FareService) private readonly fare:FareService){}
+ constructor(@Inject(DatabaseService) private readonly database:DatabaseService,@Inject(FareService) private readonly fare:FareService,@Inject(RoutesService) private readonly routes:RoutesService){}
  private db(token:string){return this.database.userClient(token);}
  private async geocode(address:string){const url='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=bd&q='+encodeURIComponent(address+', Bangladesh');const response=await fetch(url,{headers:{'User-Agent':process.env.NOMINATIM_USER_AGENT||'DRIVE-CSE412-Academic-Project/1.0'},signal:AbortSignal.timeout(8000)});if(!response.ok)throw new ServiceUnavailableException('Map geocoding is temporarily unavailable.');const rows:any[]=await response.json();if(!rows.length)throw new BadRequestException('Could not find this location. Add a more specific Dhaka address.');return {lat:Number(rows[0].lat),lng:Number(rows[0].lon)};}
  async create(userId:string,token:string,dto:CreateRideDto){
   if(!dto.pickupAddress?.trim()||!dto.destinationAddress?.trim())throw new BadRequestException('Pickup and destination are required.');
-  const pickup=dto.pickupLat!==undefined&&dto.pickupLng!==undefined?{lat:dto.pickupLat,lng:dto.pickupLng}:await this.geocode(dto.pickupAddress);
-  if(dto.destinationLat===undefined||dto.destinationLng===undefined)await new Promise(resolve=>setTimeout(resolve,1100));const destination=dto.destinationLat!==undefined&&dto.destinationLng!==undefined?{lat:dto.destinationLat,lng:dto.destinationLng}:await this.geocode(dto.destinationAddress);
-  const straightKm=haversine(pickup,destination);if(!Number.isFinite(straightKm)||straightKm<=0)throw new BadRequestException('Pickup and destination must be different valid locations.');
-  const proposedKm=Number(dto.routeDistanceKm);const validRouteQuote=Number.isFinite(proposedKm)&&proposedKm>=straightKm*0.95&&proposedKm<=straightKm*5;const estimatedKm=Number((validRouteQuote?proposedKm:straightKm*1.25).toFixed(2));const durationMinutes=validRouteQuote&&Number.isFinite(Number(dto.routeDurationMinutes))?Math.max(1,Math.round(Number(dto.routeDurationMinutes))):Math.max(1,Math.round(estimatedKm/25*60));const fareEstimate=this.fare.predict({distanceKm:estimatedKm,vehicleType:dto.vehicleType,traffic:dto.traffic||'moderate',demand:dto.demand||'medium',time:dto.time||'offPeak'});const fare=fareEstimate.estimatedFare;
-  const payload={passenger_id:userId,pickup_label:dto.pickupAddress.trim(),pickup_lat:pickup.lat,pickup_lng:pickup.lng,destination_label:dto.destinationAddress.trim(),destination_lat:destination.lat,destination_lng:destination.lng,requested_vehicle:dto.vehicleType,is_shared:!!dto.isShared,women_safety_preference:!!dto.womenSafetyPreference,estimated_distance_km:estimatedKm,estimated_duration_minutes:durationMinutes,estimated_fare:fare,currency:'BDT',notes:dto.notes?.trim()||null,seats_requested:dto.seatsRequested||1};
+
+  const pickup=dto.pickupLat!==undefined&&dto.pickupLng!==undefined
+    ?{lat:dto.pickupLat,lng:dto.pickupLng}
+    :await this.geocode(dto.pickupAddress);
+  const destination=dto.destinationLat!==undefined&&dto.destinationLng!==undefined
+    ?{lat:dto.destinationLat,lng:dto.destinationLng}
+    :await this.geocode(dto.destinationAddress);
+
+  const straightKm=haversine(pickup,destination);
+  if(!Number.isFinite(straightKm)||straightKm<=0)throw new BadRequestException('Pickup and destination must be different valid locations.');
+
+  // The server computes the authoritative road route and fare. The browser
+  // no longer supplies a hand-entered distance, traffic level or demand level.
+  const routeResult=await this.routes.optimize({
+    pickupLat:pickup.lat,
+    pickupLng:pickup.lng,
+    destinationLat:destination.lat,
+    destinationLng:destination.lng,
+    preference:dto.routePreference||'balanced',
+  });
+  const selectedRoute=routeResult.selectedRoute;
+  const proposedKm=Number(selectedRoute?.distanceKm);
+  const validRouteQuote=Number.isFinite(proposedKm)&&proposedKm>=straightKm*0.95&&proposedKm<=straightKm*5;
+  const estimatedKm=Number((validRouteQuote?proposedKm:straightKm*1.25).toFixed(2));
+  const durationMinutes=validRouteQuote&&Number.isFinite(Number(selectedRoute.durationMinutes))
+    ?Math.max(1,Math.round(Number(selectedRoute.durationMinutes)))
+    :Math.max(1,Math.round(estimatedKm/25*60));
+  const staticDurationMinutes=validRouteQuote&&Number.isFinite(Number(selectedRoute.staticDurationMinutes))
+    ?Math.max(1,Math.round(Number(selectedRoute.staticDurationMinutes)))
+    :durationMinutes;
+  const trafficDataAvailable=routeResult.trafficStatus==='live';
+  const fareEstimate=this.fare.predict({
+    distanceKm:estimatedKm,
+    vehicleType:dto.vehicleType,
+    durationMinutes,
+    staticDurationMinutes,
+    trafficRatio:trafficDataAvailable?Number(selectedRoute.trafficRatio||1):1,
+    trafficDataAvailable,
+  });
+  const fare=fareEstimate.estimatedFare;
+
+  const payload={
+    passenger_id:userId,
+    pickup_label:dto.pickupAddress.trim(),
+    pickup_lat:pickup.lat,
+    pickup_lng:pickup.lng,
+    destination_label:dto.destinationAddress.trim(),
+    destination_lat:destination.lat,
+    destination_lng:destination.lng,
+    requested_vehicle:dto.vehicleType,
+    is_shared:!!dto.isShared,
+    women_safety_preference:!!dto.womenSafetyPreference,
+    estimated_distance_km:estimatedKm,
+    estimated_duration_minutes:durationMinutes,
+    estimated_fare:fare,
+    currency:'BDT',
+    notes:dto.notes?.trim()||null,
+    seats_requested:dto.seatsRequested||1,
+  };
+
   const db=this.db(token);
   const {data,error}=await db.from('ride_requests').insert(payload).select('*').single();
   if(error||!data)throw new BadRequestException(error?.message||'Ride request could not be saved.');
-  const {data:preference,error:preferenceError}=await db.from('user_safety_preferences').select('women_safety_enabled').eq('user_id',userId).maybeSingle();
+
+  const {data:preference,error:preferenceError}=await db.from('user_safety_preferences')
+    .select('women_safety_enabled').eq('user_id',userId).maybeSingle();
   if(preferenceError)throw new ServiceUnavailableException(preferenceError.message);
   const womenSafetyEnabled=!!dto.womenSafetyPreference||!!preference?.women_safety_enabled;
-  if(womenSafetyEnabled&&!data.women_safety_preference){const {error:preferenceUpdateError}=await db.from('ride_requests').update({women_safety_preference:true}).eq('id',data.id);if(preferenceUpdateError)throw new ServiceUnavailableException(preferenceUpdateError.message);data.women_safety_preference=true;}
+
   let womenSafety:any=null;
   if(womenSafetyEnabled){
-   const now=new Date();
-   const expected=new Date(now.getTime()+(Math.max(1,Math.round(estimatedKm/25*60))+10)*60000);
-   const point=dto.safetyInitialLocation;
-   const {data:session,error:sessionError}=await db.from('safety_trip_sessions').insert({
-    user_id:userId,ride_request_id:data.id,destination:dto.destinationAddress.trim(),started_at:now.toISOString(),
-    expected_arrival_at:expected.toISOString(),status:'ACTIVE',current_lat:point?.lat??null,current_lng:point?.lng??null,
-    planned_route:dto.safetyPlannedRoute||[],warnings:[]
-   }).select('*').single();
-   if(sessionError||!session)throw new ServiceUnavailableException(sessionError?.message||'Automatic Women Safety session could not be started.');
-   if(point){
-    const {error:locationError}=await db.from('safety_trip_locations').insert({safety_trip_id:session.id,user_id:userId,latitude:point.lat,longitude:point.lng});
-    if(locationError)throw new ServiceUnavailableException(locationError.message);
+   try{
+    const now=new Date();
+    const expected=new Date(now.getTime()+(durationMinutes+10)*60000);
+    const point=dto.safetyInitialLocation;
+    const routeCoordinates=selectedRoute?.geometry?.coordinates;
+    const plannedRoute=dto.safetyPlannedRoute?.length
+      ?dto.safetyPlannedRoute
+      :(Array.isArray(routeCoordinates)&&routeCoordinates.length>1
+        ?(routeCoordinates.length>100
+          ?Array.from({length:100},(_,i)=>routeCoordinates[Math.round(i*(routeCoordinates.length-1)/99)])
+          :routeCoordinates).map(([lng,lat]:number[])=>({lat,lng}))
+        :[]);
+    const {data:session,error:sessionError}=await db.from('safety_trip_sessions').insert({
+      user_id:userId,
+      ride_request_id:data.id,
+      destination:dto.destinationAddress.trim(),
+      started_at:now.toISOString(),
+      expected_arrival_at:expected.toISOString(),
+      status:'ACTIVE',
+      current_lat:point?.lat??null,
+      current_lng:point?.lng??null,
+      planned_route:plannedRoute,
+      warnings:[],
+    }).select('*').single();
+    if(sessionError||!session)throw new Error(sessionError?.message||'Women Safety session could not be created.');
+
+    if(point){
+      const {error:locationError}=await db.from('safety_trip_locations').insert({
+        safety_trip_id:session.id,user_id:userId,latitude:point.lat,longitude:point.lng,
+      });
+      if(locationError)throw new Error(locationError.message);
+    }
+
+    const {data:contacts,error:contactsError}=await db.from('trusted_contacts')
+      .select('id,contact_name,phone,contact_type')
+      .eq('user_id',userId).in('contact_type',['trusted','emergency']).order('created_at');
+    if(contactsError)throw new Error(contactsError.message);
+
+    let shareToken:string|null=null,expiresAt:string|null=null;
+    if(contacts?.length){
+      shareToken=randomBytes(32).toString('hex');
+      const tokenHash=createHash('sha256').update(shareToken).digest('hex');
+      expiresAt=new Date(Date.now()+24*60*60*1000).toISOString();
+      const {error:shareError}=await db.from('trip_shares').insert({
+        safety_trip_id:session.id,
+        user_id:userId,
+        token_hash:tokenHash,
+        contact_ids:contacts.map(contact=>contact.id),
+        expires_at:expiresAt,
+      });
+      if(shareError)throw new Error(shareError.message);
+    }
+    womenSafety={
+      enabled:true,
+      sessionId:session.id,
+      sessionStarted:true,
+      shareToken,
+      expiresAt,
+      initialLocationReceived:!!point,
+      contacts:(contacts||[]).map(contact=>({
+        id:contact.id,name:contact.contact_name,phone:contact.phone,type:contact.contact_type,
+      })),
+    };
+   }catch(safetyError){
+    // A secondary safety-share setup problem must not silently discard the
+    // primary ride request. Tell the passenger exactly what still needs work.
+    womenSafety={
+      enabled:true,
+      sessionStarted:false,
+      warning:safetyError instanceof Error?safetyError.message:'Women Safety could not be initialized.',
+    };
    }
-   const {data:contacts,error:contactsError}=await db.from('trusted_contacts').select('id,contact_name,phone,contact_type').eq('user_id',userId).in('contact_type',['trusted','emergency']).order('created_at');
-   if(contactsError)throw new ServiceUnavailableException(contactsError.message);
-   let shareToken:string|null=null,expiresAt:string|null=null;
-   if(contacts?.length){
-    shareToken=randomBytes(32).toString('hex');
-    const tokenHash=createHash('sha256').update(shareToken).digest('hex');
-    expiresAt=new Date(Date.now()+24*60*60*1000).toISOString();
-    const {error:shareError}=await db.from('trip_shares').insert({safety_trip_id:session.id,user_id:userId,token_hash:tokenHash,contact_ids:contacts.map(c=>c.id),expires_at:expiresAt});
-    if(shareError)throw new ServiceUnavailableException(shareError.message);
-   }
-   womenSafety={enabled:true,sessionId:session.id,shareToken,expiresAt,initialLocationReceived:!!point,contacts:(contacts||[]).map(c=>({id:c.id,name:c.contact_name,phone:c.phone,type:c.contact_type}))};
   }
-  return {...this.formatRequest(data,null),womenSafety};
+
+  return {
+    ...this.formatRequest(data,null),
+    womenSafety,
+    routeSummary:{
+      provider:routeResult.provider,
+      trafficStatus:routeResult.trafficStatus,
+      trafficLevel:routeResult.trafficLevel,
+      distanceKm:estimatedKm,
+      durationMinutes,
+      staticDurationMinutes,
+      trafficDelayMinutes:Math.max(0,durationMinutes-staticDurationMinutes),
+      note:routeResult.note,
+    },
+    fareEstimate,
+  };
  }
  async list(userId:string,token:string,role:Role){
   if(role==='passenger'){
@@ -86,10 +207,37 @@ export class RidesService{
  }
  async openRequests(token:string,role:Role){if(role!=='driver')throw new ForbiddenException('Only drivers can view open ride requests.');const {data,error}=await this.db(token).from('ride_requests').select('*').eq('status','requested').order('created_at',{ascending:true}).limit(50);if(error)throw new ServiceUnavailableException(error.message);return data||[];}
  async cancelRequest(userId:string,token:string,requestId:string,role:Role){if(role!=='passenger')throw new ForbiddenException('Only the passenger who created this request can cancel it.');const {data,error}=await this.db(token).from('ride_requests').update({status:'cancelled'}).eq('id',requestId).eq('passenger_id',userId).eq('status','requested').select('id,status').maybeSingle();if(error)throw new BadRequestException(error.message);if(!data)throw new BadRequestException('This ride can no longer be cancelled. It may already have been accepted or cancelled.');return {requestId:data.id,status:data.status,message:'Ride request cancelled.'};}
- async claimRequest(token:string,role:Role,requestId:string){if(role!=='driver')throw new ForbiddenException('Only drivers can accept ride requests.');const {data,error}=await this.db(token).rpc('drive_claim_request',{p_request_id:requestId});if(error)throw new BadRequestException(error.message);return {rideId:data,message:'Ride request accepted.'};}
+ async claimRequest(userId:string,token:string,role:Role,requestId:string){
+  if(role!=='driver')throw new ForbiddenException('Only drivers can accept ride requests.');
+  const db=this.db(token);
+  const {data,error}=await db.rpc('drive_claim_request',{p_request_id:requestId});
+  if(error)throw new BadRequestException(error.message);
+  const rideId=data as string;
+  // Seed the passenger's tracking map with the driver's latest online position
+  // immediately after acceptance; subsequent GPS updates keep this row fresh.
+  const {data:location}=await db.from('driver_locations')
+    .select('latitude,longitude,heading,speed_kph,updated_at')
+    .eq('driver_id',userId).maybeSingle();
+  if(location){
+    const {error:locationError}=await db.from('trip_locations').upsert({
+      ride_id:rideId,
+      driver_id:userId,
+      latitude:location.latitude,
+      longitude:location.longitude,
+      heading:location.heading,
+      speed_kph:location.speed_kph,
+      recorded_at:location.updated_at||new Date().toISOString(),
+    },{onConflict:'ride_id'});
+    if(locationError){
+      // The claim is already committed; do not report it as failed because a
+      // best-effort first GPS point could not be copied.
+    }
+  }
+  return {rideId,message:'Ride request accepted.'};
+ }
  async get(userId:string,token:string,id:string){const {data,error}=await this.db(token).from('rides').select('*,ride_requests(*)').eq('id',id).maybeSingle();if(error||!data)throw new NotFoundException('Ride not found.');const request=data.ride_requests;if(data.driver_id!==userId&&request?.passenger_id!==userId)throw new NotFoundException('Ride not found.');return this.formatDriverRide(data);}
  async updateStatus(userId:string,token:string,id:string,status:string,role:Role){if(role!=='driver')throw new ForbiddenException('Only the assigned driver can update trip status.');const ride=await this.get(userId,token,id);const allowed:Record<string,string[]>={matched:['driver_arriving','cancelled'],driver_arriving:['in_progress','cancelled'],in_progress:['completed'],completed:[],cancelled:[]};if(!allowed[ride.status]?.includes(status))throw new BadRequestException('Invalid ride status transition.');const patch:any={status,updated_at:new Date().toISOString()};if(status==='driver_arriving')patch.accepted_at=new Date().toISOString();if(status==='in_progress')patch.started_at=new Date().toISOString();if(status==='completed')patch.completed_at=new Date().toISOString();const {data,error}=await this.db(token).from('rides').update(patch).eq('id',id).eq('driver_id',userId).select('*').single();if(error||!data)throw new BadRequestException(error?.message||'Trip status could not be updated.');return {...ride,...data};}
- async updateLocation(userId:string,token:string,id:string,point:RideLocationDto){const ride=await this.get(userId,token,id);if(ride.driver_id!==userId)throw new ForbiddenException('Only the assigned driver can share live location.');if(ride.status!=='in_progress')throw new BadRequestException('Driver GPS can only be shared while the trip is in progress.');const {data,error}=await this.db(token).from('trip_locations').upsert({ride_id:id,driver_id:userId,latitude:point.lat,longitude:point.lng,recorded_at:new Date().toISOString()},{onConflict:'ride_id'}).select('latitude,longitude,recorded_at').single();if(error||!data)throw new BadRequestException(error?.message||'Location update failed.');return data;}
+ async updateLocation(userId:string,token:string,id:string,point:RideLocationDto){const ride=await this.get(userId,token,id);if(ride.driver_id!==userId)throw new ForbiddenException('Only the assigned driver can share live location.');if(!['matched','driver_arriving','in_progress'].includes(ride.status))throw new BadRequestException('Driver GPS is available while approaching pickup and during an active trip.');const {data,error}=await this.db(token).from('trip_locations').upsert({ride_id:id,driver_id:userId,latitude:point.lat,longitude:point.lng,recorded_at:new Date().toISOString()},{onConflict:'ride_id'}).select('latitude,longitude,recorded_at').single();if(error||!data)throw new BadRequestException(error?.message||'Location update failed.');return data;}
  async tracking(userId:string,token:string,id:string){const ride=await this.get(userId,token,id);const {data,error}=await this.db(token).from('trip_locations').select('latitude,longitude,recorded_at,heading,speed_kph').eq('ride_id',id).order('recorded_at',{ascending:false}).limit(1).maybeSingle();if(error)throw new ServiceUnavailableException(error.message);const request=ride.request||{};return {rideId:ride.id,status:ride.status,driverId:ride.driver_id,currentLocation:data?{lat:data.latitude,lng:data.longitude,updatedAt:data.recorded_at,heading:data.heading,speedKph:data.speed_kph}:null,pickup:{lat:request.pickup_lat,lng:request.pickup_lng},destination:{lat:request.destination_lat,lng:request.destination_lng},updatedAt:data?.recorded_at||null};}
  async openShared(token:string,role:Role){if(role!=='passenger')throw new ForbiddenException('Only passengers can join shared rides.');const {data,error}=await this.db(token).rpc('drive_list_shared_rides');if(error)throw new ServiceUnavailableException(error.message);return data||[];}
  async joinShared(userId:string,token:string,id:string,role:Role){if(role!=='passenger')throw new ForbiddenException('Only passengers can join shared rides.');const {data,error}=await this.db(token).rpc('drive_join_shared_ride',{p_ride_id:id});if(error||!data)throw new BadRequestException(error?.message||'Could not join this shared ride.');return data;}
