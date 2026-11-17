@@ -6,24 +6,47 @@ export class FareService {
   predict(input: PredictFareDto) {
     const rate = VEHICLE_RATES[input.vehicleType];
     if (!rate || !Number.isFinite(input.distanceKm) || input.distanceKm <= 0) {
-      throw new BadRequestException('A positive distance and supported vehicle type are required.');
+      throw new BadRequestException('A positive route distance and supported vehicle type are required.');
     }
-    const traffic = { light: 1, moderate: 1.2, heavy: 1.5 }[input.traffic || 'moderate'];
-    const demand = { low: 1, medium: 1.2, high: 1.5 }[input.demand || 'medium'];
-    const time = { offPeak: 1, peak: 1.3 }[input.time || 'offPeak'];
+
+    const durationMinutes = Math.max(1, Math.round(input.durationMinutes || input.distanceKm / rate.speedKmh * 60));
+    const staticDurationMinutes = Math.max(1, Math.round(input.staticDurationMinutes || durationMinutes));
+    const trafficDataAvailable = input.trafficDataAvailable === true;
+    const rawRatio = trafficDataAvailable ? Number(input.trafficRatio || 1) : 1;
+    const trafficRatio = Math.max(1, Math.min(2.5, Number.isFinite(rawRatio) ? rawRatio : 1));
+    const trafficMultiplier = trafficDataAvailable
+      ? Math.min(1.35, 1 + Math.max(0, trafficRatio - 1) * 0.65)
+      : 1;
+
     const distanceFare = input.distanceKm * rate.perKm;
-    const subtotal = (rate.base + distanceFare) * traffic * demand * time;
-    const estimatedFare = Math.round(subtotal);
+    const subtotal = rate.base + distanceFare;
+    const estimatedFare = Math.round(subtotal * trafficMultiplier);
+    const trafficDelayMinutes = Math.max(0, durationMinutes - staticDurationMinutes);
+
     return {
       currency: 'BDT',
       estimatedFare,
-      predictedRange: { min: Math.round(estimatedFare * 0.9), max: Math.round(estimatedFare * 1.15) },
-      breakdown: {
-        baseFare: rate.base, distanceFare: Math.round(distanceFare),
-        trafficMultiplier: traffic, demandMultiplier: demand, timeMultiplier: time,
+      predictedRange: {
+        min: Math.round(estimatedFare * 0.95),
+        max: Math.round(estimatedFare * 1.1),
       },
-      predictionMethod: 'Rule-based estimate; not a trained machine-learning model.',
-      disclaimer: 'Final fare may differ based on actual route, waiting time and operational charges.',
+      route: {
+        distanceKm: Number(input.distanceKm.toFixed(2)),
+        durationMinutes,
+        staticDurationMinutes,
+        trafficDelayMinutes,
+        trafficRatio: Number(trafficRatio.toFixed(2)),
+      },
+      breakdown: {
+        baseFare: rate.base,
+        distanceFare: Math.round(distanceFare),
+        trafficMultiplier: Number(trafficMultiplier.toFixed(3)),
+      },
+      trafficStatus: trafficDataAvailable ? 'live' : 'unavailable',
+      predictionMethod: trafficDataAvailable
+        ? 'Google Maps live-traffic-aware route with transparent fare rules; not a trained ML model.'
+        : 'Automatic road-route estimate; live traffic is unavailable until Google Routes API is configured. Not a trained ML model.',
+      disclaimer: 'This is an estimate. Final fare may differ due to waiting time, route changes and operational charges.',
     };
   }
 }
