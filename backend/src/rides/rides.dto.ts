@@ -15,6 +15,10 @@ export class CreateRideDto{
  @IsOptional()@Type(()=>Number)@IsNumber()@Min(-180)@Max(180)destinationLng?:number;
  @IsOptional()@Type(()=>Number)@IsNumber()@Min(0.1)@Max(1000)routeDistanceKm?:number;
  @IsOptional()@Type(()=>Number)@IsNumber()@Min(1)@Max(1440)routeDurationMinutes?:number;
+ @IsOptional()@Type(()=>Number)@IsNumber()@Min(1)@Max(1440)routeStaticDurationMinutes?:number;
+ @IsOptional()@Type(()=>Number)@IsNumber()@Min(1)@Max(2.5)trafficRatio?:number;
+ @IsOptional()@IsBoolean()trafficDataAvailable?:boolean;
+ @IsOptional()@IsString()@MaxLength(80)routeProvider?:string;
  @IsOptional()@IsIn(['fastest','shortest','balanced'])routePreference?:'fastest'|'shortest'|'balanced';
  @IsOptional()@IsIn(['light','moderate','heavy'])traffic?:'light'|'moderate'|'heavy';
  @IsOptional()@IsIn(['low','medium','high'])demand?:'low'|'medium'|'high';
