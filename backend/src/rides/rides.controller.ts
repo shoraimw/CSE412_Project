@@ -6,7 +6,7 @@ type AuthReq=Request&{user:{id:string;accessToken:string;role:'passenger'|'drive
 @Get('shared')shared(@Req()r:AuthReq){return this.rides.openShared(r.user.accessToken,r.user.role);}
 @Post()create(@Req()r:AuthReq,@Body()d:CreateRideDto){return this.rides.create(r.user.id,r.user.accessToken,d);}
 @Post('requests/:id/cancel')cancel(@Req()r:AuthReq,@Param('id')id:string){return this.rides.cancelRequest(r.user.id,r.user.accessToken,id,r.user.role);}
-@Post('requests/:id/claim')claim(@Req()r:AuthReq,@Param('id')id:string){return this.rides.claimRequest(r.user.accessToken,r.user.role,id);}
+@Post('requests/:id/claim')claim(@Req()r:AuthReq,@Param('id')id:string){return this.rides.claimRequest(r.user.id,r.user.accessToken,r.user.role,id);}
 @Post(':id/share')share(@Req()r:AuthReq,@Param('id')id:string){return this.rides.joinShared(r.user.id,r.user.accessToken,id,r.user.role);}
 @Get(':id')get(@Req()r:AuthReq,@Param('id')id:string){return this.rides.get(r.user.id,r.user.accessToken,id);}
 @Patch(':id/status')status(@Req()r:AuthReq,@Param('id')id:string,@Body()d:RideStatusDto){return this.rides.updateStatus(r.user.id,r.user.accessToken,id,d.status,r.user.role);}
