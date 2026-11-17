@@ -71,6 +71,31 @@ export class DriversController {
     return {message:'Driver application submitted for review.',application:data};
   }
 
+
+  @Post('application/resubmit')
+  async resubmitApplication(@Req() r: AR, @Body() d: DriverApplicationDto) {
+    if (r.user.role !== 'passenger') throw new ForbiddenException('Only passenger accounts can resubmit a driver application.');
+    const { data, error } = await this.db.userClient(r.user.accessToken)
+      .from('driver_applications')
+      .update({
+        license_number: d.license_number.trim(),
+        experience_years: d.experience_years ?? 0,
+        requested_vehicle_type: d.requested_vehicle_type || 'bike',
+        note: d.note?.trim() || null,
+        status: 'pending',
+        reviewer_id: null,
+        reviewed_at: null,
+        rejection_reason: null,
+      })
+      .eq('user_id', r.user.id)
+      .eq('status', 'rejected')
+      .select('*')
+      .maybeSingle();
+    if (error) throw new BadRequestException(error.message);
+    if (!data) throw new BadRequestException('Only a rejected driver application can be resubmitted.');
+    return { message: 'Driver application resubmitted for review.', application: data };
+  }
+
   @Post('documents')
   async submitDocument(@Req()r:AR,@Body()d:DriverDocumentDto){
     if(r.user.role!=='driver')throw new BadRequestException('Only approved driver applicants can submit verification documents.');
