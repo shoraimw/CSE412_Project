@@ -58,6 +58,7 @@
       button.disabled = true;
       try {
         await handler();
+        if (button.isConnected) button.disabled = false;
       } catch (error) {
         setMessage(error.message || 'The action could not be completed.', 'error');
         button.disabled = false;
@@ -312,7 +313,7 @@
       payments: ['statPayments', 'countPayments']
     };
     Object.entries(ids).forEach(([key, targets]) => targets.forEach(id => {
-      $(id).textContent = String(counts[key]);
+      $(id).textContent = state.errors[key] ? '—' : String(counts[key]);
     }));
   }
 
