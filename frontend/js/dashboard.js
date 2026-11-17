@@ -21,7 +21,7 @@ async function previewRoute(){
   msg('mapMessage','Finding your route…');return false;
  }
  lastRouteCallAt=Date.now();
- msg('mapMessage','Finding the best available road route and checking traffic…');
+ msg('mapMessage','Finding the best available road route…');
  try{
   const r=await driveRequest('/routes/optimize',{method:'POST',body:JSON.stringify({
    pickupLat:pickupPoint.lat,pickupLng:pickupPoint.lng,
@@ -33,11 +33,7 @@ async function previewRoute(){
   lastRouteMetrics={
    distanceKm:r.selectedRoute.distanceKm,
    durationMinutes:r.selectedRoute.durationMinutes,
-   staticDurationMinutes:r.selectedRoute.staticDurationMinutes||r.selectedRoute.durationMinutes,
-   trafficDelayMinutes:r.selectedRoute.trafficDelayMinutes||0,
-   trafficRatio:r.selectedRoute.trafficRatio||1,
-   trafficLevel:r.trafficLevel||r.selectedRoute.trafficLevel||'unknown',
-   trafficStatus:r.trafficStatus||'unavailable',
+    trafficStatus:'unavailable',
    note:r.note,provider:r.provider,
   };
   sessionStorage.setItem('drive_route_geometry',JSON.stringify(lastRouteGeometry));
@@ -47,9 +43,7 @@ async function previewRoute(){
    routeLine=L.polyline(coords,{color:'#647f27',weight:5,opacity:.9,dashArray:'10 9',lineCap:'round'}).addTo(bookingMap);
    bookingMap.fitBounds(routeLine.getBounds().pad(.18));
   }
-  const trafficText=lastRouteMetrics.trafficStatus==='live'
-   ?'Live traffic: '+lastRouteMetrics.trafficLevel+' · delay '+lastRouteMetrics.trafficDelayMinutes+' min.'
-   :'Live traffic unavailable; showing standard route duration.';
+  const trafficText='Live traffic is not included; showing standard road-route duration.';
   msg('mapMessage',r.provider+' · '+lastRouteMetrics.distanceKm+' km · '+lastRouteMetrics.durationMinutes+' min. '+trafficText+' '+r.note);
   await refreshFareFromRoute();
   await refreshNearbyDrivers();
@@ -61,9 +55,20 @@ async function previewRoute(){
 }
 $('previewRoute').addEventListener('click',previewRoute);
 $('routePreference').addEventListener('change',()=>{if(pickupPoint&&destinationPoint)previewRoute().then(refreshFareFromRoute);});
-const geocodeCache=new Map();let geocodeTimers={pickup:null,destination:null};
+const geocodeCache=new Map();let geocodeTimers={pickup:null,destination:null};let lastGeocodeRequestAt=0;let geocodeQueue=Promise.resolve();
 function locationLabel(item){return item.name||item.display_name||'Selected location';}
-async function searchPlaces(query){const q=String(query||'').trim();if(q.length<3)return[];const key=q.toLowerCase();if(geocodeCache.has(key))return geocodeCache.get(key);const url='https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=7&countrycodes=bd&q='+encodeURIComponent(q);const res=await fetch(url,{headers:{'Accept':'application/json'}});if(!res.ok)throw new Error('Place search is temporarily unavailable. Please select the point on the map.');const data=await res.json();geocodeCache.set(key,data);return data;}
+async function fetchNominatim(url){
+ const execute=async()=>{
+  const waitMs=Math.max(0,1100-(Date.now()-lastGeocodeRequestAt));
+  if(waitMs>0)await new Promise(resolve=>setTimeout(resolve,waitMs));
+  lastGeocodeRequestAt=Date.now();
+  return fetch(url,{headers:{'Accept':'application/json'}});
+ };
+ const request=geocodeQueue.then(execute,execute);
+ geocodeQueue=request.then(()=>undefined,()=>undefined);
+ return request;
+}
+async function searchPlaces(query){const q=String(query||'').trim();if(q.length<3)return[];const key=q.toLowerCase();if(geocodeCache.has(key))return geocodeCache.get(key);const url='https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=7&countrycodes=bd&q='+encodeURIComponent(q);const res=await fetchNominatim(url);if(!res.ok)throw new Error('Place search is temporarily unavailable. Please select the point on the map.');const data=await res.json();geocodeCache.set(key,data);return data;}
 function bindPlaceAutocomplete(which){const input=$(which),list=$(which==='pickup'?'pickupSuggestions':'destinationSuggestions');input.addEventListener('input',()=>{clearTimeout(geocodeTimers[which]);const q=input.value.trim();if(q.length<3)return;geocodeTimers[which]=setTimeout(async()=>{try{const items=await searchPlaces(q);list.replaceChildren();items.forEach(item=>{const option=document.createElement('option');option.value=item.display_name;list.append(option);});}catch(e){msg('mapMessage',e.message);}},1000);});input.addEventListener('change',()=>resolveTypedPlace(which));}
 async function resolveTypedPlace(which){const input=$(which),q=input.value.trim();if(q.length<3)return;msg('mapMessage','Finding '+(which==='pickup'?'pickup':'destination')+' on the map…');try{const items=await searchPlaces(q);if(!items.length)throw new Error('No matching Bangladesh location found. Try a nearby landmark or choose on the map.');const exact=items.find(x=>x.display_name.toLowerCase()===q.toLowerCase())||items[0];const lat=Number(exact.lat),lng=Number(exact.lon);setPoint(which==='pickup'?'pickup':'destination',lat,lng,exact.display_name);bookingMap.setView([lat,lng],15);msg('mapMessage','Selected: '+exact.display_name+'.');if(pickupPoint&&destinationPoint)await previewRoute();}catch(e){msg('mapMessage',e.message);}}
 bindPlaceAutocomplete('pickup');bindPlaceAutocomplete('destination');
@@ -72,14 +77,11 @@ $('findDestination').addEventListener('click',()=>resolveTypedPlace('destination
 async function refreshFareFromRoute(){
  if(!lastRouteMetrics?.distanceKm)return;
  $('fareResult').hidden=false;
- $('fareResult').textContent='Calculating fare from road distance and traffic data…';
+ $('fareResult').textContent='Calculating fare from road distance…';
  const body=JSON.stringify({
   distanceKm:Number(lastRouteMetrics.distanceKm),
   vehicleType:$('vehicle').value,
   durationMinutes:Number(lastRouteMetrics.durationMinutes),
-  staticDurationMinutes:Number(lastRouteMetrics.staticDurationMinutes),
-  trafficRatio:Number(lastRouteMetrics.trafficRatio||1),
-  trafficDataAvailable:lastRouteMetrics.trafficStatus==='live',
  });
  try{
   let r;
@@ -208,9 +210,7 @@ $('newRide').addEventListener('submit',async event=>{
   const ride=await driveRequest('/rides',{method:'POST',body:JSON.stringify(data)});
   renderWomenSafetyHandoff(ride);
   const route=ride.routeSummary;
-  const trafficNote=route?.trafficStatus==='live'
-   ?'Google traffic-aware ETA: '+route.durationMinutes+' min.'
-   :'Live traffic is not configured yet; standard route estimate: '+(route?.durationMinutes||'—')+' min.';
+  const trafficNote='Standard OSRM route estimate: '+(route?.durationMinutes||'—')+' min. Live traffic is not included.';
   const dispatchMessage=document.createElement('p');
   dispatchMessage.textContent='Ride request submitted successfully. Estimated fare: ৳'+ride.estimatedFare+'. '+trafficNote+' Checking nearby drivers…';
   $('rideMsg').append(dispatchMessage);

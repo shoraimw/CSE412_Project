@@ -43,17 +43,10 @@ export class RidesService{
   const durationMinutes=validRouteQuote&&Number.isFinite(Number(selectedRoute.durationMinutes))
     ?Math.max(1,Math.round(Number(selectedRoute.durationMinutes)))
     :Math.max(1,Math.round(estimatedKm/25*60));
-  const staticDurationMinutes=validRouteQuote&&Number.isFinite(Number(selectedRoute.staticDurationMinutes))
-    ?Math.max(1,Math.round(Number(selectedRoute.staticDurationMinutes)))
-    :durationMinutes;
-  const trafficDataAvailable=routeResult.trafficStatus==='live';
   const fareEstimate=this.fare.estimate({
     distanceKm:estimatedKm,
     vehicleType:dto.vehicleType,
     durationMinutes,
-    staticDurationMinutes,
-    trafficRatio:trafficDataAvailable?Number(selectedRoute.trafficRatio||1):1,
-    trafficDataAvailable,
   });
   const fare=fareEstimate.estimatedFare;
 
@@ -167,11 +160,8 @@ export class RidesService{
     routeSummary:{
       provider:routeResult.provider,
       trafficStatus:routeResult.trafficStatus,
-      trafficLevel:routeResult.trafficLevel,
       distanceKm:estimatedKm,
       durationMinutes,
-      staticDurationMinutes,
-      trafficDelayMinutes:Math.max(0,durationMinutes-staticDurationMinutes),
       note:routeResult.note,
     },
     fareEstimate,

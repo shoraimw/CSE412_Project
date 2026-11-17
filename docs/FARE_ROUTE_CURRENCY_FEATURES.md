@@ -1,10 +1,10 @@
-# Fare Prediction, Route Optimization & Multi-Currency
+# Automatic Fare Estimate, Route Optimization & Multi-Currency
 
 These features are implemented in the NestJS + TypeScript backend under \`backend/\`.
 
 ## Endpoints
 
-- \`POST /api/fare/predict\` — rule-based BDT fare estimate.
+- \`POST /api/fare/estimate\` — rule-based BDT fare estimate.
 - \`POST /api/routes/optimize\` — road route from OSRM, with an explicitly labelled straight-line fallback.
 - \`GET /api/payments/currencies\` — supported currency codes.
 - \`GET /api/payments/rates\` — cached live BDT exchange rates.
@@ -12,8 +12,8 @@ These features are implemented in the NestJS + TypeScript backend under \`backen
 
 ## Important scope and limitations
 
-- Fare prediction is a transparent configurable rule-based estimate, not a trained ML model.
-- Route optimization uses the public OSRM demo service and depends on its availability and usage policy. It is not an AI model or guaranteed navigation service.
+- Fare calculation is a transparent deterministic formula using server-calculated road distance and selected vehicle rate. No ML model is used.
+- Route optimization uses the public OSRM demo service and OpenStreetMap road data. It returns standard route estimates, not live traffic. It depends on the public demo's availability and usage policy and is not a guaranteed navigation service.
 - Currency conversion uses live rates from open.er-api.com, cached for one hour. If the provider is unavailable and no cached rates exist, the endpoint returns an error instead of silently using stale hard-coded rates.
 - Payment quotes do not collect money. No payment gateway, webhook, settlement, refund or transaction persistence is configured.
 - Do not add secret keys to source control. A production payment gateway must be selected after verifying merchant eligibility and compliance requirements.
@@ -21,8 +21,8 @@ These features are implemented in the NestJS + TypeScript backend under \`backen
 ## Example requests
 
 \`\`\`json
-POST /api/fare/predict
-{ "distanceKm": 8.5, "vehicleType": "car", "traffic": "heavy", "demand": "medium", "time": "peak" }
+POST /api/fare/estimate
+{ "distanceKm": 8.5, "vehicleType": "car", "durationMinutes": 24 }
 \`\`\`
 
 \`\`\`json

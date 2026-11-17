@@ -3,7 +3,6 @@ export interface DriveRuntimeConfig {
   supabaseAnonKey: string;
   corsOrigin: string;
   nodeEnv: string;
-  googleMapsApiKey: string;
 }
 
 let runtimeConfig: DriveRuntimeConfig | undefined;
@@ -18,6 +17,5 @@ export function getDriveRuntimeConfig(): DriveRuntimeConfig {
     supabaseAnonKey: process.env.SUPABASE_ANON_KEY || '',
     corsOrigin: process.env.CORS_ORIGIN || '',
     nodeEnv: process.env.NODE_ENV || 'development',
-    googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY || '',
   };
 }
