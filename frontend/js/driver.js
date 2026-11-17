@@ -160,6 +160,8 @@ function stopPresenceWatchIfIdle(){
 
 async function setDriverOnline(online){
   if(online){
+    const currentTrips=await driveRequest('/rides');
+    activeRideIds=new Set((currentTrips||[]).filter(trip=>['matched','driver_arriving','in_progress'].includes(trip.status)).map(trip=>trip.id));
     if('Notification'in window&&Notification.permission==='default'){
       try{await Notification.requestPermission();}catch{}
     }
@@ -334,7 +336,6 @@ el('driverLogout').addEventListener('click',async()=>{
 if(user?.role==='driver'){
   initDriverMap();
   updatePresenceStatus(driverOnline?'Connecting to GPS…':'Offline · go online to accept rides');
-  if(driverOnline)startPresenceWatch();
   refresh();
   setInterval(refresh,7000);
 }
