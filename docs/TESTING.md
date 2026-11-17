@@ -4,6 +4,7 @@
 - Backend: GitHub Actions runs `npm install` and `npm run build`.
 - Frontend: GitHub Actions runs `node --check` on every JavaScript file under `frontend/js`.
 - Supabase: migrations are versioned under `supabase/migrations`; security advisor should be checked after schema changes.
+- Cloudflare: `.github/workflows/cloudflare-deploy.yml` validates and deploys the Worker. Add repository secret `CLOUDFLARE_API_TOKEN` with Workers Scripts:Edit permission, then run Actions → Deploy DRIVE to Cloudflare Workers.
 
 ## Local integration test
 1. Configure `backend/.env` from `.env.example` with the DRIVE Supabase project URL and publishable key.
