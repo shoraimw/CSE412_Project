@@ -116,31 +116,7 @@ create trigger drive_notify_owner_application_status
 after update of status on public.vehicle_owner_applications
 for each row execute function public.drive_notify_owner_application_status();
 
--- A GiST index alone does not stop conflicting bookings. This exclusion
--- constraint makes overlapping pending/approved/active reservations impossible.
-do $$
-begin
-  if not exists (
-    select 1 from pg_constraint
-    where conrelid='public.rental_bookings'::regclass
-      and conname='rental_bookings_no_overlapping_active'
-  ) then
-    alter table public.rental_bookings
-      add constraint rental_bookings_no_overlapping_active
-      exclude using gist (
-        vehicle_id with =,
-        tstzrange(start_at,end_at,'[)') with &&
-      )
-      where (status in (
-        'pending'::public.drive_rental_status,
-        'approved'::public.drive_rental_status,
-        'active'::public.drive_rental_status
-      ));
-  end if;
-end;
-$$;
-
-drop index if exists public.rental_no_overlapping_active;
+-- The connected schema already has the rental_no_overlapping_active exclusion constraint.
 
 revoke all on function public.drive_notify_admin_new_driver_application() from public,anon,authenticated;
 revoke all on function public.drive_notify_driver_application_status() from public,anon,authenticated;
