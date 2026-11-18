@@ -363,7 +363,23 @@ byId('createTouristPlan').addEventListener('click', async () => {
     );
     const list = makeNode('ol', 'plan-stop-list');
     plan.stops.forEach(stop => list.append(makeNode('li', '', stop.name + (stop.distanceFromPreviousKm ? ' — ' + stop.distanceFromPreviousKm + ' km from previous stop' : ' — first stop'))));
-    container.append(list, makeNode('small', 'muted', plan.estimateType));
+    container.append(list, makeNode('small', 'muted', plan.routeProvider + ' · ' + plan.estimateType));
+    if (plan.stops.length >= 2) {
+      const origin = plan.origin ? plan.origin.lat + ',' + plan.origin.lng : plan.stops[0].lat + ',' + plan.stops[0].lng;
+      const destination = plan.stops[plan.stops.length - 1].lat + ',' + plan.stops[plan.stops.length - 1].lng;
+      const middle = plan.stops.slice(plan.origin ? 0 : 1, -1).map(stop => stop.lat + ',' + stop.lng).join('|');
+      const directions = new URL('https://www.google.com/maps/dir/');
+      directions.searchParams.set('api', '1');
+      directions.searchParams.set('origin', origin);
+      directions.searchParams.set('destination', destination);
+      if (middle) directions.searchParams.set('waypoints', middle);
+      directions.searchParams.set('travelmode', plan.transportPreference === 'Walking' ? 'walking' : 'driving');
+      const link = makeNode('a', 'secondary-button', 'Open directions ↗');
+      link.href = directions.toString();
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      container.append(link);
+    }
   } catch (error) { setText('pageMessage', error.message); }
 });
 
