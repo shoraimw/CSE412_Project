@@ -35,6 +35,10 @@ export class DriversController {
     if(applicationError||!application||application.status!=='approved'){
       throw new ForbiddenException('Your driver application must be approved before going online.');
     }
+    const {data:previous,error:previousError}=await db.from('driver_locations')
+      .select('is_available,updated_at').eq('driver_id',r.user.id).maybeSingle();
+    if(previousError)throw new BadRequestException(previousError.message);
+
     const updatedAt=new Date().toISOString();
     const {error}=await db.from('driver_locations').upsert({
       driver_id:r.user.id,
@@ -46,7 +50,25 @@ export class DriversController {
       updated_at:updatedAt,
     },{onConflict:'driver_id'});
     if(error)throw new BadRequestException(error.message);
-    return {ok:true,isAvailable:d.isAvailable,vehicleType:application.requested_vehicle_type,updatedAt};
+
+    let notifiedOpenRequests=0;
+    let notificationWarning:string|null=null;
+    const previousHeartbeat=previous?.updated_at?Date.parse(previous.updated_at):0;
+    const shouldCatchUp=d.isAvailable&&(!previous?.is_available||!previousHeartbeat||Date.now()-previousHeartbeat>45_000);
+    if(shouldCatchUp){
+      const {data:count,error:notificationError}=await db.rpc('drive_notify_open_requests_to_driver');
+      if(notificationError)notificationWarning=notificationError.message;
+      else notifiedOpenRequests=Number(count||0);
+    }
+
+    return {
+      ok:true,
+      isAvailable:d.isAvailable,
+      vehicleType:application.requested_vehicle_type,
+      updatedAt,
+      notifiedOpenRequests,
+      notificationWarning,
+    };
   }
 
   @Get('application')
