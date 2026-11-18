@@ -14,9 +14,9 @@
 5. Create a ride request using real Dhaka addresses; verify it appears in the passenger dashboard.
 6. Submit a driver application. An admin approves it and verifies the driver profile.
 7. The approved driver opens Driver workspace, selects **Go online**, and grants browser location permission. Confirm their marker appears on the passenger map and their nearest-first request list refreshes.
-8. Submit a passenger ride request. Confirm matching vehicle-type drivers receive an in-app ride alert; if the Driver workspace is open and browser notifications are allowed, a browser alert also appears.
-9. Have two eligible online drivers try to accept the same request. The first valid claim wins; the other receives a no-longer-available response. Confirm the passenger receives an acceptance notification and sees the driver's live location while the driver approaches.
-10. Test rental listing, owner approval, safety trip sharing, SOS record creation, tourist plan persistence and payment-intent creation.
+8. Submit a passenger ride request while an eligible driver is online with a fresh GPS heartbeat. Confirm only matching vehicle-type drivers within 20 km receive a persisted alert; the open Driver workspace receives it through Supabase Realtime, with 7-second polling as fallback. If a driver goes online after a request already exists, confirm the deduplicated catch-up alert appears once. If browser notifications are allowed, a browser alert also appears.
+9. Confirm the Driver request feed hides requests outside the 20 km radius and is empty while the driver is offline or the GPS heartbeat is stale. Have two eligible online drivers try to accept the same request. The first valid claim wins; the other receives a no-longer-available response. Confirm the passenger receives an acceptance notification and sees the driver's live location while the driver approaches.
+10. Test rental listing, owner approval, rejection/resubmission, pending→approved→active→completed booking transitions, invalid direct status changes, safety trip sharing, SOS record creation, tourist plan persistence and individual shared-ride payment intents.
 11. Verify that a passenger cannot read another passenger's records, a non-driver cannot claim a ride, and clients cannot mark payments or vehicles verified.
 
 ## k6 load test
@@ -43,7 +43,7 @@ The team requirement PDF defines 12 functional requirement groups and five non-f
 | Vehicle Rental | Vehicle catalogue, owner workflow, rental booking and database overlap guard | Test two overlapping bookings for the same vehicle |
 | Smart Ride Booking | Map-selected pickup/destination, ride type, fare quote and persistent ride request | Requires browser location permission only for current-location pickup |
 | Smart Ride Match & Cost Sharing | Atomic verified-driver claim RPC; passenger shared-ride discovery/join; seat-capacity guard and per-passenger fare recalculation | Verify concurrent joins, full-ride rejection and final fare shares |
-| Real-Time Ride Tracking | Driver foreground GPS heartbeat starts when the driver goes online; passenger sees nearby markers refresh every 10 seconds and accepted ride GPS every 6 seconds | Browser tab must remain open; this is near-real-time polling, not native background tracking or WebSocket streaming |
+| Real-Time Ride Tracking | Driver foreground GPS heartbeat starts when the driver goes online; passenger sees nearby markers refresh every 10 seconds and accepted ride GPS every 6 seconds | Browser tab must remain open; trip GPS is foreground-only. Ride alerts use Supabase Realtime while the Driver workspace is open, with polling fallback; native background GPS and push are not configured |
 | Automatic Fare Estimate | Automatic BDT estimate from server-calculated OpenStreetMap OSRM road distance | OSRM provides standard route estimates; live traffic is not included. The fare uses a deterministic formula, not machine learning; final fare is subject to trip conditions |
 | Route Optimization | OpenStreetMap OSRM route alternatives with fastest, shortest and balanced selection | OSRM uses standard road-network data, not live traffic. Balanced scoring minimizes normalized distance and duration using a deterministic route comparison |
 | Multi-Currency Payment | Live BDT-to-currency conversion quotes and payment-intent records | Cash payment intents can be recorded and manually confirmed by an admin after cash is physically received; no card/bKash/Nagad gateway or foreign-currency settlement is connected |
@@ -72,8 +72,8 @@ The team requirement PDF defines 12 functional requirement groups and five non-f
 4. Claim the same request from two driver sessions at nearly the same time; exactly one claim must succeed.
 5. Start the ride, start foreground GPS sharing from the driver browser, and verify passenger A sees the marker update on the tracking map.
 6. Confirm a different passenger cannot read the ride or its tracking data.
-7. Test rental booking overlap, owner approval, fare quote, currency quote, safety settings, private share expiry, SOS record, tourist plan and notification history.
-8. Open a valid private trip-share link in a logged-out/private browser and verify it loads; test a random or expired token and verify it returns an invalid/expired message.
+7. Test rental booking overlap (including a concurrent insert), owner-only booking updates, valid and invalid rental state transitions, fare quote, currency quote, safety settings, private share expiry, SOS record, tourist plan and notification history.
+8. Attempt direct PostgREST updates that skip ride lifecycle states or alter fare/ownership fields; the database trigger must reject them. Open a valid private trip-share link in a logged-out/private browser and verify it loads; test a random or expired token and verify it returns an invalid/expired message.
 9. Verify a Women Safety session receives the claimed ride ID, begins route-deviation checks only after the ride starts, and closes when the ride completes or is cancelled.
 11. Confirm the automatic fare estimate and saved ride-request fare match for the same route and vehicle; test Fastest, Shortest and Balanced route preferences.
 12. Test an expired access token with a valid refresh token, then verify the profile name, email and phone render and save correctly.

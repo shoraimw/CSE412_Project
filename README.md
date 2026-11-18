@@ -39,11 +39,15 @@ Use Supabase Dashboard → Authentication → URL Configuration to set the produ
 4. Run `npm install`.
 5. Run `npm run dev` and open the Wrangler URL.
 
+## Requirement traceability
+
+See [docs/REQUIREMENTS_TRACEABILITY.md](docs/REQUIREMENTS_TRACEABILITY.md) for the 12 functional and five non-functional requirements, current implementation status, verification evidence and honest integration boundaries. The document is the release checklist; do not treat the feature list below as proof of production readiness.
+
 ## Implemented modules
 - Supabase Auth registration, password login, refresh, email OTP and profile management
 - Passenger, driver, vehicle owner and admin role-based workflows
 - Vehicle catalogue, vehicle-owner listings, verification and rental booking
-- Map-based ride requests, OpenStreetMap OSRM road-route estimates, server-calculated fares, nearest-first driver discovery, online driver GPS presence, in-app/browser ride alerts, atomic first-accept matching, seat-aware shared rides and foreground live GPS tracking
+- Map-based ride requests, OpenStreetMap OSRM road-route estimates, server-calculated fares, nearest-first driver discovery, online driver GPS presence, 20 km nearby-only dispatch, Supabase Realtime/in-app/browser ride alerts with polling fallback, online catch-up alerts, atomic first-accept matching, seat-aware shared rides and foreground live GPS tracking
 - Automatic BDT fare estimation from the server-calculated road route, vehicle rate and OSRM standard route duration. The fare formula is deterministic and transparent. No ML model or training pipeline is used. Multi-currency conversion quotes remain available.
 - Women Safety Mode, trusted/emergency contacts, monitored safety trips, trip sharing and SOS records
 - Tourist destination catalogue and saved trip plans
@@ -55,7 +59,7 @@ Use Supabase Dashboard → Authentication → URL Configuration to set the produ
 This is an academic project and Preview deployment. Do not describe the following as production integrations:
 - **Payments:** no bKash, Nagad, card or other payment gateway is connected; payment records are pending intents only.
 - **SOS delivery:** SOS is persisted and admin in-app notifications are generated; no police/emergency-service, SMS, WhatsApp or guaranteed external contact dispatch is configured.
-- **Driver dispatch:** verified drivers must explicitly go online and allow browser GPS. Their fresh locations appear to nearby passengers; matching notifications are persisted in-app and browser notifications appear while the Driver workspace is open. The first eligible driver within 20 km to claim wins atomically. No native background GPS or push notification is configured.
+- **Driver dispatch:** verified drivers must explicitly go online and allow browser GPS. Their fresh locations appear to nearby passengers; only matching, online, approved drivers within 20 km receive persisted ride alerts. The Driver workspace subscribes to Supabase Realtime and falls back to 7-second polling. If a driver goes online after a request was created, a deduplicated catch-up alert is generated. Browser notifications appear while the workspace is open if permission is granted. The first eligible driver to claim wins atomically. No native background GPS or push notification is configured.
 - **Maps:** the visual map and geocoding use OpenStreetMap services. OSRM supplies standard road routes and estimated durations without an API key. Live traffic data is not included. The public OSRM demo is best-effort and subject to its usage policy; for sustained or commercial traffic, host your own routing service or use a provider with an appropriate plan.
 - **Notifications:** database triggers create in-app alerts for eligible drivers and passengers. Browser notifications require the driver workspace to remain open and notification permission; background Web Push, SMS and email delivery are not configured.
 - **Scale:** no load-test evidence establishes a user/concurrency capacity. Run staged tests and monitor database/Worker limits before making capacity claims.

@@ -29,6 +29,7 @@ jobs:
           node --check frontend/js/api.js
           node --check frontend/js/driver-apply.js
           node --check frontend/js/driver.js
+          node --check frontend/js/notifications.js
       - name: Validate Cloudflare bundle
         run: npm run build
       - name: Deploy to Cloudflare Workers
