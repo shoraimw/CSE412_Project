@@ -115,7 +115,7 @@ export class RidesService{
 
     const {data:contacts,error:contactsError}=await db.from('trusted_contacts')
       .select('id,contact_name,phone,contact_type')
-      .eq('user_id',userId).in('contact_type',['trusted','emergency']).order('created_at');
+      .eq('user_id',userId).eq('contact_type','trusted').order('created_at');
     if(contactsError)throw new Error(contactsError.message);
 
     let shareToken:string|null=null,expiresAt:string|null=null;

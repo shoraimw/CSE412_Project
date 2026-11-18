@@ -1,11 +1,61 @@
 const $=id=>document.getElementById(id);const formatMoney=(amount,currency='BDT')=>{try{return new Intl.NumberFormat(undefined,{style:'currency',currency,maximumFractionDigits:2}).format(Number(amount)||0);}catch{return currency+' '+(Number(amount)||0).toFixed(2);}};const msg=(id,text)=>$(id).textContent=text;const driveUser=JSON.parse(localStorage.getItem('drive_user')||'null');
-let womenSafetyWatchId=null,womenSafetySessionId=null,lastSafetyLocationAt=0,womenSafetyDefaultEnabled=false;
+let womenSafetyWatchId=null,womenSafetySessionId=null,lastSafetyLocationAt=0,lastWomenSafetySyncAt=0,womenSafetyDefaultEnabled=false;
 function getBrowserPosition(){return new Promise((resolve,reject)=>{if(!navigator.geolocation)return reject(new Error('This browser does not support GPS location.'));navigator.geolocation.getCurrentPosition(p=>resolve({lat:p.coords.latitude,lng:p.coords.longitude}),e=>reject(new Error(e.message||'Location permission was not granted.')),{enableHighAccuracy:true,timeout:12000,maximumAge:5000});});}
 function stopWomenSafetyWatch(){if(womenSafetyWatchId!==null&&navigator.geolocation){navigator.geolocation.clearWatch(womenSafetyWatchId);womenSafetyWatchId=null;}womenSafetySessionId=null;}
 function startWomenSafetyWatch(sessionId){if(!sessionId||!navigator.geolocation)return;if(womenSafetySessionId===sessionId&&womenSafetyWatchId!==null)return;stopWomenSafetyWatch();womenSafetySessionId=sessionId;lastSafetyLocationAt=0;womenSafetyWatchId=navigator.geolocation.watchPosition(async p=>{const now=Date.now();if(now-lastSafetyLocationAt<5000)return;lastSafetyLocationAt=now;try{await driveRequest('/safety/trips/'+encodeURIComponent(sessionId)+'/location',{method:'POST',body:JSON.stringify({lat:p.coords.latitude,lng:p.coords.longitude})});const el=$('womenSafetyStatus');if(el)el.textContent='Live location is being shared securely · updated '+new Date().toLocaleTimeString();}catch(e){const el=$('womenSafetyStatus');if(el)el.textContent='Location update paused: '+e.message;}},e=>{const el=$('womenSafetyStatus');if(el)el.textContent='GPS permission/location unavailable: '+e.message;},{enableHighAccuracy:true,maximumAge:3000,timeout:15000});const el=$('womenSafetyStatus');if(el)el.textContent='Women Safety is active. Keep this dashboard open for continuous GPS updates.';}
 function normalizeSafetyPhone(phone){let n=String(phone||'').replace(/[^0-9]/g,'');if(n.startsWith('01'))n='88'+n;else if(n.startsWith('1')&&n.length===10)n='880'+n;return n;}
-function renderWomenSafetyHandoff(ride){const root=$('rideMsg');root.replaceChildren();const p=document.createElement('p');p.textContent='Ride request created. Estimated fare: ৳'+ride.estimatedFare+'.';root.append(p);if(!ride.womenSafety?.enabled)return;const ws=ride.womenSafety;const status=$('womenSafetyStatus');if(ws.sessionStarted===false){if(status)status.textContent='Women Safety session could not be initialized. '+(ws.warning||'Please review your safety settings.');const warning=document.createElement('p');warning.textContent='Your ride request was still submitted, but Women Safety tracking is not active: '+(ws.warning||'session setup failed');root.append(warning);return;}if(status)status.textContent='Women Safety session created. Live GPS monitoring starts when your driver starts the trip.';if(!ws.shareToken){const note=document.createElement('p');note.textContent='No trusted/emergency contacts are saved yet. Add contacts in Safety & Travel to enable private live sharing.';root.append(note);return;}const url=new URL('shared-trip.html',window.location.href);url.searchParams.set('token',ws.shareToken);const intro=document.createElement('p');intro.textContent='Private live-trip link created. Send it to your trusted contacts once; their map will update automatically while your trip is active.';root.append(intro);const link=document.createElement('a');link.href=url.toString();link.target='_blank';link.rel='noopener noreferrer';link.textContent='Preview private live location';root.append(link);(ws.contacts||[]).forEach(contact=>{const row=document.createElement('div');row.className='women-safety-contact-actions';const name=document.createElement('strong');name.textContent=contact.name+' · '+contact.type;const text='I have started a DRIVE trip to '+$('destination').value+'. Follow my live location here: '+url.toString();const sms=document.createElement('a');sms.className='button button-dark';sms.href='sms:'+String(contact.phone||'').replace(/[^+0-9]/g,'')+'?body='+encodeURIComponent(text);sms.textContent='SMS';const wa=document.createElement('a');wa.className='button button-accent';wa.href='https://wa.me/'+normalizeSafetyPhone(contact.phone)+'?text='+encodeURIComponent(text);wa.target='_blank';wa.rel='noopener noreferrer';wa.textContent='WhatsApp';row.append(name,sms,wa);root.append(row);});}
-async function loadWomenSafetySession(rides){try{const sessions=await driveRequest('/safety/trips/active');const session=(sessions||[]).find(x=>x.rideRequestId&&(rides||[]).some(r=>r.requestId===x.rideRequestId)&&x.status!=='COMPLETED');const ride=session?(rides||[]).find(r=>r.requestId===session.rideRequestId):null;if(session&&ride?.status==='in_progress'){startWomenSafetyWatch(session.id);const el=$('womenSafetyStatus');if(el)el.textContent='Women Safety active · live location updates automatically. Keep this page open.';}else if(session){stopWomenSafetyWatch();const el=$('womenSafetyStatus');if(el)el.textContent='Women Safety is ready. Live GPS monitoring starts when your driver starts the trip.';}else if(womenSafetyWatchId!==null){stopWomenSafetyWatch();const el=$('womenSafetyStatus');if(el)el.textContent='Ride ended or was cancelled. Automatic location sharing has stopped.';}}catch(e){const el=$('womenSafetyStatus');if(el)el.textContent='Could not restore Women Safety tracking: '+e.message;}}
+function renderWomenSafetyHandoff(ride){
+ const root=$('rideMsg');root.replaceChildren();
+ const p=document.createElement('p');p.textContent='Ride request created. Estimated fare: ৳'+ride.estimatedFare+'.';root.append(p);
+ if(!ride.womenSafety?.enabled)return;
+ const ws=ride.womenSafety,status=$('womenSafetyStatus');
+ if(ws.sessionStarted===false){
+  if(status)status.textContent='Women Safety session could not be initialized. '+(ws.warning||'Please review your safety settings.');
+  const warning=document.createElement('p');warning.textContent='Your ride request was still submitted, but Women Safety GPS sharing is not active: '+(ws.warning||'session setup failed');root.append(warning);return;
+ }
+ if(status)status.textContent='Women Safety is ready. GPS tracking starts when your driver starts the trip. Keep this dashboard open.';
+ if(!ws.shareToken||!(ws.contacts||[]).length){
+  const note=document.createElement('p');note.textContent='No trusted contacts are saved yet. Add at least one Trusted Contact in Safety & Tourist to share your live location.';root.append(note);return;
+ }
+ const url=new URL('shared-trip.html',window.location.href);url.searchParams.set('token',ws.shareToken);
+ const shareText='I have started a DRIVE trip to '+$('destination').value+'. Follow my live location here: '+url.toString()+' The map refreshes automatically while my trip is active.';
+ const intro=document.createElement('p');intro.textContent='Your private live-location link is ready for '+ws.contacts.length+' trusted contact(s). Share it once; their map will refresh automatically every 5 seconds.';root.append(intro);
+ const link=document.createElement('a');link.href=url.toString();link.target='_blank';link.rel='noopener noreferrer';link.textContent='Preview live location map';root.append(link);
+ const share=document.createElement('button');share.type='button';share.className='button button-accent';share.textContent='Share live location from this phone';
+ share.addEventListener('click',async()=>{
+  try{
+   if(navigator.share)await navigator.share({title:'DRIVE live trip location',text:shareText,url:url.toString()});
+   else if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(shareText);share.textContent='Message copied';}
+   else throw new Error('Phone sharing is not supported here. Use the SMS or WhatsApp buttons below.');
+  }catch(error){if(error.name!=='AbortError')msg('rideMsg','Share was not completed: '+error.message);}
+ });
+ root.append(share);
+ const help=document.createElement('small');help.textContent='Choose a trusted contact below. SMS/WhatsApp opens a pre-filled message; you must press Send. DRIVE does not send messages silently.';root.append(help);
+ (ws.contacts||[]).filter(contact=>contact.type==='trusted'||!contact.type).forEach(contact=>{
+  const row=document.createElement('div');row.className='women-safety-contact-actions';
+  const name=document.createElement('strong');name.textContent=contact.name;
+  const sms=document.createElement('a');sms.className='button button-dark';sms.href='sms:'+String(contact.phone||'').replace(/[^+0-9]/g,'')+'?body='+encodeURIComponent(shareText);sms.textContent='Send SMS';
+  const wa=document.createElement('a');wa.className='button button-accent';wa.href='https://wa.me/'+normalizeSafetyPhone(contact.phone)+'?text='+encodeURIComponent(shareText);wa.target='_blank';wa.rel='noopener noreferrer';wa.textContent='WhatsApp';
+  row.append(name,sms,wa);root.append(row);
+ });
+}
+async function loadWomenSafetySession(rides){
+ try{
+  const sessions=await driveRequest('/safety/trips/active');
+  const session=(sessions||[]).find(x=>x.rideRequestId&&(rides||[]).some(r=>r.requestId===x.rideRequestId)&&x.status!=='COMPLETED');
+  const ride=session?(rides||[]).find(r=>r.requestId===session.rideRequestId):null;
+  if(session&&ride?.status==='in_progress'){
+   startWomenSafetyWatch(session.id);
+   const el=$('womenSafetyStatus');if(el)el.textContent='Women Safety active · your GPS is updating for selected trusted contacts. Keep this dashboard open.';
+  }else if(session){
+   stopWomenSafetyWatch();
+   const el=$('womenSafetyStatus');if(el)el.textContent='Women Safety is ready. Your live GPS sharing starts when the driver starts the ride.';
+  }else if(womenSafetyWatchId!==null){
+   stopWomenSafetyWatch();
+   const el=$('womenSafetyStatus');if(el)el.textContent='Ride ended or was cancelled. Automatic location tracking has stopped.';
+  }
+ }catch(e){const el=$('womenSafetyStatus');if(el)el.textContent='Could not restore Women Safety tracking: '+e.message;}
+}
 function requireLogin(){if(!localStorage.getItem(DRIVE_TOKEN_KEY)){location.href='login.html';return false;}return true;}
 const mapCenter=[23.7808,90.4125];let bookingMap,trackingMap,pickupMarker,destinationMarker,driverMarker,routeLine,trackingLine,nearbyDriverLayer,pickupPoint=null,destinationPoint=null,pickMode='pickup',activeTrackingRide=null,trackingTimer=null,trackingRealtimeClient=null,trackingRealtimeChannel=null,trackingRouteRide=null,lastRouteGeometry=null,lastRouteMetrics=null,lastRouteCallAt=0,nearbyDriverTimer=null,requestWatchTimer=null;
 async function ensureLeaflet(){const cssSources=['https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css','https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css'];if(!document.querySelector('link[data-drive-leaflet]')){for(const href of cssSources){try{await new Promise((resolve,reject)=>{const link=document.createElement('link');link.rel='stylesheet';link.href=href;link.dataset.driveLeaflet='true';link.onload=resolve;link.onerror=()=>{link.remove();reject(new Error('Map styles CDN unavailable'));};document.head.appendChild(link);});break;}catch{}}}if(window.L)return true;const sources=['https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js','https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js'];for(const src of sources){try{await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=src;script.crossOrigin='anonymous';script.onload=resolve;script.onerror=()=>reject(new Error('Map library CDN unavailable'));document.head.appendChild(script);});if(window.L)return true;}catch{}}return false;}
@@ -183,7 +233,34 @@ async function startTrackingRealtime(rideId){
  }
 }
 async function startTracking(rideId){activeTrackingRide=rideId;trackingRouteRide=null;await stopTrackingRealtime();if(trackingTimer){clearInterval(trackingTimer);trackingTimer=null;}if(trackingLine){trackingMap.removeLayer(trackingLine);trackingLine=null;}if(driverMarker){trackingMap.removeLayer(driverMarker);driverMarker=null;}$('trackingPanel').hidden=false;$('trackingStatus').textContent='Connecting…';setTimeout(()=>{trackingMap.invalidateSize();if(trackingLine)trackingMap.fitBounds(trackingLine.getBounds().pad(.2));},180);await refreshTracking();startTrackingRealtime(rideId);$('trackingPanel').scrollIntoView({behavior:'smooth',block:'center'});}
-async function refreshTracking(){if(!activeTrackingRide)return;try{const t=await driveRequest('/rides/'+activeTrackingRide+'/track');$('trackingStatus').textContent=t.status.replaceAll('_',' ').toUpperCase();if(t.pickup?.lat&&t.destination?.lat&&trackingRouteRide!==activeTrackingRide){trackingRouteRide=activeTrackingRide;const points=lastRouteGeometry?.length?lastRouteGeometry.map(c=>[c[1],c[0]]):[[t.pickup.lat,t.pickup.lng],[t.destination.lat,t.destination.lng]];trackingLine=L.polyline(points,{color:'#94a93c',weight:5,opacity:.85,dashArray:lastRouteGeometry?null:'7 7'}).addTo(trackingMap);trackingMap.fitBounds(trackingLine.getBounds().pad(.2));$('trackingMessage').textContent=lastRouteMetrics?'Route: '+lastRouteMetrics.distanceKm+' km · approximately '+lastRouteMetrics.durationMinutes+' min. '+lastRouteMetrics.note:'Route preview not saved in this browser session; showing pickup-to-destination line until a route is previewed.';}if(t.currentLocation){const p=[t.currentLocation.lat,t.currentLocation.lng];if(driverMarker)driverMarker.setLatLng(p);else driverMarker=L.marker(p).addTo(trackingMap).bindPopup('Live driver location');if(!trackingLine)trackingMap.setView(p,15);$('trackingMessage').textContent='Last GPS update: '+new Date(t.currentLocation.updatedAt).toLocaleTimeString()+(t.currentLocation.speedKph?' · '+t.currentLocation.speedKph+' km/h':'')+'.';}else{$('trackingMessage').textContent='Waiting for the driver to share GPS. Live updates will appear when the driver starts sharing location.';if(t.pickup?.lat)trackingMap.setView([t.pickup.lat,t.pickup.lng],13);}}catch(e){$('trackingMessage').textContent=e.message;}}
+async function refreshTracking(){
+ if(!activeTrackingRide)return;
+ try{
+  const t=await driveRequest('/rides/'+activeTrackingRide+'/track');
+  $('trackingStatus').textContent=t.status.replaceAll('_',' ').toUpperCase();
+  if(t.status==='in_progress'&&womenSafetyWatchId===null&&Date.now()-lastWomenSafetySyncAt>10000){
+   lastWomenSafetySyncAt=Date.now();
+   try{await loadWomenSafetySession(await driveRequest('/rides'));}catch{}
+  }
+  if(['completed','cancelled'].includes(t.status))stopWomenSafetyWatch();
+  if(t.pickup?.lat&&t.destination?.lat&&trackingRouteRide!==activeTrackingRide){
+   trackingRouteRide=activeTrackingRide;
+   const points=lastRouteGeometry?.length?lastRouteGeometry.map(c=>[c[1],c[0]]):[[t.pickup.lat,t.pickup.lng],[t.destination.lat,t.destination.lng]];
+   trackingLine=L.polyline(points,{color:'#94a93c',weight:5,opacity:.85,dashArray:lastRouteGeometry?null:'7 7'}).addTo(trackingMap);
+   trackingMap.fitBounds(trackingLine.getBounds().pad(.2));
+   $('trackingMessage').textContent=lastRouteMetrics?'Route: '+lastRouteMetrics.distanceKm+' km · approximately '+lastRouteMetrics.durationMinutes+' min. '+lastRouteMetrics.note:'Route preview not saved in this browser session; showing pickup-to-destination line until a route is previewed.';
+  }
+  if(t.currentLocation){
+   const p=[t.currentLocation.lat,t.currentLocation.lng];
+   if(driverMarker)driverMarker.setLatLng(p);else driverMarker=L.marker(p).addTo(trackingMap).bindPopup('Live driver location');
+   if(!trackingLine)trackingMap.setView(p,15);
+   $('trackingMessage').textContent='Last GPS update: '+new Date(t.currentLocation.updatedAt).toLocaleTimeString()+(t.currentLocation.speedKph?' · '+t.currentLocation.speedKph+' km/h':'')+'.';
+  }else{
+   $('trackingMessage').textContent='Waiting for the driver to share GPS. Live updates will appear when the driver starts sharing location.';
+   if(t.pickup?.lat)trackingMap.setView([t.pickup.lat,t.pickup.lng],13);
+  }
+ }catch(e){$('trackingMessage').textContent=e.message;}
+}
 async function watchRideRequest(requestId){
  if(requestWatchTimer)clearInterval(requestWatchTimer);
  let attempts=0;
