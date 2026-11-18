@@ -39,6 +39,10 @@ Use Supabase Dashboard → Authentication → URL Configuration to set the produ
 4. Run `npm install`.
 5. Run `npm run dev` and open the Wrangler URL.
 
+## Presentation Guide
+
+Open the live walkthrough at `/presentation.html` for the Passenger, Driver, Vehicle Owner and Admin role links, five-minute demo sequence and live API/destination/currency status checks.
+
 ## Requirement traceability
 
 See [docs/REQUIREMENTS_TRACEABILITY.md](docs/REQUIREMENTS_TRACEABILITY.md) for the 12 functional and five non-functional requirements, current implementation status, verification evidence and honest integration boundaries. The document is the release checklist; do not treat the feature list below as proof of production readiness.
@@ -50,14 +54,14 @@ See [docs/REQUIREMENTS_TRACEABILITY.md](docs/REQUIREMENTS_TRACEABILITY.md) for t
 - Map-based ride requests, OpenStreetMap OSRM road-route estimates, server-calculated fares, nearest-first driver discovery, online driver GPS presence, 20 km nearby-only dispatch, Supabase Realtime/in-app/browser ride alerts with polling fallback, online catch-up alerts, atomic first-accept matching, seat-aware shared rides and foreground live GPS tracking
 - Automatic BDT fare estimation from the server-calculated road route, vehicle rate and OSRM standard route duration. The fare formula is deterministic and transparent. No ML model or training pipeline is used. Multi-currency conversion quotes remain available.
 - Women Safety Mode, trusted/emergency contacts, monitored safety trips, trip sharing and SOS records
-- Tourist destination catalogue and saved trip plans
-- Payment intent records and currency conversion quotes
+- Tourist destination catalogue, saved multi-stop plans and OSRM road-stop optimization for Car/Bike journeys (with clearly labelled fallback estimates)
+- Ride and rental payment intents, cash settlement review, bKash/Nagad transaction-reference submission and administrator verification; currency conversion remains an indicative quote
 - In-app notifications and admin review endpoints
 - Health endpoint
 
 ## Important service limitations
 This is an academic project and Preview deployment. Do not describe the following as production integrations:
-- **Payments:** no bKash, Nagad, card or other payment gateway is connected; payment records are pending intents only.
+- **Payments:** no automatic bKash, Nagad or card gateway/webhook is connected. bKash/Nagad transaction IDs can be submitted and manually verified by an administrator against the merchant account; cash can be confirmed only after physical receipt. A pending intent is not proof that money was collected.
 - **SOS delivery:** SOS is persisted and admin in-app notifications are generated; no police/emergency-service, SMS, WhatsApp or guaranteed external contact dispatch is configured.
 - **Driver dispatch:** verified drivers must explicitly go online and allow browser GPS. Their fresh locations appear to nearby passengers; only matching, online, approved drivers within 20 km receive persisted ride alerts. The Driver workspace subscribes to Supabase Realtime and falls back to 7-second polling. If a driver goes online after a request was created, a deduplicated catch-up alert is generated. Browser notifications appear while the workspace is open if permission is granted. The first eligible driver to claim wins atomically. No native background GPS or push notification is configured.
 - **Maps:** the visual map and geocoding use OpenStreetMap services. OSRM supplies standard road routes and estimated durations without an API key. Live traffic data is not included. The public OSRM demo is best-effort and subject to its usage policy; for sustained or commercial traffic, host your own routing service or use a provider with an appropriate plan.
