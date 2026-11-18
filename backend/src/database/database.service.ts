@@ -12,6 +12,12 @@ export class DatabaseService {
   return { configured: Boolean(this.url && this.key), urlConfigured: Boolean(this.url), keyConfigured: Boolean(this.key) };
  }
 
+ // The anon/publishable key is intended for browser clients. Never expose a service-role key here.
+ publicRealtimeConfig() {
+  this.assertConfigured();
+  return { url: this.url, anonKey: this.key };
+ }
+
  async checkConnection() {
   if (!this.url || !this.key) return { status: 'not_configured', ...this.configurationStatus() };
   try {
