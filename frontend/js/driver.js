@@ -6,6 +6,7 @@ let driverOnline=localStorage.getItem('drive_driver_online')==='true';
 let driverMap=null,driverMarker=null,driverRouteLayers=[];
 let presenceWatchId=null,lastPresenceSentAt=0,lastDriverPoint=null;
 let activeRideIds=new Set(),knownNotificationIds=new Set(),notificationsLoaded=false;
+let notificationClient=null,notificationChannel=null,notificationPollTimer=null,notificationRefreshInFlight=false;
 let refreshInFlight=false;
 
 function card(title,meta){
@@ -194,6 +195,8 @@ el('driverOnlineToggle')?.addEventListener('click',async()=>{
 });
 
 async function loadDriverNotifications(){
+  if(notificationRefreshInFlight)return;
+  notificationRefreshInFlight=true;
   try{
     const result=await driveRequest('/notifications');
     const root=el('driverAlerts');
@@ -203,9 +206,10 @@ async function loadDriverNotifications(){
     if(!unread.length){
       root.textContent='No new ride alerts.';
     }else{
-      unread.slice(0,8).forEach(item=>{
+      unread.slice(0,12).forEach(item=>{
         const alert=document.createElement('article');
         alert.className='driver-alert';
+        alert.dataset.notificationId=item.id;
         const title=document.createElement('strong');
         title.textContent=item.title;
         const body=document.createElement('p');
@@ -213,9 +217,24 @@ async function loadDriverNotifications(){
         const meta=document.createElement('small');
         meta.textContent=new Date(item.created_at).toLocaleTimeString();
         alert.append(title,body,meta);
+        const readButton=document.createElement('button');
+        readButton.type='button';
+        readButton.textContent='Mark read';
+        readButton.addEventListener('click',async()=>{
+          readButton.disabled=true;
+          try{
+            await driveRequest('/notifications/'+encodeURIComponent(item.id)+'/read',{method:'PATCH'});
+            await loadDriverNotifications();
+          }catch(error){
+            readButton.disabled=false;
+            el('driverMessage').textContent='Could not update notification: '+error.message;
+          }
+        });
+        alert.append(readButton);
         root.append(alert);
         if(notificationsLoaded&&!knownNotificationIds.has(item.id)&&'Notification'in window&&Notification.permission==='granted'){
-          new Notification(item.title,{body:item.body});
+          new Notification(item.title,{body:item.body,tag:'drive-ride-'+(item.entity_id||item.id)});
+          if(navigator.vibrate)navigator.vibrate([120,60,120]);
         }
         knownNotificationIds.add(item.id);
       });
@@ -224,8 +243,67 @@ async function loadDriverNotifications(){
   }catch(error){
     const root=el('driverAlerts');
     if(root)root.textContent='Alerts unavailable: '+error.message;
+  }finally{
+    notificationRefreshInFlight=false;
   }
 }
+
+function startNotificationPolling(){
+  if(notificationPollTimer)return;
+  notificationPollTimer=setInterval(loadDriverNotifications,7000);
+}
+
+async function startNotificationRealtime(){
+  startNotificationPolling();
+  try{
+    if(!window.supabase||typeof window.supabase.createClient!=='function'){
+      throw new Error('Supabase Realtime client is unavailable.');
+    }
+    const config=await driveRequest('/notifications/realtime-config');
+    notificationClient=window.supabase.createClient(config.url,config.anonKey,{
+      auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},
+      realtime:{params:{eventsPerSecond:10}},
+    });
+    const token=localStorage.getItem(DRIVE_TOKEN_KEY);
+    if(token)await notificationClient.realtime.setAuth(token);
+    notificationChannel=notificationClient
+      .channel('drive-driver-notifications-'+user.id)
+      .on('postgres_changes',{
+        event:'INSERT',
+        schema:'public',
+        table:'notifications',
+        filter:'user_id=eq.'+user.id,
+      },payload=>{
+        if(payload.new?.type==='ride_request'){
+          loadDriverNotifications();
+        }
+      })
+      .subscribe(status=>{
+        if(status==='SUBSCRIBED'){
+          if(notificationPollTimer){
+            clearInterval(notificationPollTimer);
+            notificationPollTimer=null;
+          }
+        }else if(['CHANNEL_ERROR','TIMED_OUT','CLOSED'].includes(status)){
+          startNotificationPolling();
+        }
+      });
+  }catch(error){
+    startNotificationPolling();
+    const root=el('driverAlerts');
+    if(root)root.dataset.delivery='polling-fallback';
+  }
+}
+
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden){
+    loadDriverNotifications();
+    if(notificationClient&&localStorage.getItem(DRIVE_TOKEN_KEY)){
+      notificationClient.realtime.setAuth(localStorage.getItem(DRIVE_TOKEN_KEY));
+    }
+  }
+});
+window.addEventListener('focus',()=>loadDriverNotifications());
 
 async function refresh(){
   if(user?.role!=='driver'||refreshInFlight)return;
@@ -361,6 +439,7 @@ async function bootDriverWorkspace(){
     initDriverMap();
     updatePresenceStatus(driverOnline?'Connecting to GPS…':'Offline · go online to accept rides');
     await refresh();
+    await startNotificationRealtime();
     setInterval(refresh,7000);
   }catch(error){
     el('driverMessage').textContent=error.message||'Could not verify Driver access.';
