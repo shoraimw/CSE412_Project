@@ -240,13 +240,13 @@ export class AdminController {
     const db = this.client(request);
     const { data: payment, error: readError } = await db
       .from('payments')
-      .select('id,method,status')
+      .select('id,method,status,provider_reference')
       .eq('id', id)
       .maybeSingle();
     if (readError || !payment) throw new NotFoundException(readError?.message || 'Payment not found.');
     if (payment.status !== 'pending') throw new BadRequestException('Only pending payments can be reviewed.');
-    if (dto.status === 'paid' && payment.method !== 'cash') {
-      throw new ForbiddenException('No online payment gateway is connected. Only cash received in person can be manually settled.');
+    if (dto.status === 'paid' && payment.method !== 'cash' && !(['bkash','nagad'].includes(String(payment.method).toLowerCase()) && Boolean(payment.provider_reference))) {
+      throw new ForbiddenException('An online wallet payment can only be verified after the passenger submits a transaction ID. No automatic gateway settlement is connected.');
     }
     if (dto.status === 'refunded') throw new BadRequestException('Only a previously paid payment can be refunded.');
     const { data, error } = await db
@@ -257,7 +257,7 @@ export class AdminController {
       .select('*')
       .maybeSingle();
     if (error || !data) throw new BadRequestException(error?.message || 'Payment status could not be updated.');
-    await this.audit(db, request, 'payment.' + dto.status, 'payment', id, { status: dto.status, method: payment.method });
+    await this.audit(db, request, 'payment.' + dto.status, 'payment', id, { status: dto.status, method: payment.method, transactionReferenceSubmitted: Boolean(payment.provider_reference) });
     return data;
   }
 

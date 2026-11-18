@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#f6f8fc">
+<title>DRIVE · Presentation Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/drive.css">
+<style>
+.guide{width:min(1120px,calc(100% - 36px));margin:42px auto 90px}
+.guide-hero{padding:44px;border-radius:26px;background:#17231f;color:#fff;position:relative;overflow:hidden}
+.guide-hero:after{content:"D";position:absolute;right:40px;top:-72px;font:900 310px Manrope;color:rgba(255,255,255,.045);pointer-events:none}
+.guide-hero .eyebrow{color:#b9d18a}.guide-hero h1{font:800 clamp(36px,6vw,62px)/1.02 Manrope;letter-spacing:-2px;max-width:760px;margin:14px 0}.guide-hero p{max-width:650px;color:#cbd5ce;line-height:1.7}.guide-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:24px}
+.guide-status{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:18px 0 30px}.status-card,.guide-card,.step{background:#fff;border:1px solid #e5eae7;border-radius:16px;padding:18px}.status-card small{color:#758078;font-weight:700;letter-spacing:.6px}.status-card strong{display:block;font:800 20px Manrope;margin-top:7px}.status-note{font-size:11px;color:#758078;margin-top:5px}
+.guide-section{margin:38px 0}.guide-heading{display:flex;align-items:end;justify-content:space-between;gap:16px;margin-bottom:16px}.guide-heading h2{font:800 26px Manrope;margin:6px 0}.guide-heading p{font-size:12px;color:#768078;max-width:480px}
+.role-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}.guide-card h3{font:800 18px Manrope;margin:8px 0}.guide-card p{color:#68746d;font-size:12px;line-height:1.65}.guide-card ul{padding-left:18px;color:#46534b;font-size:12px;line-height:1.9}.guide-card a{display:inline-flex;margin-top:8px;font-size:12px;font-weight:800}
+.steps{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}.step b{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#edf3e3;color:#607d32;font:800 12px Manrope}.step strong{display:block;font:800 13px Manrope;margin:10px 0 5px}.step p{font-size:11px;line-height:1.6;color:#6c776f}
+.notice{border:1px solid #eadfc4;background:#fffaf0;border-radius:14px;padding:16px;font-size:12px;line-height:1.7;color:#6f5c37}
+@media(max-width:800px){.steps{grid-template-columns:repeat(2,1fr)}.guide-status{grid-template-columns:1fr}.guide-hero{padding:28px}.role-grid{grid-template-columns:1fr}.guide-heading{display:block}}
+</style>
+</head>
+<body>
+<header class="topbar"><a class="brand" href="index.html"><span class="brand-mark">D</span>DRIVE<span class="brand-dot">.</span></a><nav class="nav-links"><a href="dashboard.html">Passenger</a><a href="driver.html">Driver</a><a href="owner.html">Vehicle Owner</a><a href="admin.html">Admin</a></nav><div class="nav-actions"><a class="login-link" href="login.html">Log in</a><a class="button button-dark button-small" href="register.html">Get started ↗</a></div></header>
+<main class="guide">
+<section class="guide-hero">
+ <span class="eyebrow">CSE412 · LIVE PROJECT WALKTHROUGH</span>
+ <h1>One platform.<br>Four roles. Complete journey.</h1>
+ <p>Use this guide to demonstrate DRIVE from passenger booking to driver dispatch, live trip updates, rental approval, safety monitoring and administrator operations.</p>
+ <div class="guide-actions"><a class="button button-accent" href="dashboard.html">Start as Passenger ↗</a><a class="button button-dark" style="border:1px solid #53625a" href="login.html">Sign in to a role</a></div>
+</section>
+<section class="guide-status" aria-live="polite">
+ <article class="status-card"><small>API SERVICE</small><strong id="apiStatus">Checking…</strong><div class="status-note" id="apiNote">Connecting to the production API</div></article>
+ <article class="status-card"><small>TOURIST DESTINATIONS</small><strong id="placesStatus">Checking…</strong><div class="status-note">Curated destination catalogue</div></article>
+ <article class="status-card"><small>CURRENCY SERVICE</small><strong id="currencyStatus">Checking…</strong><div class="status-note" id="currencyNote">Indicative FX quote availability</div></article>
+</section>
+<section class="guide-section">
+ <div class="guide-heading"><div><span class="eyebrow">ROLE WORKSPACES</span><h2>Choose the role to demonstrate</h2></div><p>Sign in using the appropriate test account. Role access is enforced by Supabase Auth, API guards and database policies.</p></div>
+ <div class="role-grid">
+  <article class="guide-card"><span class="eyebrow">01 / PASSENGER</span><h3>Book, track and pay</h3><p>Demonstrate the complete customer journey.</p><ul><li>Map pickup and destination selection</li><li>Fastest, shortest and balanced route options</li><li>Automatic BDT fare estimate and shared rides</li><li>Ride status, driver tracking and payment history</li></ul><a href="dashboard.html">Open Passenger Dashboard →</a></article>
+  <article class="guide-card"><span class="eyebrow">02 / DRIVER</span><h3>Go online and accept rides</h3><p>Demonstrate driver-side operations.</p><ul><li>Approved driver application and online GPS</li><li>Nearby ride requests and live notifications</li><li>Accept a ride and update trip status</li><li>Share foreground GPS with the passenger</li></ul><a href="driver.html">Open Driver Workspace →</a></article>
+  <article class="guide-card"><span class="eyebrow">03 / VEHICLE OWNER</span><h3>List and manage rentals</h3><p>Demonstrate the vehicle-owner workflow.</p><ul><li>Submit a vehicle for verification</li><li>Manage approved vehicle listings</li><li>Approve or reject rental requests</li><li>Track rental booking and payment status</li></ul><a href="owner.html">Open Vehicle Owner Workspace →</a></article>
+  <article class="guide-card"><span class="eyebrow">04 / ADMIN</span><h3>Operate the platform</h3><p>Demonstrate administrator controls.</p><ul><li>Review driver, owner and vehicle applications</li><li>Monitor rides, rentals and safety alerts</li><li>Verify cash and submitted wallet transaction IDs</li><li>Review user accounts and audit history</li></ul><a href="admin.html">Open Admin Console →</a></article>
+ </div>
+</section>
+<section class="guide-section">
+ <div class="guide-heading"><div><span class="eyebrow">FIVE-MINUTE PRESENTATION FLOW</span><h2>Recommended live demo sequence</h2></div></div>
+ <div class="steps">
+  <article class="step"><b>1</b><strong>Passenger booking</strong><p>Select pickup and destination, preview route and create a ride request.</p></article>
+  <article class="step"><b>2</b><strong>Driver dispatch</strong><p>Open Driver workspace, go online and accept the matching nearby request.</p></article>
+  <article class="step"><b>3</b><strong>Trip tracking</strong><p>Update driver status and show the passenger's live tracking panel.</p></article>
+  <article class="step"><b>4</b><strong>Safety & travel</strong><p>Add a trusted contact, create a private trip link, test SOS and build a tourist plan.</p></article>
+  <article class="step"><b>5</b><strong>Admin operations</strong><p>Show review queues, notifications, payment verification and audit records.</p></article>
+ </div>
+</section>
+<section class="guide-section">
+ <div class="guide-heading"><div><span class="eyebrow">ADDITIONAL MODULES</span><h2>More features to explore</h2></div></div>
+ <div class="role-grid">
+  <article class="guide-card"><h3>Safety & Tourist Mode</h3><p>Women Safety preferences, trusted contacts, private expiring trip links, foreground route monitoring, SOS alerts and curated tourist recommendations.</p><a href="safety-tourist.html">Open Safety & Tourist →</a></article>
+  <article class="guide-card"><h3>Vehicle Rental</h3><p>Browse vehicles, request bookings, view approval status and submit payment proof after approval.</p><a href="vehicles.html">Open Vehicle Rental →</a></article>
+ </div>
+</section>
+<section class="guide-section notice">
+ <strong>Presentation honesty / integration boundaries</strong><br>
+ bKash and Nagad transactions use manual transaction-ID submission and administrator verification; no automatic payment gateway is connected. SMS/WhatsApp links open the user's messaging app and require the user to press Send. SOS is recorded and shown to DRIVE administrators; it does not dispatch police or emergency services. GPS tracking requires the relevant browser workspace to remain open. Tourist and routing estimates depend on external map services and do not include live traffic. Do not use real payment details or treat the academic demo as an emergency service.
+</section>
+</main>
+<footer><p>© 2026 DRIVE · East West University CSE412</p><a href="index.html">Back to Home</a></footer>
+<script>
+async function checkStatus(path){const response=await fetch(path,{headers:{Accept:'application/json'}});if(!response.ok)throw new Error('HTTP '+response.status);return response.json();}
+(async()=>{
+ try{const health=await checkStatus('/api/health');document.getElementById('apiStatus').textContent=health.status==='ok'?'Online':'Available';document.getElementById('apiNote').textContent=health.service||'DRIVE API responding';}
+ catch(error){document.getElementById('apiStatus').textContent='Unavailable';document.getElementById('apiNote').textContent=error.message;}
+ try{const places=await checkStatus('/api/tourist/places?city=Dhaka');document.getElementById('placesStatus').textContent=places.length+' places in Dhaka';}
+ catch(error){document.getElementById('placesStatus').textContent='Unavailable';}
+ try{const rates=await checkStatus('/api/payments/rates');document.getElementById('currencyStatus').textContent=Object.keys(rates.rates||{}).length+' currencies';document.getElementById('currencyNote').textContent=rates.cached?'Cached exchange-rate feed':'Exchange-rate feed responding';}
+ catch(error){document.getElementById('currencyStatus').textContent='Unavailable';document.getElementById('currencyNote').textContent=error.message;}
+})();
+</script>
+</body>
+</html>
