@@ -11,6 +11,8 @@ let handlerPromise: Promise<ReturnType<typeof httpServerHandler>> | undefined;
 function addSecurityHeaders(response: Response): Response {
   const headers = new Headers(response.headers);
   headers.set('X-Content-Type-Options', 'nosniff');
+  headers.set('X-Permitted-Cross-Domain-Policies', 'none');
+  headers.set('X-DNS-Prefetch-Control', 'off');
   headers.set('X-Frame-Options', 'DENY');
   headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   headers.set('Permissions-Policy', 'geolocation=(self), notifications=(self), camera=(), microphone=()');
