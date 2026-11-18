@@ -50,6 +50,14 @@ export class RidesService{
   });
   const fare=fareEstimate.estimatedFare;
 
+  const db=this.db(token);
+  // Read the saved preference before creating the request. A failed preference
+  // lookup must not leave a ride request behind while the client sees an error.
+  const {data:preference,error:preferenceError}=await db.from('user_safety_preferences')
+    .select('women_safety_enabled').eq('user_id',userId).maybeSingle();
+  if(preferenceError)throw new ServiceUnavailableException(preferenceError.message);
+  const womenSafetyEnabled=!!dto.womenSafetyPreference||!!preference?.women_safety_enabled;
+
   const payload={
     passenger_id:userId,
     pickup_label:dto.pickupAddress.trim(),
@@ -60,7 +68,7 @@ export class RidesService{
     destination_lng:destination.lng,
     requested_vehicle:dto.vehicleType,
     is_shared:!!dto.isShared,
-    women_safety_preference:!!dto.womenSafetyPreference,
+    women_safety_preference:womenSafetyEnabled,
     estimated_distance_km:estimatedKm,
     estimated_duration_minutes:durationMinutes,
     estimated_fare:fare,
@@ -69,14 +77,8 @@ export class RidesService{
     seats_requested:dto.seatsRequested||1,
   };
 
-  const db=this.db(token);
   const {data,error}=await db.from('ride_requests').insert(payload).select('*').single();
   if(error||!data)throw new BadRequestException(error?.message||'Ride request could not be saved.');
-
-  const {data:preference,error:preferenceError}=await db.from('user_safety_preferences')
-    .select('women_safety_enabled').eq('user_id',userId).maybeSingle();
-  if(preferenceError)throw new ServiceUnavailableException(preferenceError.message);
-  const womenSafetyEnabled=!!dto.womenSafetyPreference||!!preference?.women_safety_enabled;
 
   let womenSafety:any=null;
   if(womenSafetyEnabled){
