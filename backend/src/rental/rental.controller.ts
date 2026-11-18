@@ -10,18 +10,72 @@ function dhakaToday(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Dha
 @Controller('rental')
 export class RentalController{
  constructor(@Inject(DatabaseService) private readonly database:DatabaseService){}
- @Get('vehicles')async getVehicles(@Query('type')type='All',@Query('location')location='',@Query('max_price')maxPrice=''){
-  const max=maxPrice===''?null:Number(maxPrice);if(max!==null&&(!Number.isFinite(max)||max<0))throw new BadRequestException('Maximum price must be a valid positive number.');
-  let query=this.database.publicClient().from('vehicles').select('id,make,model,vehicle_type,city,seats,price_per_day,price_per_km,photo_paths,description,model_year,color').eq('is_verified',true).eq('is_available',true);
-  if(type!=='All')query=query.eq('vehicle_type',type.toLowerCase());if(location.trim())query=query.ilike('city','%'+location.trim()+'%');if(max!==null)query=query.lte('price_per_day',max);
-  const {data,error}=await query.order('created_at',{ascending:false});if(error)throw new ServiceUnavailableException(error.message);
+ @Get('vehicles')
+ async getVehicles(
+  @Query('type')type='All',
+  @Query('location')location='',
+  @Query('max_price')maxPrice='',
+  @Query('start_date')startDate='',
+  @Query('end_date')endDate='',
+ ){
+  const max=maxPrice===''?null:Number(maxPrice);
+  if(max!==null&&(!Number.isFinite(max)||max<0))throw new BadRequestException('Maximum price must be a non-negative number.');
+  const hasStart=!!startDate,hasEnd=!!endDate;
+  if(hasStart!==hasEnd)throw new BadRequestException('Choose both rental start and end dates.');
+  let availableIds:string[]|null=null;
+  if(hasStart&&hasEnd){
+   if(!validDate(startDate)||!validDate(endDate)||startDate<dhakaToday()||endDate<startDate){
+    throw new BadRequestException('Choose a valid rental date range starting today or later.');
+   }
+   const startAt=new Date(startDate+'T00:00:00+06:00').toISOString();
+   const endExclusive=new Date(Date.parse(endDate+'T00:00:00+06:00')+86400000).toISOString();
+   const {data,error}=await this.database.publicClient().rpc('drive_available_vehicle_ids',{
+    p_start_at:startAt,p_end_at:endExclusive,
+   });
+   if(error)throw new ServiceUnavailableException(error.message);
+   availableIds=(data||[]).map((id:any)=>String(id));
+   if(!availableIds.length)return [];
+  }
+  let query=this.database.publicClient().from('vehicles')
+   .select('id,make,model,vehicle_type,city,seats,price_per_day,price_per_km,photo_paths,description,model_year,color')
+   .eq('is_verified',true).eq('is_available',true);
+  if(type!=='All')query=query.eq('vehicle_type',type.toLowerCase());
+  if(location.trim())query=query.ilike('city','%'+location.trim()+'%');
+  if(max!==null)query=query.lte('price_per_day',max);
+  if(availableIds)query=query.in('id',availableIds);
+  const {data,error}=await query.order('created_at',{ascending:false});
+  if(error)throw new ServiceUnavailableException(error.message);
   return (data||[]).map(v=>({id:v.id,name:[v.make,v.model].filter(Boolean).join(' '),type:v.vehicle_type,location:v.city,seats:v.seats,price:Number(v.price_per_day||0),image:v.photo_paths?.[0]||'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=900',images:v.photo_paths||[],description:v.description,year:v.model_year,color:v.color,pricePerKm:v.price_per_km}));
  }
- @Get('owner/vehicles')@UseGuards(AuthGuard)async ownerVehicles(@Req()r:AuthReq){if(!['vehicle_owner','admin'].includes(r.user.role))throw new ForbiddenException('Vehicle Owner access is required.');const {data,error}=await this.database.userClient(r.user.accessToken).from('vehicles').select('*').eq('owner_id',r.user.id).order('created_at',{ascending:false});if(error)throw new ServiceUnavailableException(error.message);return data||[];}
+ @Get('owner/vehicles')@UseGuards(AuthGuard)async ownerVehicles(@Req()r:AuthReq){
+  if(!['vehicle_owner','admin'].includes(r.user.role))throw new ForbiddenException('Vehicle Owner access is required.');
+  let query=this.database.userClient(r.user.accessToken).from('vehicles').select('*');
+  if(r.user.role!=='admin')query=query.eq('owner_id',r.user.id);
+  const {data,error}=await query.order('created_at',{ascending:false});
+  if(error)throw new ServiceUnavailableException(error.message);
+  return data||[];
+ }
  @Post('vehicles')@UseGuards(AuthGuard)async createVehicle(@Req()r:AuthReq,@Body()d:CreateVehicleDto){if(r.user.role!=='vehicle_owner')throw new ForbiddenException('Only approved Vehicle Owners can list vehicles.');const payload={owner_id:r.user.id,make:d.make.trim(),model:d.model.trim(),vehicle_type:d.vehicle_type,plate_number:d.plate_number.trim().toUpperCase(),city:d.city?.trim()||'Dhaka',seats:d.seats||1,price_per_day:d.price_per_day??null,price_per_km:d.price_per_km??null,color:d.color?.trim()||null,model_year:d.model_year??null,description:d.description?.trim()||null,photo_paths:d.photo_paths||[],is_available:true,is_verified:false};const {data,error}=await this.database.userClient(r.user.accessToken).from('vehicles').insert(payload).select('*').single();if(error||!data)throw new BadRequestException(error?.message||'Vehicle could not be submitted.');return {message:'Vehicle submitted for administrator verification. It will appear in the public catalog after approval.',vehicle:data};}
- @Patch('vehicles/:id')@UseGuards(AuthGuard)async updateVehicle(@Req()r:AuthReq,@Param('id')id:string,@Body()d:UpdateVehicleDto){if(!['vehicle_owner','admin'].includes(r.user.role))throw new ForbiddenException('Vehicle Owner access is required.');const patch:any={};for(const key of ['price_per_day','price_per_km','is_available','description'])if((d as any)[key]!==undefined)patch[key]=(d as any)[key];if(!Object.keys(patch).length)throw new BadRequestException('No vehicle changes provided.');const {data,error}=await this.database.userClient(r.user.accessToken).from('vehicles').update(patch).eq('id',id).eq('owner_id',r.user.id).select('*').maybeSingle();if(error||!data)throw new NotFoundException(error?.message||'Vehicle not found.');return data;}
+ @Patch('vehicles/:id')@UseGuards(AuthGuard)async updateVehicle(@Req()r:AuthReq,@Param('id')id:string,@Body()d:UpdateVehicleDto){
+  if(!['vehicle_owner','admin'].includes(r.user.role))throw new ForbiddenException('Vehicle Owner access is required.');
+  const patch:any={};
+  for(const key of ['price_per_day','price_per_km','is_available','description'])if((d as any)[key]!==undefined)patch[key]=(d as any)[key];
+  if(!Object.keys(patch).length)throw new BadRequestException('No vehicle changes provided.');
+  let query=this.database.userClient(r.user.accessToken).from('vehicles').update(patch).eq('id',id);
+  if(r.user.role==='vehicle_owner')query=query.eq('owner_id',r.user.id);
+  const {data,error}=await query.select('*').maybeSingle();
+  if(error||!data)throw new NotFoundException(error?.message||'Vehicle not found.');
+  return data;
+ }
  @Get('bookings')@UseGuards(AuthGuard)async listBookings(@Req()r:AuthReq){const {data,error}=await this.database.userClient(r.user.accessToken).from('rental_bookings').select('*,vehicles(make,model,city,photo_paths)').eq('renter_id',r.user.id).order('created_at',{ascending:false});if(error)throw new ServiceUnavailableException(error.message);return data||[];}
- @Get('owner/bookings')@UseGuards(AuthGuard)async ownerBookings(@Req()r:AuthReq){if(!['vehicle_owner','admin'].includes(r.user.role))throw new ForbiddenException('Vehicle Owner access is required.');const {data,error}=await this.database.userClient(r.user.accessToken).from('rental_bookings').select('*,vehicles!inner(id,make,model,city,owner_id)').eq('vehicles.owner_id',r.user.id).order('created_at',{ascending:false});if(error)throw new ServiceUnavailableException(error.message);return data||[];}
+ @Get('owner/bookings')@UseGuards(AuthGuard)async ownerBookings(@Req()r:AuthReq){
+  if(!['vehicle_owner','admin'].includes(r.user.role))throw new ForbiddenException('Vehicle Owner access is required.');
+  let query=this.database.userClient(r.user.accessToken).from('rental_bookings').select('*,vehicles!inner(id,make,model,city,owner_id)');
+  if(r.user.role!=='admin')query=query.eq('vehicles.owner_id',r.user.id);
+  const {data,error}=await query.order('created_at',{ascending:false});
+  if(error)throw new ServiceUnavailableException(error.message);
+  return data||[];
+ }
  @Post('bookings')@UseGuards(AuthGuard)async createBooking(@Req()r:AuthReq,@Body()d:CreateBookingDto){if(!validDate(d.start_date)||!validDate(d.end_date)||d.start_date<dhakaToday()||d.end_date<d.start_date||!d.customer_name.trim())throw new BadRequestException('Please provide valid rental dates and customer details.');const db=this.database.userClient(r.user.accessToken);const {data:v,error:ve}=await db.from('vehicles').select('id,owner_id,price_per_day,is_verified,is_available').eq('id',d.vehicle_id).maybeSingle();if(ve||!v||!v.is_verified||!v.is_available)throw new BadRequestException('This vehicle is not currently available for booking.');if(v.owner_id===r.user.id)throw new BadRequestException('You cannot rent your own vehicle.');if(v.price_per_day===null)throw new BadRequestException('This vehicle has no daily rental price.');const start=new Date(d.start_date+'T00:00:00+06:00'),end=new Date(d.end_date+'T23:59:59+06:00');const days=Math.max(1,Math.ceil((Date.parse(d.end_date)-Date.parse(d.start_date))/86400000)+1);const total=Number((Number(v.price_per_day)*days).toFixed(2));const {data,error}=await db.from('rental_bookings').insert({vehicle_id:v.id,renter_id:r.user.id,start_at:start.toISOString(),end_at:end.toISOString(),total_amount:total,currency:'BDT',pickup_note:d.customer_name.trim()}).select('*').single();if(error||!data)throw new BadRequestException(error?.message||'Rental request could not be created.');return {message:'Rental request submitted. The vehicle owner must approve it before confirmation.',booking:data};}
  @Patch('bookings/:id/status')@UseGuards(AuthGuard)async updateBookingStatus(@Req()r:AuthReq,@Param('id')id:string,@Body()body:{status:string}){
   if(!['vehicle_owner','admin'].includes(r.user.role))throw new ForbiddenException('Vehicle Owner access is required.');
