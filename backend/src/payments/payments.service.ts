@@ -6,7 +6,15 @@ export class PaymentsService{
  private cachedRates:{rates:Record<string,number>;fetchedAt:number}|null=null;
  constructor(@Inject(DatabaseService) private readonly database:DatabaseService){}
  async getRates(){if(this.cachedRates&&Date.now()-this.cachedRates.fetchedAt<3600000)return {base:'BDT',rates:this.pickRates(this.cachedRates.rates),fetchedAt:new Date(this.cachedRates.fetchedAt).toISOString(),cached:true};try{const response=await fetch('https://open.er-api.com/v6/latest/BDT',{signal:AbortSignal.timeout(8000)});if(!response.ok)throw new Error('FX provider request failed');const data:any=await response.json();if(data.result!=='success'||!data.rates)throw new Error('Invalid FX response');this.cachedRates={rates:data.rates,fetchedAt:Date.now()};return {base:'BDT',rates:this.pickRates(data.rates),fetchedAt:new Date().toISOString(),cached:false,provider:'open.er-api.com'};}catch{if(this.cachedRates)return {base:'BDT',rates:this.pickRates(this.cachedRates.rates),fetchedAt:new Date(this.cachedRates.fetchedAt).toISOString(),cached:true,stale:true};throw new ServiceUnavailableException('Live exchange rates are temporarily unavailable.');}}
- private pickRates(all:Record<string,number>){return {BDT:1,...Object.fromEntries(Object.entries(all).filter(([code,rate])=>/^[A-Z]{3}$/.test(code)&&Number.isFinite(rate)&&rate>0))};}
+ private pickRates(all:Record<string,number>){
+  const rates:Record<string,number>={BDT:1};
+  for(const code of CURRENCIES){
+   if(code==='BDT')continue;
+   const rate=Number(all[code]);
+   if(Number.isFinite(rate)&&rate>0)rates[code]=rate;
+  }
+  return rates;
+ }
  async createQuote(amountBDT:number,currency:CurrencyCode,rideId?:string){const rates=currency==='BDT'?{rates:{BDT:1},fetchedAt:new Date().toISOString()}:await this.getRates();const rate=rates.rates[currency];if(typeof rate!=='number')throw new ServiceUnavailableException('Exchange rate unavailable.');const converted=Number((amountBDT*rate).toFixed(2));return {quoteId:'quote_'+Date.now(),rideId:rideId||null,originalAmount:amountBDT,originalCurrency:'BDT',convertedAmount:converted,currency,exchangeRate:rate,rateFetchedAt:rates.fetchedAt,status:'quote_only',paymentGateway:null,paymentCollected:false,message:'Currency conversion quote only. No payment has been initiated or collected.'};}
  async createIntent(userId:string,token:string,dto:CreatePaymentIntentDto){if(dto.method==='card')throw new BadRequestException('Card gateway is not configured. Choose bKash, Nagad or cash.');if(dto.currency!=='BDT')throw new BadRequestException('Settlement through bKash, Nagad or cash is currently BDT-only. Use the currency converter for indicative foreign-currency quotes.');if(Boolean(dto.rideId)===Boolean(dto.rentalBookingId))throw new BadRequestException('Provide exactly one rideId or rentalBookingId.');const db=this.database.userClient(token);let baseAmount=0;let rideId:string|null=null;let rentalBookingId:string|null=null;
   if(dto.rideId){
