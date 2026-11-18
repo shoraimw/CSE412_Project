@@ -266,7 +266,11 @@
       'Created ' + formatDate(payment.created_at)
     ].filter(Boolean).join(' · ');
     const card = makeItem(formatMoney(payment.amount, payment.currency), meta, reference);
-    if (String(payment.method || '').toLowerCase() === 'cash') {
+    const method = String(payment.method || '').toLowerCase();
+    if (payment.provider_reference) {
+      addText(card.item, 'small', 'Customer transaction ID: ' + payment.provider_reference);
+    }
+    if (method === 'cash') {
       addAction(card.actions, 'Confirm cash received', () => confirmAction(
         'Confirm that the full cash amount has physically been received?',
         () => driveRequest('/admin/payments/' + encodeURIComponent(payment.id), {
@@ -274,8 +278,16 @@
         }),
         'Cash payment marked as paid.'
       ));
+    } else if (['bkash', 'nagad'].includes(method) && payment.provider_reference) {
+      addAction(card.actions, 'Verify transfer & mark paid', () => confirmAction(
+        'Verify transaction ID ' + payment.provider_reference + ' in the official ' + method.toUpperCase() + ' merchant account. Only continue after the amount and receiver are confirmed.',
+        () => driveRequest('/admin/payments/' + encodeURIComponent(payment.id), {
+          method: 'PATCH', body: JSON.stringify({ status: 'paid' })
+        }),
+        'Wallet transaction marked as verified and paid.'
+      ));
     } else {
-      addText(card.item, 'small', 'Online gateway is not connected. Do not mark this payment as collected.');
+      addText(card.item, 'small', 'Waiting for the customer to submit a bKash/Nagad transaction ID. No automatic gateway confirmation is configured.');
     }
     addAction(card.actions, 'Mark failed', () => confirmAction(
       'Mark this pending payment intent as failed?',
