@@ -134,15 +134,7 @@ async function refreshFareFromRoute(){
   durationMinutes:Number(lastRouteMetrics.durationMinutes),
  });
  try{
-  let r;
-  try{
-   r=await driveRequest('/fare/estimate',{method:'POST',body});
-  }catch(error){
-   // Existing production Worker versions expose /fare/predict. Keep a
-   // temporary compatibility fallback while the updated Worker is deployed.
-   if(!/404|Cannot POST|not found/i.test(error.message))throw error;
-   r=await driveRequest('/fare/predict',{method:'POST',body});
-  }
+  const r=await driveRequest('/fare/estimate',{method:'POST',body});
   const range=r.estimatedRange||r.predictedRange;
   const method=r.calculationMethod||r.predictionMethod||'Automatic fare calculation';
   $('fareResult').hidden=false;
