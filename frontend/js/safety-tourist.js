@@ -190,7 +190,10 @@ function renderActiveTrip() {
     details.append(warningList);
   }
   byId('shareTripButton').disabled = trip.status === 'COMPLETED';
-  byId('completeTripButton').disabled = trip.status === 'COMPLETED';
+  // Ride-linked Women Safety sessions are closed by the ride lifecycle; users
+  // must not manually end location sharing while the driver is still on trip.
+  byId('completeTripButton').hidden = Boolean(trip.rideRequestId);
+  byId('completeTripButton').disabled = Boolean(trip.rideRequestId) || trip.status === 'COMPLETED';
 }
 async function syncActiveTripStatus() {
   if (safetyState.syncingTripStatus) return;
