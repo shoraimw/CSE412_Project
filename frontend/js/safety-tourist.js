@@ -133,7 +133,7 @@ function addContactMessageActions(container, contacts, message, labelPrefix) {
         throw new Error('Phone sharing is not supported. Use SMS or WhatsApp below.');
       }
     } catch (error) {
-      if (error.name !== 'AbortError') setText('pageMessage', 'Share was not completed: ' + error.message, true);
+      if (error.name !== 'AbortError') showPageMessage('Share was not completed: ' + error.message, true);
     }
   });
   group.append(share);
