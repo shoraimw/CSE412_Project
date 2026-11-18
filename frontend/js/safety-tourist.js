@@ -2,6 +2,7 @@ const safetyState = {
   settings: { womenSafetyEnabled: false, preferVerifiedDrivers: false, trustedContacts: [], emergencyContacts: [] },
   activeTrip: null,
   watchId: null,
+  watchingTripId: null,
   places: [],
   selectedPlaceIds: [],
   touristOrigin: null,
@@ -27,6 +28,7 @@ function stopLocationWatch() {
     navigator.geolocation.clearWatch(safetyState.watchId);
     safetyState.watchId = null;
   }
+  safetyState.watchingTripId = null;
   safetyState.lastLocationSentAt = 0;
 }
 async function loadSettings() {
@@ -227,8 +229,10 @@ async function loadActiveTrip() {
   await syncActiveTripStatus();
 }
 function startLocationWatch(tripId) {
+  if (safetyState.watchId !== null && safetyState.watchingTripId === tripId) return;
   stopLocationWatch();
   if (!navigator.geolocation) { setText('tripMessage', 'Browser location is unavailable; trip monitoring will use the information entered.'); return; }
+  safetyState.watchingTripId = tripId;
   safetyState.watchId = navigator.geolocation.watchPosition(async position => {
     const now = Date.now();
     if (now - safetyState.lastLocationSentAt < 5000) return;
