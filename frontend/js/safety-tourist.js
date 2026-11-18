@@ -29,7 +29,8 @@ async function loadSettings() {
   const settings = await driveRequest('/safety/settings');
   safetyState.settings = settings;
   byId('womenSafetyEnabled').checked = settings.womenSafetyEnabled;
-  byId('preferVerifiedDrivers').checked = settings.preferVerifiedDrivers;
+  byId('preferVerifiedDrivers').checked = true;
+  byId('preferVerifiedDrivers').disabled = true;
   renderContacts();
 }
 function renderContacts() {
@@ -60,7 +61,7 @@ async function saveSettings(showSuccess = true) {
       method: 'PUT',
       body: JSON.stringify({
         womenSafetyEnabled: byId('womenSafetyEnabled').checked,
-        preferVerifiedDrivers: byId('preferVerifiedDrivers').checked,
+        preferVerifiedDrivers: true,
         trustedContacts: safetyState.settings.trustedContacts,
         emergencyContacts: safetyState.settings.emergencyContacts
       })
