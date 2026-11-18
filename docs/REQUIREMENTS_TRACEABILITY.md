@@ -34,7 +34,7 @@ A page, button, database table, successful build, or demo response alone is not 
 |---|---|---|---|
 | NFR-01 | Performance | Indexed Postgres queries, bounded result lists, route caching/request spacing, server-side validation and CI build checks. | **Not verified against an SLO.** No measured p50/p95/p99 latency or error-rate report has been produced. Several unused-index INFO notices are expected in this low-volume project; do not remove indexes without query-plan evidence. |
 | NFR-02 | Usability | Responsive HTML/CSS/JS pages, consistent forms, map-based booking, role-specific workspaces and notification history. | **Partially verified.** Complete mobile/desktop, keyboard, screen-reader, empty/error-state and real-device testing. |
-| NFR-03 | Scalability | Cloudflare Workers + Supabase managed Postgres; a k6 test script is present. | **Not verified.** The k6 script has not been run and no evidence supports 100,000 concurrent users. Test only in a dedicated environment and record p95/p99, error rate, database usage and provider quotas. |
+| NFR-03 | Scalability | Cloudflare Workers + Supabase managed Postgres; a k6 test script is present. | **Not verified.** The existing k6 script stages from 1 to 250 virtual users, but it has not been run. No measured concurrency capacity or p95/p99 report exists. Test only in a dedicated environment and record p95/p99, error rate, database usage and provider quotas before setting a capacity target. |
 | NFR-04 | Security | Supabase Auth, RLS, user-scoped database clients, server-side role checks, atomic RPCs, sensitive-write guards and audit logs. Public trip-share wrapper now uses SECURITY INVOKER; the SECURITY DEFINER implementation stays in the private schema and requires a high-entropy expiring token hash. Application UPDATE policies were consolidated. | **Partial.** Supabase still reports leaked-password protection disabled. Enable it in Supabase Dashboard → Authentication → Security and run role-isolation, abuse and recovery tests. |
 | NFR-05 | Portability | Browser-based web frontend and Cloudflare Worker deployment configuration. | **Partial.** Validate Chrome, Edge, Firefox and Safari, including mobile browsers. Native mobile app behavior, background GPS and background push are outside the current web build. |
 
@@ -59,7 +59,7 @@ The current database trigger and catch-up path were exercised with temporary tra
 - Configure a real payment provider only after merchant eligibility, webhook verification and compliance are approved.
 - Configure a real SMS/WhatsApp/push provider only after delivery credentials and user consent are available.
 - Public OSM/Nominatim/OSRM services are best-effort, not commercial navigation SLAs.
-- Do not claim 100,000-user capacity, background GPS, guaranteed notifications, payment collection or emergency-service dispatch without evidence.
+- Do not claim a specific high-concurrency capacity, background GPS, guaranteed notifications, payment collection or emergency-service dispatch without evidence.
 
 ## Test evidence currently available
 
