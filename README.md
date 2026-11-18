@@ -51,9 +51,9 @@ See [docs/REQUIREMENTS_TRACEABILITY.md](docs/REQUIREMENTS_TRACEABILITY.md) for t
 - Supabase Auth registration, password login, refresh, email OTP and profile management
 - Passenger, driver, vehicle owner and admin role-based workflows
 - Vehicle catalogue, vehicle-owner listings, verification and rental booking
-- Map-based ride requests, OpenStreetMap OSRM road-route estimates, server-calculated fares, nearest-first driver discovery, online driver GPS presence, 20 km nearby-only dispatch, Supabase Realtime/in-app/browser ride alerts with polling fallback, online catch-up alerts, atomic first-accept matching, seat-aware shared rides and foreground live GPS tracking
+- Map-based ride requests, OpenStreetMap OSRM road-route estimates, server-calculated fares, nearest-first driver discovery, online driver GPS presence, 20 km nearby-only dispatch, Supabase Realtime/in-app/browser ride alerts with polling fallback, online catch-up alerts, atomic first-accept matching, seat-aware shared rides and foreground live GPS tracking through Supabase Realtime with polling fallback
 - Automatic BDT fare estimation from the server-calculated road route, vehicle rate and OSRM standard route duration. The fare formula is deterministic and transparent. No ML model or training pipeline is used. Multi-currency conversion quotes remain available.
-- Women Safety Mode, trusted/emergency contacts, monitored safety trips, trip sharing and SOS records
+- Women Safety Mode with enforced verified-driver matching, trusted/emergency contacts, monitored safety trips, private trip sharing and SOS records
 - Tourist destination catalogue, saved multi-stop plans and OSRM road-stop optimization for Car/Bike journeys (with clearly labelled fallback estimates)
 - Ride and rental payment intents, cash settlement review, bKash/Nagad transaction-reference submission and administrator verification; currency conversion remains an indicative quote
 - In-app notifications and admin review endpoints
