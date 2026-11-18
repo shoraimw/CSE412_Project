@@ -19,5 +19,11 @@ jobs:
         run: npx tsc --noEmit -p backend/tsconfig.json
       - name: Validate frontend JavaScript syntax
         run: find frontend/js -name '*.js' -print0 | xargs -0 -n1 node --check
+      - name: Ensure no Supabase service-role key is exposed in frontend
+        run: |
+          if grep -R --line-number --exclude='*.map' 'SUPABASE_SERVICE_ROLE_KEY\|service_role' frontend; then
+            echo 'A server-only Supabase key or role marker was found in frontend assets.'
+            exit 1
+          fi
       - name: Validate Cloudflare Worker bundle
         run: npm run build
