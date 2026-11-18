@@ -4,7 +4,9 @@ const safetyState = {
   watchId: null,
   places: [],
   selectedPlaceIds: [],
-  touristOrigin: null
+  touristOrigin: null,
+  statusTimer: null,
+  syncingTripStatus: false
 };
 const byId = id => document.getElementById(id);
 function setText(id, message) { const node = byId(id); if (node) node.textContent = message; }
@@ -118,7 +120,23 @@ function normalizeWhatsAppNumber(phone) {
 function addContactMessageActions(container, contacts, message, labelPrefix) {
   if (!contacts || !contacts.length) return;
   const group = makeNode('div', 'contact-message-actions');
-  group.append(makeNode('p', 'muted', 'Choose a contact method. Your messaging app will open; you must review and press Send.'));
+  group.append(makeNode('p', 'muted', 'Choose a contact method. Your messaging app will open; review the message and press Send.'));
+  const share = makeNode('button', 'secondary-button', 'Share from this phone');
+  share.type = 'button';
+  share.addEventListener('click', async () => {
+    try {
+      if (navigator.share) await navigator.share({ title: 'DRIVE ' + labelPrefix, text: message });
+      else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(message);
+        share.textContent = 'Message copied';
+      } else {
+        throw new Error('Phone sharing is not supported. Use SMS or WhatsApp below.');
+      }
+    } catch (error) {
+      if (error.name !== 'AbortError') setText('pageMessage', 'Share was not completed: ' + error.message, true);
+    }
+  });
+  group.append(share);
   contacts.forEach(contact => {
     const row = makeNode('div', 'contact-message-row');
     row.append(makeNode('strong', '', contact.name));
@@ -170,11 +188,41 @@ function renderActiveTrip() {
   byId('shareTripButton').disabled = trip.status === 'COMPLETED';
   byId('completeTripButton').disabled = trip.status === 'COMPLETED';
 }
+async function syncActiveTripStatus() {
+  if (safetyState.syncingTripStatus) return;
+  safetyState.syncingTripStatus = true;
+  try {
+    const trips = await driveRequest('/safety/trips/active');
+    const trip = trips.length ? trips[0] : null;
+    if (!trip) {
+      stopLocationWatch();
+      safetyState.activeTrip = null;
+      renderActiveTrip();
+      return;
+    }
+    safetyState.activeTrip = trip;
+    renderActiveTrip();
+    if (!trip.rideRequestId) {
+      startLocationWatch(trip.id);
+      return;
+    }
+    const rides = await driveRequest('/rides');
+    const ride = (rides || []).find(item => item.requestId === trip.rideRequestId);
+    if (ride?.status === 'in_progress') {
+      startLocationWatch(trip.id);
+      setText('tripMessage', 'Women Safety live GPS is active. Keep this page open while the ride is in progress.');
+    } else {
+      stopLocationWatch();
+      setText('tripMessage', 'Women Safety is ready. Live GPS sharing starts when the driver starts the ride.');
+    }
+  } catch (error) {
+    setText('tripMessage', 'Could not refresh trip status: ' + error.message);
+  } finally {
+    safetyState.syncingTripStatus = false;
+  }
+}
 async function loadActiveTrip() {
-  const trips = await driveRequest('/safety/trips/active');
-  safetyState.activeTrip = trips.length ? trips[0] : null;
-  renderActiveTrip();
-  if (safetyState.activeTrip) startLocationWatch(safetyState.activeTrip.id);
+  await syncActiveTripStatus();
 }
 function startLocationWatch(tripId) {
   stopLocationWatch();
@@ -391,7 +439,9 @@ async function initializeFeaturePage() {
   try {
     await loadSettings();
     await Promise.all([loadVerifiedDrivers(), loadActiveTrip(), loadAlerts()]);
-    showPageMessage('Safety tools are ready. Add contacts before using trip sharing or SOS notifications.');
+    if (safetyState.statusTimer) clearInterval(safetyState.statusTimer);
+    safetyState.statusTimer = window.setInterval(syncActiveTripStatus, 10000);
+    showPageMessage('Safety tools are ready. Add trusted contacts before sharing live ride location.');
   } catch (error) {
     showPageMessage(error.message + ' Please log in first, then reload this page.', true);
   }
