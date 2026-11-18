@@ -201,7 +201,7 @@ async function loadDriverNotifications(){
     const result=await driveRequest('/notifications');
     const root=el('driverAlerts');
     if(!root)return;
-    const unread=(result.items||[]).filter(item=>item.type==='ride_request'&&!item.read_at);
+    const unread=(result.items||[]).filter(item=>!item.read_at);
     root.replaceChildren();
     if(!unread.length){
       root.textContent='No new ride alerts.';
@@ -274,7 +274,7 @@ async function startNotificationRealtime(){
         table:'notifications',
         filter:'user_id=eq.'+user.id,
       },payload=>{
-        if(payload.new?.type==='ride_request'){
+        if(payload.new?.id){
           loadDriverNotifications();
         }
       })
