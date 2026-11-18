@@ -67,5 +67,7 @@ The current database trigger and catch-up path were exercised with temporary tra
 - Driver ride-notification trigger test: one eligible nearby driver alert and one admin alert were generated inside a transaction; rollback left no test request/notification rows.
 - Driver-online catch-up notification test generated the expected in-transaction notification; rollback left no persisted test alert.
 - Supabase Security Advisor no longer reports the exposed SECURITY DEFINER trip-share wrapper or multiple permissive application UPDATE policies. Leaked-password protection remains the one Security Advisor warning.
-- JavaScript syntax checks pass locally for the updated Driver workspace, notification center and Vehicle Owner application scripts.
-- GitHub Actions backend/frontend build checks and a deployed two-browser end-to-end test are still required before declaring this branch production-ready.
+- All frontend JavaScript syntax checks and GitHub Actions backend TypeScript/build, frontend syntax and Cloudflare bundle checks pass for the merged commit.
+- Cloudflare Pages production deployment succeeded for commit `06814cf16746eadd5372bd2f1717b232ab79917e`.
+- Cloudflare Worker version 34 is deployed to 100% traffic; its bundle contains the Realtime config endpoint, nearby dispatch RPC path, online catch-up path, shared-fare payment fix and owner-application resubmission logic.
+- The authenticated Realtime endpoint returns 401 without a session, as expected. A real authenticated two-browser Passenger→Driver Realtime delivery test is still required before calling the full notification workflow end-to-end verified.
