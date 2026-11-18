@@ -74,7 +74,10 @@ The team requirement PDF defines 12 functional requirement groups and five non-f
 6. Confirm a different passenger cannot read the ride or its tracking data.
 7. Test rental booking overlap (including a concurrent insert), owner-only booking updates, valid and invalid rental state transitions, fare quote, currency quote, safety settings, private share expiry, SOS record, tourist plan and notification history.
 8. Attempt direct PostgREST updates that skip ride lifecycle states or alter fare/ownership fields; the database trigger must reject them. Open a valid private trip-share link in a logged-out/private browser and verify it loads; test a random or expired token and verify it returns an invalid/expired message.
-9. Verify a Women Safety session receives the claimed ride ID, begins route-deviation checks only after the ride starts, and closes when the ride completes or is cancelled.
+9. Add one Trusted Contact and one Emergency Contact. Enable Women Safety, submit a ride request, and confirm only the Trusted Contact receives a live-share link while Emergency Contacts are reserved for SOS.
+10. Open the share action on a mobile browser, send the prefilled link to the Trusted Contact, open it on a second phone/browser, and confirm the map refreshes with the passenger GPS every five seconds while the passenger dashboard remains open.
+11. Verify GPS starts when the driver changes the ride to `in_progress`, not while the request is waiting; verify the safety session closes and the contact page stops polling when the ride completes or is cancelled.
+12. Test the manual Safe Trip flow separately: start a trip, allow location permission, share with selected trusted contacts, and complete the trip.
 11. Confirm the automatic fare estimate and saved ride-request fare match for the same route and vehicle; test Fastest, Shortest and Balanced route preferences.
 12. Test an expired access token with a valid refresh token, then verify the profile name, email and phone render and save correctly.
 10. Run the staged k6 profile against a dedicated test environment. Record error rate and p50/p95/p99 latency; never infer 100k concurrency from registered-user count.
