@@ -3,7 +3,7 @@ import { OptimizeRouteDto } from './routes.dto';
 
 const EARTH_RADIUS_KM = 6371;
 const OSRM_BASE_URL = 'https://router.project-osrm.org';
-const ROUTE_CACHE_TTL_MS = 30_000;
+const ROUTE_CACHE_TTL_MS = 300_000;
 const MIN_OSRM_INTERVAL_MS = 1_100;
 
 type RouteOption = {
