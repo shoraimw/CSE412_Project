@@ -39,6 +39,10 @@ Use Supabase Dashboard → Authentication → URL Configuration to set the produ
 4. Run `npm install`.
 5. Run `npm run dev` and open the Wrangler URL.
 
+## Requirement traceability
+
+See [docs/REQUIREMENTS_TRACEABILITY.md](docs/REQUIREMENTS_TRACEABILITY.md) for the 12 functional and five non-functional requirements, current implementation status, verification evidence and honest integration boundaries. The document is the release checklist; do not treat the feature list below as proof of production readiness.
+
 ## Implemented modules
 - Supabase Auth registration, password login, refresh, email OTP and profile management
 - Passenger, driver, vehicle owner and admin role-based workflows
