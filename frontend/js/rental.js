@@ -5,11 +5,25 @@ let availableVehicles = [];
 async function loadVehicles() {
   resultMessage.textContent = "Loading vehicles...";
   vehicleList.replaceChildren();
+  const filterStart = document.getElementById("filterStartDate").value;
+  const filterEnd = document.getElementById("filterEndDate").value;
+  if (Boolean(filterStart) !== Boolean(filterEnd)) {
+    resultMessage.textContent = "Choose both rental start and end dates.";
+    return;
+  }
+  if (filterStart && filterEnd < filterStart) {
+    resultMessage.textContent = "Rental end date cannot be before the start date.";
+    return;
+  }
   const params = new URLSearchParams({
     type: document.getElementById("vehicleType").value,
     location: document.getElementById("location").value.trim(),
     max_price: document.getElementById("maxPrice").value
   });
+  if (filterStart && filterEnd) {
+    params.set("start_date", filterStart);
+    params.set("end_date", filterEnd);
+  }
   try {
     availableVehicles = await driveRequest(`/rental/vehicles?${params}`);
     resultMessage.textContent = `${availableVehicles.length} vehicle(s) found.`;
@@ -25,6 +39,8 @@ async function loadVehicles() {
       const button = document.createElement("button"); button.type = "button"; button.className = "primary-button"; button.textContent = "Book Now";
       button.addEventListener("click", () => {
         selectedVehicle.value = String(vehicle.id);
+        if (filterStart && !startInput.value) startInput.value = filterStart;
+        if (filterEnd && !endInput.value) endInput.value = filterEnd;
         document.getElementById("booking").scrollIntoView({ behavior: "smooth" });
       });
       details.append(name, type, location, seats, price, button); card.append(image, details); vehicleList.appendChild(card);
@@ -43,8 +59,11 @@ document.getElementById("filterForm").addEventListener("submit", event => { even
 document.getElementById("filterForm").addEventListener("reset", () => setTimeout(loadVehicles, 0));
 const today = new Date(); const localToday = [today.getFullYear(), String(today.getMonth()+1).padStart(2,"0"), String(today.getDate()).padStart(2,"0")].join("-");
 const startInput = document.getElementById("startDate"), endInput = document.getElementById("endDate");
+const filterStartInput = document.getElementById("filterStartDate"), filterEndInput = document.getElementById("filterEndDate");
 startInput.min = localToday; endInput.min = localToday;
+filterStartInput.min = localToday; filterEndInput.min = localToday;
 startInput.addEventListener("change", () => { endInput.min = startInput.value || localToday; });
+filterStartInput.addEventListener("change", () => { filterEndInput.min = filterStartInput.value || localToday; });
 document.getElementById("bookingForm").addEventListener("submit", async event => {
   event.preventDefault(); const message = document.getElementById("bookingMessage"); message.textContent = "Submitting your request...";
   const data = { customer_name: document.getElementById("customerName").value.trim(), vehicle_id: selectedVehicle.value, start_date: startInput.value, end_date: endInput.value };
