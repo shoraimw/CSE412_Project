@@ -5,14 +5,17 @@
 - Users can save a verified-driver preference.
 - Users can manage trusted contacts and emergency contacts.
 - The API exposes clearly labelled sample driver verification records.
-- A user can create a private live-trip share token and choose saved trusted contacts.
+- When Women Safety is enabled for a ride, booking creates a private, expiring live-trip link for saved **trusted contacts only**; emergency contacts remain reserved for SOS.
+- The passenger can share the link from the phone share sheet or open a prefilled SMS/WhatsApp message for each trusted contact. The passenger must confirm and send the message; no SMS/WhatsApp provider is configured for silent automatic delivery.
+- When the driver starts the ride, the passenger's foreground browser GPS updates the trip session. The trusted contact's shared-trip page refreshes the map every five seconds and stops polling after trip completion or link expiry.
+- Keep the passenger dashboard open and allow location permission while the ride is active. Browser background suspension can pause GPS updates.
 
 ## Smart Emergency & Safe Trip
 - Authenticated users can start a trip with destination and estimated duration.
 - Browser geolocation can send periodic location updates after permission is granted.
 - If at least two planned route coordinates are supplied, the API checks distance from the route polyline and records a warning when the passenger is more than 500 metres away.
 - If the expected arrival time is exceeded by more than 10 minutes, the API records an unexpected-delay warning.
-- SOS records an alert, associates emergency contacts and changes the linked trip status to EMERGENCY.
+- SOS records an alert, includes the saved emergency contacts in the contact handoff, and changes the linked trip status to EMERGENCY. SMS/WhatsApp still requires the passenger to press Send.
 - The shared-trip page displays limited destination, status, expected arrival, last location and warnings.
 
 ## Tourist Mode
