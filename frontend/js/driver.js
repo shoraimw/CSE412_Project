@@ -348,8 +348,9 @@ async function refresh(){
       action(item,'Show on map',()=>showRideOnMap(request));
       action(item,'Accept ride',async()=>{
         if(!driverOnline)throw new Error('Go online and enable GPS before accepting a ride.');
-        await driveRequest('/rides/requests/'+request.id+'/claim',{method:'POST'});
-        activeRideIds.add(request.id);
+        const claimed=await driveRequest('/rides/requests/'+request.id+'/claim',{method:'POST'});
+        if(claimed?.rideId)activeRideIds.add(claimed.rideId);
+        if(driverOnline||activeRideIds.size>0)startPresenceWatch();
         el('driverMessage').textContent='Ride accepted. Your location is now shared with the passenger while you approach pickup.';
       },!driverOnline);
       open.append(item);
