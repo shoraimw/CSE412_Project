@@ -53,6 +53,111 @@ document.getElementById("bookingForm").addEventListener("submit", async event =>
     const result = await driveRequest("/rental/bookings", { method: "POST", body: JSON.stringify(data) });
     message.textContent = result.message;
     event.target.reset(); startInput.min = localToday; endInput.min = localToday;
+    await loadMyRentalBookings();
   } catch (error) { message.textContent = error.message; }
 });
 loadVehicles();
+async function loadMyRentalBookings() {
+  const root = document.getElementById('myRentalBookings');
+  if (!root) return;
+  if (!localStorage.getItem(DRIVE_TOKEN_KEY)) {
+    root.textContent = 'Sign in to view your rental bookings.';
+    return;
+  }
+  root.textContent = 'Loading your rental bookings…';
+  try {
+    const [bookings, payments] = await Promise.all([
+      driveRequest('/rental/bookings'),
+      driveRequest('/payments/me').catch(() => [])
+    ]);
+    root.replaceChildren();
+    if (!bookings.length) {
+      root.textContent = 'You have not submitted a rental request yet.';
+      return;
+    }
+    const paymentByBooking = new Map((payments || []).filter(p => p.rental_booking_id).map(p => [p.rental_booking_id, p]));
+    bookings.forEach(booking => {
+      const card = document.createElement('article');
+      card.className = 'ride-item';
+      const vehicle = Array.isArray(booking.vehicles) ? booking.vehicles[0] : booking.vehicles || {};
+      const title = document.createElement('strong');
+      title.textContent = [vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'Vehicle rental';
+      const meta = document.createElement('div');
+      meta.className = 'ride-meta';
+      meta.textContent = new Date(booking.start_at).toLocaleDateString() + ' – ' + new Date(booking.end_at).toLocaleDateString()
+        + ' · ' + Number(booking.total_amount).toLocaleString('en-BD') + ' ' + booking.currency
+        + ' · ' + String(booking.status).toUpperCase();
+      card.append(title, meta);
+      const payment = paymentByBooking.get(booking.id);
+      if (payment) {
+        const state = document.createElement('small');
+        state.className = 'ride-meta';
+        state.textContent = 'Payment: ' + String(payment.status).toUpperCase() + ' · ' + String(payment.method).toUpperCase()
+          + (payment.provider_reference ? ' · Transaction ID submitted' : '');
+        card.append(state);
+        if (payment.status === 'pending' && ['bkash', 'nagad'].includes(String(payment.method).toLowerCase()) && !payment.provider_reference) {
+          const submit = document.createElement('button');
+          submit.textContent = 'Submit transaction ID';
+          submit.addEventListener('click', async () => {
+            const reference = window.prompt('Enter your bKash/Nagad transaction ID (6–64 letters or numbers).');
+            if (reference === null) return;
+            try {
+              const result = await driveRequest('/payments/' + encodeURIComponent(payment.id) + '/reference', {
+                method: 'POST', body: JSON.stringify({ reference: reference.trim() })
+              });
+              document.getElementById('bookingMessage').textContent = result.message;
+              await loadMyRentalBookings();
+            } catch (error) {
+              document.getElementById('bookingMessage').textContent = error.message;
+            }
+          });
+          card.append(submit);
+        }
+      } else if (['approved', 'active'].includes(booking.status)) {
+        const pay = document.createElement('button');
+        pay.className = 'primary-button';
+        pay.textContent = 'Pay / record payment';
+        pay.addEventListener('click', async () => {
+          const method = String(window.prompt('Choose payment method: cash, bkash, or nagad.', 'cash') || '').trim().toLowerCase();
+          if (!['cash', 'bkash', 'nagad'].includes(method)) {
+            document.getElementById('bookingMessage').textContent = 'Choose cash, bkash or nagad. Card gateway is not connected.';
+            return;
+          }
+          pay.disabled = true;
+          try {
+            const result = await driveRequest('/payments/intent', {
+              method: 'POST',
+              body: JSON.stringify({ rentalBookingId: booking.id, method, currency: 'BDT' })
+            });
+            if (method === 'cash') {
+              document.getElementById('bookingMessage').textContent = 'Cash payment recorded as pending. Admin confirms only after receiving cash.';
+            } else {
+              document.getElementById('bookingMessage').textContent = 'Payment record created. Transfer using merchant details provided by the DRIVE team, then submit the transaction ID.';
+              const reference = window.prompt('After completing the ' + method.toUpperCase() + ' transfer, enter its transaction ID. Cancel to submit it later.');
+              if (reference !== null && reference.trim()) {
+                const submitted = await driveRequest('/payments/' + encodeURIComponent(result.payment.id) + '/reference', {
+                  method: 'POST', body: JSON.stringify({ reference: reference.trim() })
+                });
+                document.getElementById('bookingMessage').textContent = submitted.message;
+              }
+            }
+            await loadMyRentalBookings();
+          } catch (error) {
+            document.getElementById('bookingMessage').textContent = error.message;
+            pay.disabled = false;
+          }
+        });
+        card.append(pay);
+      } else if (booking.status === 'pending') {
+        const waiting = document.createElement('small');
+        waiting.className = 'muted';
+        waiting.textContent = 'Waiting for the Vehicle Owner to approve this request. Payment is not available yet.';
+        card.append(waiting);
+      }
+      root.append(card);
+    });
+  } catch (error) {
+    root.textContent = error.message || 'Could not load your rental bookings.';
+  }
+}
+if (localStorage.getItem(DRIVE_TOKEN_KEY)) loadMyRentalBookings();
