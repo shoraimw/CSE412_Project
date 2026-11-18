@@ -205,10 +205,7 @@ export class RidesService{
   if(applicationError||!application||application.status!=='approved'){
     throw new ForbiddenException('Your approved driver application is required to view ride requests.');
   }
-  const {data,error}=await db.from('ride_requests').select('*')
-    .eq('status','requested')
-    .eq('requested_vehicle',application.requested_vehicle_type)
-    .order('created_at',{ascending:true}).limit(50);
+  const {data,error}=await db.rpc('drive_nearby_ride_requests',{p_radius_km:20});
   if(error)throw new ServiceUnavailableException(error.message);
   return data||[];
  }
