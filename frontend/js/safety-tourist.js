@@ -6,7 +6,8 @@ const safetyState = {
   selectedPlaceIds: [],
   touristOrigin: null,
   statusTimer: null,
-  syncingTripStatus: false
+  syncingTripStatus: false,
+  lastLocationSentAt: 0
 };
 const byId = id => document.getElementById(id);
 function setText(id, message) { const node = byId(id); if (node) node.textContent = message; }
@@ -26,6 +27,7 @@ function stopLocationWatch() {
     navigator.geolocation.clearWatch(safetyState.watchId);
     safetyState.watchId = null;
   }
+  safetyState.lastLocationSentAt = 0;
 }
 async function loadSettings() {
   const settings = await driveRequest('/safety/settings');
@@ -228,6 +230,9 @@ function startLocationWatch(tripId) {
   stopLocationWatch();
   if (!navigator.geolocation) { setText('tripMessage', 'Browser location is unavailable; trip monitoring will use the information entered.'); return; }
   safetyState.watchId = navigator.geolocation.watchPosition(async position => {
+    const now = Date.now();
+    if (now - safetyState.lastLocationSentAt < 5000) return;
+    safetyState.lastLocationSentAt = now;
     try {
       const result = await driveRequest('/safety/trips/' + encodeURIComponent(tripId) + '/location', {
         method: 'POST',
