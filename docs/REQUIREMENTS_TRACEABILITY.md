@@ -67,10 +67,12 @@ The current database trigger and catch-up path were exercised with temporary tra
 - Supabase migrations for nearby driver dispatch, notification deduplication, applicant notifications and RLS cleanup are applied to the connected project.
 - Driver ride-notification trigger test: one eligible nearby driver alert and one admin alert were generated inside a transaction; rollback left no test request/notification rows.
 - Driver-online catch-up notification test generated the expected in-transaction notification; rollback left no persisted test alert.
-- Manual wallet-payment proof test: Passenger submitted a valid bKash reference through the SECURITY DEFINER RPC; an admin notification was generated in the same transaction; temporary booking/payment rows were rolled back.
+- Manual wallet-payment proof test: Passenger submitted valid bKash and Nagad references through the public SECURITY INVOKER wrapper to the private SECURITY DEFINER implementation; an admin notification was generated; temporary booking/payment rows were rolled back.
+- Payment acceptance test: Admin-side verification moved a referenced pending wallet payment to `paid` and generated a passenger status notification. Reusing the same provider transaction ID was rejected; all test rows were rolled back.
 - Duplicate mobile-wallet transaction references are prevented by a unique partial index.
 - Supabase Security Advisor no longer reports the exposed SECURITY DEFINER trip-share wrapper or multiple permissive application UPDATE policies. Leaked-password protection remains the one Security Advisor warning.
-- All frontend JavaScript syntax checks pass locally for the current feature branch. GitHub Actions backend TypeScript/build checks are running against the latest commit; an earlier run caught and prompted a missing NestJS Param import, which has been corrected.
-- Cloudflare Pages production deployment succeeded for commit `06814cf16746eadd5372bd2f1717b232ab79917e`.
-- Cloudflare Worker version 34 is deployed to 100% traffic for the previous release. This feature branch still requires CI and deployment before its payment, Tourist Mode and Passenger Realtime changes are live.
-- The authenticated Realtime endpoint returns 401 without a session, as expected. A real authenticated two-browser Passenger→Driver Realtime delivery test is still required before calling the full notification workflow end-to-end verified.
+- Frontend JavaScript syntax checks pass for the updated dashboard, rental, admin and Safety/Tourist scripts. GitHub Actions NestJS build, backend type-check, frontend validation and Cloudflare bundle validation passed for the release branch; the merged main commit also passed `npm run build`.
+- Cloudflare Pages production deployment succeeded for main commit `45c6e72b7cef45359124a685903a288dd7877ca9`; `/presentation.html` is publicly served.
+- Cloudflare Worker version 36 is deployed to 100% production traffic. The production bundle contains the payment-reference RPC, Realtime tracking/notification endpoints, nearby dispatch and security response headers.
+- Production API readiness returned HTTP 200 with Supabase connected; the currency-catalog API returned HTTP 200 with 24 supported quote currencies.
+- The authenticated Realtime endpoint correctly rejects unauthenticated access. A real authenticated two-browser Passenger→Driver Realtime delivery test is still required before calling that specific end-to-end notification workflow fully verified.
