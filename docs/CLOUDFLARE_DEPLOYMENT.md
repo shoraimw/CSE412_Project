@@ -24,10 +24,10 @@ Use Node.js 22+.
 
 ## Preview and production isolation
 - Production Worker: `cse412-project`
-- Feature Preview branch: `feature/complete-system-integration`
+- Verified release branch: `production/verified`
 - The current Preview URL is generated for the feature branch and is visible in Workers & Pages → `cse412-project` → Deployments. Use the latest deployment entry for this branch rather than a saved unique deployment URL.
 
-The feature branch is deployed using `wrangler preview`, not `wrangler deploy`. The connected `main` branch is configured to auto-deploy production with `wrangler deploy` after a merge; keep changes in Preview until browser and API smoke tests pass.
+Only `production/verified` is allowed to produce the production deployment. Contributor branches and `main` are not deployment sources. Preview builds are restricted to the verified release branch while it is being tested; they are disabled after promotion.
 
 ## Preview secrets
 Cloudflare Workers Builds supplies two build-time variables for the Preview build:
@@ -39,30 +39,19 @@ The Preview build command runs `scripts/configure-preview-secrets.mjs`. It write
 ## Commands
 - `npm run build`: `wrangler deploy --dry-run`, validates and bundles without deploying.
 - `npm run dev`: local Wrangler Worker runtime.
-- `npm run deploy`: production deployment. Do not run from the feature branch.
+- `npm run deploy`: production deployment. Run only from `production/verified` after CI and acceptance checks.
 
 Cloudflare Workers Builds Preview command: `npx wrangler preview`. The configured build step runs `npm run build && node scripts/configure-preview-secrets.mjs` first, so the Preview base secrets are applied before the branch Preview is deployed.
 
 ## Verification status
-- Wrangler dry-run build: passed.
-- NestJS backend build: passed.
-- Frontend JavaScript syntax check: passed.
-- Cloudflare Workers Builds Preview: latest build for `feature/complete-system-integration` completed successfully.
-- Preview base secrets: Supabase URL and publishable key are configured through the temporary-file setup script.
-- Production Worker secrets: `SUPABASE_URL` and `SUPABASE_ANON_KEY` are configured as Worker secrets.
 
-Still required before production promotion:
-1. Open the current Preview URL in a browser and verify `GET /api/health` returns 200.
-2. Test registration/login against Supabase Auth.
-3. Test passenger ride booking, driver claim/status changes, GPS, Women Safety, SOS, shared rides and fare splitting.
-4. Test owner application, admin approval, vehicle listing and rental booking.
-5. Verify RLS isolation with two separate test users and separate driver/owner/admin accounts.
-6. Run staged k6 tests before any capacity claim.
+- Release isolation branch: `production/verified`; `main` and contributor branches remain unchanged.
+- The Cloudflare Workers Builds and Pages production sources are being moved to `production/verified` only after CI and Preview checks pass.
+- The production Worker and Pages site must not be considered promoted until the Cloudflare settings and latest deployment commit are verified.
+- Current SQL regression checks: atomic Women Safety preference/contact save passed inside a rolled-back transaction; rental date-availability correctly excluded a vehicle with an overlapping pending booking inside a rolled-back transaction.
+- Supabase Security Advisor currently reports one remaining warning: leaked-password protection is disabled. Enable it in Dashboard → Authentication → Security before public launch.
+- Full browser-based Passenger/Driver/Owner/Admin acceptance, real mobile GPS, Realtime delivery and load tests remain required. A successful bundle build does not prove these workflows end-to-end.
 
-A successful build/deploy does not prove all workflows work end-to-end. Production has not been promoted or overwritten.
-
-
-Latest fix: non-API paths are delegated to the Workers Static Assets binding (`envBindings.ASSETS.fetch(request)`); API requests continue through NestJS.
 ## Authentication setup for email OTP
 The API exposes `POST /api/auth/email-otp` and `POST /api/auth/verify-email-otp`.
 In Supabase Dashboard → Authentication → Email Templates → Magic Link, change the template body to include the one-time code variable `{{ .Token }}` (and remove the magic-link-only content) before testing the six-digit code flow. Supabase's default template may send a magic link instead of a numeric OTP. Email delivery and rate limits remain subject to the Supabase free plan. SMS phone OTP is not included because a configured SMS provider is required and is not guaranteed to be free.
