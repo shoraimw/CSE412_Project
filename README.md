@@ -20,15 +20,15 @@ The repository is configured for Cloudflare. Vercel is not the deployment target
 - Required encrypted Worker secrets: `SUPABASE_URL`, `SUPABASE_ANON_KEY` (Supabase publishable/anon key only; never service-role).
 - Local dev: copy `.dev.vars.example` to `.dev.vars`, fill the Supabase values, run `npm install`, then `npm run dev`.
 - Validate bundle: `npm run build`.
-- Deploy production only from the protected `main` branch after Preview verification: `npm run deploy`.
+- Deploy production only from the protected `production/verified` branch after CI, Preview and acceptance checks. Cloudflare Workers Builds is the production deploy source; do not deploy from `main` or contributor branches.
 
 ### Cloudflare Preview
-Feature branch: `feature/complete-system-integration`
+Verified release branch: `production/verified`
 
 The feature branch is deployed through Wrangler Preview and must not overwrite the production Worker. Preview URL aliases and unique deployment URLs are shown in Cloudflare Workers & Pages → cse412-project → Deployments.
 
 ## Supabase setup
-The connected Supabase project is active and its migration history has been verified through `20261113192334`. This repository tracks the later feature migrations, but the original bootstrap migrations (`drive_initial_schema`, auth/RLS baseline and initial role setup) were applied before they were committed as SQL files. Therefore, this migration folder alone is not yet a complete fresh-database bootstrap. Do not run it against a new project until a reviewed baseline schema export has been added; do not replay migrations manually against the connected production project.
+The connected Supabase migration history is reconciled with the tracked SQL files in this release branch through `20261120160721`. Five original bootstrap migrations (`20261113102824`, `20261113112351`, `20261113112425`, `20261113112536`, `20261113112650`) are still not checked into this repository. Therefore, this migration folder alone is not a complete fresh-database bootstrap. Do not run it against a new project until a reviewed baseline schema export is added; do not replay migrations manually against the connected production project.
 
 Use Supabase Dashboard → Authentication → URL Configuration to set the production and Preview Site URLs and allowed redirect URLs. Email confirmation settings affect whether signup returns a session immediately.
 
