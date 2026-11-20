@@ -10,7 +10,7 @@ on:
       - 'package.json'
       - '.github/workflows/cloudflare-build.yml'
   push:
-    branches: [feature/drive-full-platform, feature/complete-system-integration]
+    branches: [feature/drive-full-platform, feature/complete-system-integration, production/verified]
     paths:
       - 'backend/**'
       - 'frontend/**'
