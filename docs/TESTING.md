@@ -4,7 +4,7 @@
 - Backend: GitHub Actions runs `npm install`, `npx tsc --noEmit -p backend/tsconfig.json` and `npm run build`.
 - Frontend: GitHub Actions runs `node --check` on every JavaScript file under `frontend/js`.
 - Supabase: migrations are versioned under `supabase/migrations`; security advisor should be checked after schema changes.
-- Cloudflare: `.github/workflows/cloudflare-deploy.yml` validates and deploys the Worker. Add repository secret `CLOUDFLARE_API_TOKEN` with Workers Scripts:Edit permission, then run Actions → Deploy DRIVE to Cloudflare Workers.
+- Cloudflare Workers Builds auto-deploys only the protected `production/verified` branch. The GitHub Actions fallback deployment is manual and rejects any ref other than `production/verified`.
 
 ## Local integration test
 1. Configure `backend/.env` from `.env.example` with the DRIVE Supabase project URL and publishable key.
@@ -16,7 +16,7 @@
 7. The approved driver opens Driver workspace, selects **Go online**, and grants browser location permission. Confirm their marker appears on the passenger map and their nearest-first request list refreshes.
 8. Submit a passenger ride request while an eligible driver is online with a fresh GPS heartbeat. Confirm only matching vehicle-type drivers within 20 km receive a persisted alert; the open Driver workspace receives it through Supabase Realtime, with 7-second polling as fallback. If a driver goes online after a request already exists, confirm the deduplicated catch-up alert appears once. If browser notifications are allowed, a browser alert also appears.
 9. Confirm the Driver request feed hides requests outside the 20 km radius and is empty while the driver is offline or the GPS heartbeat is stale. Have two eligible online drivers try to accept the same request. The first valid claim wins; the other receives a no-longer-available response. Confirm the passenger receives an acceptance notification and sees the driver's live location while the driver approaches.
-10. Test rental listing, owner approval, rejection/resubmission, pending→approved→active→completed booking transitions, invalid direct status changes, safety trip sharing, SOS record creation, tourist plan persistence and individual shared-ride payment intents.
+10. Test rental listing with and without a date range, overlapping pending/approved/active booking exclusion, owner approval/rejection/resubmission, pending→approved→active→completed booking transitions, invalid direct status changes, atomic Women Safety preferences/contact saves, ride-linked GPS start/stop, safety trip sharing, SOS record creation, tourist plan persistence and individual shared-ride payment intents.
 11. Verify that a passenger cannot read another passenger's records, a non-driver cannot claim a ride, and clients cannot mark payments or vehicles verified.
 
 ## k6 load test
