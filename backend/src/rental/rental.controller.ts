@@ -33,8 +33,9 @@ export class RentalController{
     p_start_at:startAt,p_end_at:endExclusive,
    });
    if(error)throw new ServiceUnavailableException(error.message);
-   availableIds=(data||[]).map((id:any)=>String(id));
-   if(!availableIds.length)return [];
+   const ids=(data||[]).map((id:any)=>String(id));
+   if(!ids.length)return [];
+   availableIds=ids;
   }
   let query=this.database.publicClient().from('vehicles')
    .select('id,make,model,vehicle_type,city,seats,price_per_day,price_per_km,photo_paths,description,model_year,color')
