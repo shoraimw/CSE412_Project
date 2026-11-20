@@ -28,7 +28,7 @@ Verified release branch: `production/verified`
 The feature branch is deployed through Wrangler Preview and must not overwrite the production Worker. Preview URL aliases and unique deployment URLs are shown in Cloudflare Workers & Pages → cse412-project → Deployments.
 
 ## Supabase setup
-The connected Supabase migration history is reconciled with the tracked SQL files in this release branch through `20261120160721`. Five original bootstrap migrations (`20261113102824`, `20261113112351`, `20261113112425`, `20261113112536`, `20261113112650`) are still not checked into this repository. Therefore, this migration folder alone is not a complete fresh-database bootstrap. Do not run it against a new project until a reviewed baseline schema export is added; do not replay migrations manually against the connected production project.
+The connected Supabase migration history is reconciled with the tracked SQL files in this release branch through `20261120162911`. Five original bootstrap migrations (`20261113102824`, `20261113112351`, `20261113112425`, `20261113112536`, `20261113112650`) are still not checked into this repository. Therefore, this migration folder alone is not a complete fresh-database bootstrap. Do not run it against a new project until a reviewed baseline schema export is added; do not replay migrations manually against the connected production project.
 
 Use Supabase Dashboard → Authentication → URL Configuration to set the production and Preview Site URLs and allowed redirect URLs. Email confirmation settings affect whether signup returns a session immediately.
 
