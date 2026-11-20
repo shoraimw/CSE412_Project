@@ -5,6 +5,7 @@ let availableVehicles = [];
 async function loadVehicles() {
   resultMessage.textContent = "Loading vehicles...";
   vehicleList.replaceChildren();
+  selectedVehicle.value = "";
   const filterStart = document.getElementById("filterStartDate").value;
   const filterEnd = document.getElementById("filterEndDate").value;
   if (Boolean(filterStart) !== Boolean(filterEnd)) {
@@ -47,7 +48,10 @@ async function loadVehicles() {
     });
     if (!availableVehicles.length) resultMessage.textContent = "No vehicles match your search.";
     updateVehicleOptions(availableVehicles);
-  } catch (error) { resultMessage.textContent = error.message || "Could not connect to the backend."; }
+  } catch (error) {
+    updateVehicleOptions([]);
+    resultMessage.textContent = error.message || "Could not connect to the backend.";
+  }
 }
 function updateVehicleOptions(vehicles) {
   const old = selectedVehicle.value; selectedVehicle.replaceChildren();
@@ -57,6 +61,15 @@ function updateVehicleOptions(vehicles) {
 }
 document.getElementById("filterForm").addEventListener("submit", event => { event.preventDefault(); loadVehicles(); });
 document.getElementById("filterForm").addEventListener("reset", () => setTimeout(loadVehicles, 0));
+const filterFields = ["vehicleType", "location", "maxPrice", "filterStartDate", "filterEndDate"];
+filterFields.forEach(id => {
+  document.getElementById(id).addEventListener("change", () => {
+    selectedVehicle.value = "";
+    updateVehicleOptions([]);
+    vehicleList.replaceChildren();
+    resultMessage.textContent = "Filters changed. Search again to check current availability.";
+  });
+});
 const today = new Date(); const localToday = [today.getFullYear(), String(today.getMonth()+1).padStart(2,"0"), String(today.getDate()).padStart(2,"0")].join("-");
 const startInput = document.getElementById("startDate"), endInput = document.getElementById("endDate");
 const filterStartInput = document.getElementById("filterStartDate"), filterEndInput = document.getElementById("filterEndDate");
