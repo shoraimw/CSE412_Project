@@ -393,6 +393,10 @@ async function refresh(){
 }
 
 el('driverLogout').addEventListener('click',async()=>{
+  if(activeRideIds.size>0){
+    el('driverMessage').textContent='You have an active ride. Complete or cancel it before signing out so live trip tracking is not interrupted.';
+    return;
+  }
   try{
     driverOnline=false;
     localStorage.removeItem('drive_driver_online');
