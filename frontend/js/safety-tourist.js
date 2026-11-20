@@ -171,6 +171,7 @@ function renderActiveTrip() {
   const details = byId('activeTripDetails');
   details.replaceChildren();
   if (!trip) {
+    byId('completeTripButton').hidden = false;
     details.append(makeNode('p', 'muted', 'Start a trip to enable live monitoring and sharing.'));
     byId('tripStatus').textContent = 'No active trip';
     byId('shareTripButton').disabled = true;
