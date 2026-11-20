@@ -15,6 +15,10 @@ async function bootOwner(){
    $('vehicleForm').querySelectorAll('input,select,textarea,button').forEach(node=>node.disabled=true);
    return;
   }
+  if(owner.role==='admin'){
+   $('vehicleForm').hidden=true;
+   $('ownerMessage').textContent='Administrator view: all rental vehicles and booking requests are visible here. Vehicle listings must be submitted from an approved Vehicle Owner account.';
+  }
   await loadOwner();
  }catch(error){$('ownerMessage').textContent=error.message||'Could not verify Vehicle Owner access.';}
 }
