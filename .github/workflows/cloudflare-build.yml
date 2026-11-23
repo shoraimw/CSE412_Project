@@ -1,7 +1,7 @@
 name: Cloudflare Workers build validation
 on:
   pull_request:
-    branches: [main]
+    branches: [main, production/verified]
     paths:
       - 'backend/**'
       - 'frontend/**'

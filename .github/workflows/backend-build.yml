@@ -2,7 +2,7 @@ name: NestJS Backend Build
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, production/verified]
     paths:
       - 'backend/**'
       - '.github/workflows/backend-build.yml'
