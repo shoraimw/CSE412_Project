@@ -2,7 +2,7 @@ name: DRIVE validation
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, production/verified]
   push:
     branches: [production/verified]
   workflow_dispatch:

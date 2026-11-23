@@ -1,7 +1,7 @@
 name: DRIVE frontend validation
 on:
   pull_request:
-    branches: [main]
+    branches: [main, production/verified]
     paths: ['frontend/**', '.github/workflows/frontend-ci.yml']
   push:
     branches: [feature/drive-full-platform, feature/complete-system-integration, production/verified]
