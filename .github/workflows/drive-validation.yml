@@ -2,7 +2,7 @@ name: DRIVE validation
 
 on:
   push:
-    branches: [main]
+    branches: [main, rebuild/drive-clean-ui-20261128]
   pull_request:
     branches: [main]
   workflow_dispatch:
