@@ -42,7 +42,17 @@
       const app=await driveRequest('/drivers/application');
       if(app){
         $('driverApplicationState').innerHTML='<div class="list-item"><div><strong>Application status</strong><small>'+driveEscape(app.rejection_reason||'Submitted '+driveDate(app.created_at))+'</small></div><span class="pill '+stateClass(app.status)+'">'+driveEscape(app.status)+'</span></div>';
-        if(app.status==='pending'||app.status==='approved')$('driverApplyForm').hidden=true;
+        if(app.status==='pending'){
+          $('driverApplyForm').hidden=true;
+          $('driverDocumentsForm').hidden=false;
+          await loadDriverDocuments();
+        } else if(app.status==='approved') {
+          $('driverApplyForm').hidden=true;
+          $('driverDocumentsForm').hidden=true;
+        } else {
+          $('driverApplyForm').hidden=false;
+          $('driverDocumentsForm').hidden=true;
+        }
       }
     }catch(error){setMessage('driverApplyMessage',error.message,'error');}
   }
@@ -55,8 +65,43 @@
         requested_vehicle_type:$('driverVehicleType').value,note:$('driverNote').value.trim()
       })});
       setMessage('driverApplyMessage',result.message||'Application submitted.','success');
-      $('driverApplicationState').innerHTML='<span class="pill warning">Pending review</span>';$('driverApplyForm').hidden=true;
+      $('driverApplicationState').innerHTML='<span class="pill warning">Pending review — upload your verification documents below.</span>';
+      $('driverApplyForm').hidden=true;$('driverDocumentsForm').hidden=false;
+      await loadDriverDocuments();
     }catch(error){setMessage('driverApplyMessage',error.message,'error');}
+    finally{button.disabled=false;}
+  });
+
+  async function loadDriverDocuments(){
+    try{
+      const result=await driveRequest('/verification/documents');
+      const docs=result.driverDocuments||[];
+      $('driverDocumentsState').innerHTML=docs.length?docs.map(doc=>'<div class="list-item"><div class="list-item-main"><strong>'+driveEscape(doc.document_type.replaceAll('_',' '))+'</strong><small>Submitted '+driveDate(doc.created_at)+'</small></div><span class="pill '+stateClass(doc.verification_status)+'">'+driveEscape(driveVerificationStatus(doc.verification_status))+'</span></div>').join(''):'<div class="empty-state">No documents uploaded yet.</div>';
+      const required=['license_front','license_back','national_id'];
+      const ready=required.every(type=>docs.some(doc=>doc.document_type===type&&doc.verification_status!=='rejected'));
+      $('driverDocumentsForm').hidden=ready;
+      if(ready)setMessage('driverDocumentsMessage','All required documents are submitted. Wait for administrator verification.','success');
+    }catch(error){setMessage('driverDocumentsMessage',error.message,'error');}
+  }
+
+  $('driverDocumentsForm')?.addEventListener('submit',async event=>{
+    event.preventDefault();if(!$('driverDocumentsForm').reportValidity())return;
+    const button=$('driverDocumentsSubmit');button.disabled=true;
+    const files=[
+      ['license_front',$('licenseFront').files[0]],
+      ['license_back',$('licenseBack').files[0]],
+      ['national_id',$('driverNid').files[0]],
+      ['vehicle_registration',$('driverVehicleRegistration').files[0]]
+    ].filter(([,file])=>Boolean(file));
+    try{
+      for(const [type,file] of files){
+        setMessage('driverDocumentsMessage','Uploading '+type.replaceAll('_',' ')+'…');
+        await driveUploadVerificationDocument('driver',type,file);
+      }
+      $('driverDocumentsForm').reset();
+      setMessage('driverDocumentsMessage','Documents uploaded and submitted for administrator review.','success');
+      await loadDriverDocuments();
+    }catch(error){setMessage('driverDocumentsMessage',error.message,'error');}
     finally{button.disabled=false;}
   });
 
@@ -134,8 +179,16 @@
     $('openCount').textContent=requests.length;$('driverTripCount').textContent=assignedTrips.length;
     $('openRequests').innerHTML=requests.length?requests.map(ride=>{
       const requestId=ride.requestId||ride.id;
-      return '<div class="list-item"><div class="list-item-main"><strong>'+driveEscape(ride.pickupAddress||ride.pickup_label||'Pickup')+' → '+driveEscape(ride.destinationAddress||ride.destination_label||'Destination')+'</strong><small>'+driveEscape(ride.vehicleType||ride.requested_vehicle)+' · '+driveMoney(ride.estimatedFare||ride.estimated_fare)+' · '+driveDate(ride.createdAt||ride.created_at)+'</small></div><button class="button-mini dark" data-claim="'+driveEscape(requestId)+'">Accept</button></div>';
+      return '<div class="list-item"><div class="list-item-main"><strong>'+driveEscape(ride.pickupAddress||ride.pickup_label||'Pickup')+' → '+driveEscape(ride.destinationAddress||ride.destination_label||'Destination')+'</strong><small>'+driveEscape(ride.vehicleType||ride.requested_vehicle)+' · '+driveMoney(ride.estimatedFare||ride.estimated_fare)+' · '+driveDate(ride.createdAt||ride.created_at)+'</small></div><div class="row-actions"><button class="button-mini dark" data-claim="'+driveEscape(requestId)+'">Accept</button><button class="button-mini" data-pass="'+driveEscape(requestId)+'">Pass</button></div></div>';
     }).join(''):'<div class="empty-state">No nearby requests right now. Go online and keep this page open to receive requests.</div>';
+    $('openRequests').querySelectorAll('[data-pass]').forEach(button=>button.addEventListener('click',async()=>{
+      button.disabled=true;
+      try{
+        await driveRequest('/rides/requests/'+encodeURIComponent(button.dataset.pass)+'/reject',{method:'POST'});
+        driveToast('Request passed. It remains available to other drivers.');
+        await refresh();
+      }catch(error){driveToast(error.message);button.disabled=false;}
+    }));
     $('assignedTrips').innerHTML=assignedTrips.length?assignedTrips.map(ride=>{
       const status=ride.status||'matched';let next='';
       if(status==='matched')next='driver_arriving';
