@@ -2,6 +2,7 @@ interface Env {
   SUPABASE_URL?: string;
   SUPABASE_ANON_KEY?: string;
   CORS_ORIGIN?: string;
+  DRIVE_PUBLIC_URL?: string;
   ASSETS: Fetcher;
 }
 declare module 'cloudflare:node' {
@@ -9,10 +10,7 @@ declare module 'cloudflare:node' {
     fetch(request: Request): Promise<Response>;
   };
 }
-declare module 'cloudflare:workers' {
-  export const env: Env;
-}
-
+declare module 'cloudflare:workers' { export const env: Env; }
 interface ExecutionContext {
   waitUntil(promise: Promise<unknown>): void;
   passThroughOnException(): void;
