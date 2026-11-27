@@ -200,7 +200,7 @@
       renderContactList();
       $('addSafetyContact').addEventListener('click',()=>{
         const name=$('contactName').value.trim(),phone=$('contactPhone').value.trim(),relation=$('contactRelation').value.trim();
-        if(!name||!phone||!/^\\+?[0-9][0-9\\s-]{6,18}$/.test(phone)){
+        if(!name||!phone||!/^\+?[0-9][0-9\s-]{6,18}$/.test(phone)){
           $('safetyMessage').textContent='Enter a contact name and a valid phone number.';$('safetyMessage').className='message error';return;
         }
         const contact={name,phone,relation};
