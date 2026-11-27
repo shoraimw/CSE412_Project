@@ -1,4 +1,4 @@
-import { IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength } from 'class-validator';
 
 export class CreateReviewDto {
   @IsUUID() rideId!: string;
@@ -7,8 +7,8 @@ export class CreateReviewDto {
 }
 export class CreateSupportCaseDto {
   @IsIn(['safety','payment','driver','rental','account','app','other']) category!: string;
-  @IsString() @Min(3) @MaxLength(120) subject!: string;
-  @IsString() @Min(10) @MaxLength(3000) description!: string;
+  @IsString() @MinLength(3) @MaxLength(120) subject!: string;
+  @IsString() @MinLength(10) @MaxLength(3000) description!: string;
   @IsOptional() @IsUUID() rideId?: string;
   @IsOptional() @IsUUID() rentalBookingId?: string;
 }
