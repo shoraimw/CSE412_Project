@@ -103,9 +103,11 @@
       }catch(error){setMessage('gpsMessage',error.message,'error');}
       if(firstGpsFix){firstGpsFix=false;refresh().catch(()=>{});}
     },error=>{
+      if(watchId!==null)navigator.geolocation.clearWatch(watchId);
+      watchId=null;available=false;
       setMessage('gpsMessage',error.message||'Location permission is required.','error');
-      if(activeTrips().length)setPresence('Location unavailable','Trip in progress',true);
-      else{available=false;setPresence('Offline','Go online',false);}
+      if(activeTrips().length)setPresence('Location unavailable','Retry GPS',false);
+      else setPresence('Offline','Go online',false);
     },{enableHighAccuracy:true,maximumAge:5000,timeout:15000});
   }
 
@@ -167,7 +169,7 @@
   }
 
   $('onlineToggle')?.addEventListener('click',()=>{
-    if(activeTrips().length){setPresence('On trip','Trip in progress',true);return;}
+    if(activeTrips().length){if(watchId===null)startLocationWatch(false);return;}
     if(available){stopLocationWatch();return;}
     startLocationWatch(true);
   });
