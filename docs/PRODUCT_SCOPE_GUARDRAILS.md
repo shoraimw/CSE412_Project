@@ -101,6 +101,42 @@ The active codebase is a web academic prototype. Current documentation/code desc
 
 Detailed status must be kept in REQUIREMENTS_TRACEABILITY.md and verified through TESTING.md. Incomplete integrations must remain visibly labelled as partial.
 
+
+## 7A. Active-branch requirement review — 2026-11-28
+
+This is a code/documentation review, **not end-to-end acceptance sign-off**. The following boundaries were observed in the active main branch:
+
+| Requirement | Current evidence / gap |
+|---|---|
+| FR-01 Authentication | Email/password and email OTP are present. Phone/SMS OTP and an account-recovery endpoint are not present in the active auth controller. Supabase leaked-password protection is still documented as disabled. |
+| FR-02 User Management | Passenger profiles, Driver/Vehicle Owner applications, admin review and role-specific workspaces exist in code. Separate real accounts are still needed for role-isolation acceptance. |
+| FR-03 Vehicle Rental | Verified vehicle catalogue, owner workflow, rental booking and overlap protection exist. The active vehicle DTO also permits scooter, van and other types, while the submitted primary requirement names cars and bikes; keep this expansion only if the team explicitly approves it. |
+| FR-04 Smart Ride Booking | Map-based pickup/drop-off, route/fare estimate and ride requests exist. Current passenger cancellation is limited to an unaccepted request; no cancellation-charge display/rule is evidenced. |
+| FR-05 Match & Cost Sharing | Shared-ride discovery/joining, seat-capacity checks and per-passenger fare shares exist. Concurrent joins, capacity edge cases and separate passenger payment amounts still need acceptance tests. |
+| FR-06 Tracking | Foreground driver GPS and passenger tracking exist. Background GPS is not provided by this browser build. Verify the 10-second display target on real devices. |
+| FR-07 Fare Prediction | The active fare service uses a transparent deterministic BDT formula. Live traffic, demand/time-based prediction and a trained prediction model are not implemented. |
+| FR-08 Route Optimization | OSRM/OpenStreetMap route alternatives and fastest/shortest/balanced selection exist. This is a map-service baseline, not an AI model or live-traffic optimizer. |
+| FR-09 Multi-Currency Payment | Exchange-rate quotes and payment-intent/manual-review workflows exist. Actual bKash/Nagad gateway settlement and foreign-currency settlement are not connected; a quote is not a payment. An explicit receipt-generation flow is not evidenced. |
+| FR-10 Women Safety | Safety preferences, trusted/emergency contacts, private expiring trip links and foreground route monitoring exist. The user must initiate the contact handoff; automatic SMS/WhatsApp delivery and background GPS are not configured. |
+| FR-11 Emergency & Safe Trip | SOS records/admin alerts and delay/route-deviation warnings exist. No external emergency-service dispatch or guaranteed contact delivery is configured. |
+| FR-12 Tourist Mode | Curated destinations, interest-based recommendations and saved multi-stop plans exist. Language preference selection is not present in the active Tourist API/UI; walking/public-transport estimates are approximate. |
+
+The supplemental Drive Requirement Analysis also specifies Notifications, Administration, Feedback/Ratings and Complaints. Notification and admin workflows exist in the active code. A passenger rating/feedback/complaint submission flow was not found in the active frontend/API route set and must be treated as **not implemented or not verified**, not silently assumed complete.
+
+### Supplemental non-functional acceptance
+
+- **Performance:** the analysis proposes 100 concurrent users with 95% of ordinary requests completing within 3 seconds, excluding external-provider delays. No measured result is available.
+- **Tracking:** the analysis proposes display refresh within 10 seconds after a new location update. The current web UI is designed around a 10-second refresh, but real-device acceptance is still required.
+- **Usability:** the analysis proposes at least 8 of 10 first-time users completing a booking within 2 minutes without help. No user-study result is available.
+- **Scalability:** the k6 script is present, but a completed load-test report is not. No concurrent-user capacity is claimed.
+- **Security/privacy:** Supabase Auth, user-scoped API clients, role checks and RLS are present; leaked-password protection remains disabled in the documented settings. Abuse/rate-limit and full role-isolation tests remain open.
+- **Portability:** responsive browser UI exists; the selected desktop/mobile browser matrix has not been signed off.
+- **Reliability:** atomic ride claims and rental overlap constraints exist; duplicate retry behavior for all booking/payment operations still needs acceptance testing.
+- **Maintainability:** fare rates and supported currency codes are currently code-defined. Configurability without code changes has not been demonstrated.
+- **Failure handling:** routing fallback and provider-status messaging exist in part; test each provider outage and confirm the booking record remains consistent.
+
+**Release rule:** do not claim complete FR/NFR coverage until the corresponding acceptance case has passed. The current zero-user Supabase project state documented in TESTING.md means real Passenger/Driver/Owner/Admin end-to-end testing must be completed with separate accounts.
+
 ## 8. Change-control rule
 
 Before implementing a proposed feature or redesign:
