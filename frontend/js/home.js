@@ -68,7 +68,9 @@
       if (!data.routes?.length) throw new Error('No route found.');
       const route = data.routes[0];
       routeDistanceKm = route.distance / 1000;
-      routeDurationMin = Math.max(1, Math.round(route.duration / 60));\n      const rawCoordinates=Array.isArray(route.geometry?.coordinates)?route.geometry.coordinates:[];\n      routeCoordinates=rawCoordinates.length>100?Array.from({length:100},(_,i)=>rawCoordinates[Math.round(i*(rawCoordinates.length-1)/99)]).map(([lng,lat])=>({lat,lng})):rawCoordinates.map(([lng,lat])=>({lat,lng}));
+      routeDurationMin = Math.max(1, Math.round(route.duration / 60));
+      const rawCoordinates=Array.isArray(route.geometry?.coordinates)?route.geometry.coordinates:[];
+      routeCoordinates=rawCoordinates.length>100?Array.from({length:100},(_,i)=>rawCoordinates[Math.round(i*(rawCoordinates.length-1)/99)]).map(([lng,lat])=>({lat,lng})):rawCoordinates.map(([lng,lat])=>({lat,lng}));
       if (routeLine) map.removeLayer(routeLine);
       routeLine = L.geoJSON(route.geometry, {style:{color:'#111',weight:5,opacity:.82}}).addTo(map);
       map.fitBounds(routeLine.getBounds(), {padding:[35,35]});
@@ -150,10 +152,16 @@
           pickupAddress:from.label, destinationAddress:to.label, vehicleType,
           pickupLat:from.lat, pickupLng:from.lng, destinationLat:to.lat, destinationLng:to.lng,
           isShared:$('sharedRide').checked, womenSafetyPreference:$('womenSafety').checked,
-          routePreference:'balanced', seatsRequested:1,\n          safetyInitialLocation:$('womenSafety').checked?{lat:from.lat,lng:from.lng}:undefined,\n          safetyPlannedRoute:$('womenSafety').checked&&routeCoordinates.length>=2?routeCoordinates:undefined
+          routePreference:'balanced', seatsRequested:1,
+          safetyInitialLocation:$('womenSafety').checked?{lat:from.lat,lng:from.lng}:undefined,
+          safetyPlannedRoute:$('womenSafety').checked&&routeCoordinates.length>=2?routeCoordinates:undefined
         })
       });
-      if(result.womenSafety?.shareToken){\n        const shareUrl=new URL('shared-trip.html?token='+encodeURIComponent(result.womenSafety.shareToken),window.location.href).toString();\n        try{sessionStorage.setItem('drive_pending_share_url',shareUrl);}catch{}\n      }\n      setMessage('Ride request created. Open your dashboard to follow the trip.', 'success');
+      if(result.womenSafety?.shareToken){
+        const shareUrl=new URL('shared-trip.html?token='+encodeURIComponent(result.womenSafety.shareToken),window.location.href).toString();
+        try{sessionStorage.setItem('drive_pending_share_url',shareUrl);}catch{}
+      }
+      setMessage('Ride request created. Open your dashboard to follow the trip.', 'success');
       driveToast('Your ride request has been placed.');
       window.location.href='dashboard.html';
     } catch (error) { setMessage(error.message || 'Could not create the ride request.', 'error'); }
@@ -163,6 +171,11 @@
   const user = driveSession();
   if (user) {
     $('navLogin').hidden = true; $('navJoin').hidden = true; $('navAccount').hidden = false;
+    if(localStorage.getItem(DRIVE_TOKEN_KEY)){
+      driveRequest('/safety/settings').then(settings=>{
+        if($('womenSafety'))$('womenSafety').checked=Boolean(settings.womenSafetyEnabled);
+      }).catch(()=>{});
+    }
   }
   if (map) setTimeout(() => map.invalidateSize(), 150);
 })();
