@@ -268,7 +268,7 @@ export class AdminController {
     const db = this.client(request);
     const { data: payment, error: readError } = await db
       .from('payments')
-      .select('id,method,status,provider_reference,gateway_name,gateway_status,gateway_validation_id,receipt_number,gateway_payload')
+      .select('id,user_id,method,status,provider_reference,gateway_name,gateway_status,gateway_validation_id,receipt_number,gateway_payload')
       .eq('id', id)
       .maybeSingle();
     if (readError || !payment) throw new NotFoundException(readError?.message || 'Payment not found.');
@@ -314,6 +314,15 @@ export class AdminController {
       status:dto.status,method:payment.method,transactionReferenceSubmitted:Boolean(payment.provider_reference),
       gatewayStatus:payment.gateway_status,adminNote:dto.adminNote?.trim()||null,
     });
+    const notificationTitle=dto.status==='paid'?'Payment confirmed by DRIVE':'Payment marked as failed';
+    const notificationBody=dto.status==='paid'
+      ?'Your payment has been confirmed by the DRIVE administrator. Receipt: '+(data.receipt_number||'available in payment history')
+      :'Your payment was marked as failed by the DRIVE administrator. Contact support if you believe this is incorrect.';
+    const {error:notificationError}=await db.from('notifications').insert({
+      user_id:payment.user_id,title:notificationTitle,body:notificationBody,
+      type:'payment_'+dto.status,entity_id:id,
+    });
+    if(notificationError)console.error('[DRIVE payment notification]',notificationError.message);
     return data;
   }
 
