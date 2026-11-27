@@ -79,8 +79,8 @@ export class PaymentsService {
       if(!config.sslcommerzStoreId||!config.sslcommerzStorePassword){
         throw new ServiceUnavailableException('SSLCOMMERZ is not configured. Add its sandbox or live Store ID and Store Password as Cloudflare Worker secrets.');
       }
-      if(!config.supabaseServiceRoleKey){
-        throw new ServiceUnavailableException('Online payment callbacks are not enabled yet. Add SUPABASE_SERVICE_ROLE_KEY as a Cloudflare Worker secret before accepting gateway payments.');
+      if(!config.drivePaymentWebhookSecret){
+        throw new ServiceUnavailableException('Secure payment callbacks are not configured. Add DRIVE_PAYMENT_WEBHOOK_SECRET as a Cloudflare Worker secret.');
       }
       if(!GATEWAY_CURRENCIES.includes(dto.currency))throw new BadRequestException('This currency is not enabled for SSLCOMMERZ checkout.');
       if(baseAmount<10)throw new BadRequestException('SSLCOMMERZ requires a minimum settlement amount equivalent to BDT 10.');
@@ -191,12 +191,16 @@ export class PaymentsService {
     const valId=String(body?.val_id||'').trim();
     if(!tranId||!valId)throw new BadRequestException('Gateway transaction and validation references are required.');
     const config=getDriveRuntimeConfig();
-    if(!config.sslcommerzStoreId||!config.sslcommerzStorePassword)throw new ServiceUnavailableException('SSLCOMMERZ validation credentials are not configured.');
-    const admin=this.database.serviceClient();
-    const {data:payment,error:paymentError}=await admin.from('payments').select('*')
-      .eq('gateway_name','sslcommerz').eq('gateway_transaction_id',tranId).maybeSingle();
-    if(paymentError||!payment)throw new NotFoundException('DRIVE payment intent not found.');
-    if(payment.status==='paid')return {paymentId:payment.id,status:'paid',receiptNumber:payment.receipt_number,alreadyFinalized:true};
+    if(!config.sslcommerzStoreId||!config.sslcommerzStorePassword)
+      throw new ServiceUnavailableException('SSLCOMMERZ validation credentials are not configured.');
+    if(!config.drivePaymentWebhookSecret)
+      throw new ServiceUnavailableException('Secure payment callback secret is not configured.');
+    const db=this.database.publicClient();
+    const {data:payment,error:paymentError}=await db.rpc('drive_get_sslcommerz_payment_intent',{
+      p_secret:config.drivePaymentWebhookSecret,p_tran_id:tranId,
+    });
+    if(paymentError||!payment)throw new NotFoundException('DRIVE payment intent not found or callback authentication failed.');
+    if(payment.status==='paid')return {paymentId:payment.id,status:'paid',receiptNumber:payment.receiptNumber,alreadyFinalized:true};
 
     const base=config.sslcommerzMode==='live'?'https://securepay.sslcommerz.com':'https://sandbox.sslcommerz.com';
     const query=new URLSearchParams({
@@ -211,8 +215,7 @@ export class PaymentsService {
     if(!validation||!['VALID','VALIDATED'].includes(String(validation.status||'').toUpperCase())){
       const status=String(validation?.status||'VALIDATION_FAILED').toUpperCase();
       if(status==='INVALID_TRANSACTION'){
-        await admin.from('payments').update({status:'failed',gateway_status:status})
-          .eq('id',payment.id).eq('status','pending');
+        await this.markSslcommerzFailed({tran_id:tranId},'FAILED');
         return {paymentId:payment.id,status:'failed',message:'Gateway validation rejected this transaction.'};
       }
       throw new BadRequestException('SSLCOMMERZ could not validate this transaction.');
@@ -223,59 +226,38 @@ export class PaymentsService {
     const currency=String(validation.currency_type||validation.currency||'').toUpperCase();
     const currencyAmount=Number(validation.currency_amount??validation.amount);
     if(currency!==String(payment.currency).toUpperCase()||!Number.isFinite(currencyAmount)||Math.abs(currencyAmount-Number(payment.amount))>0.02){
-      await admin.from('payments').update({gateway_status:'VALIDATION_MISMATCH'})
-        .eq('id',payment.id).eq('status','pending');
       throw new BadRequestException('Validated currency or amount does not match the original DRIVE payment intent.');
     }
-    const riskLevel=Number(validation.risk_level??1);
-    if(riskLevel!==0){
-      await admin.from('payments').update({
-        gateway_status:'risk_hold',gateway_validation_id:valId,
-        gateway_amount_bdt:Number(validation.amount||0),
-        gateway_payload:{riskLevel,cardType:validation.card_type||null,riskTitle:validation.risk_title||null},
-      }).eq('id',payment.id).eq('status','pending');
-      return {paymentId:payment.id,status:'risk_hold',message:'Payment is held for administrator review because the gateway flagged a risk.'};
-    }
     const amountBdt=Number(validation.amount);
-    if(!Number.isFinite(amountBdt)||amountBdt<10||amountBdt>500000){
-      throw new BadRequestException('Validated BDT settlement amount is outside the gateway limits.');
-    }
-    if(currency==='BDT'&&Math.abs(amountBdt-Number(payment.amount))>0.02){
-      throw new BadRequestException('Validated BDT amount does not match the DRIVE payment.');
-    }
-    const receiptNumber='DRIVE-'+new Date().toISOString().slice(0,10).replace(/-/g,'')+'-'+randomUUID().replace(/-/g,'').slice(0,8).toUpperCase();
-    const patch={
-      status:'paid',gateway_status:'VALID',gateway_validation_id:valId,
-      gateway_currency:currency,gateway_amount_bdt:amountBdt,
-      gateway_fee_bdt:Math.max(0,amountBdt-Number(validation.store_amount||amountBdt)),
-      exchange_rate:Number(validation.currency_rate||payment.exchange_rate||1),
-      provider_reference:String(validation.bank_tran_id||payment.provider_reference||''),
-      receipt_number:receiptNumber,paid_at:new Date().toISOString(),
-      gateway_payload:{cardType:validation.card_type||null,cardBrand:validation.card_brand||null,riskLevel,currencyRate:Number(validation.currency_rate||1),settlementCurrency:'BDT'},
-    };
-    const {data:updated,error:updateError}=await admin.from('payments').update(patch)
-      .eq('id',payment.id).eq('status','pending').select('*').maybeSingle();
-    if(updateError)throw new ServiceUnavailableException(updateError.message);
-    if(updated)return {paymentId:updated.id,status:'paid',receiptNumber:updated.receipt_number,alreadyFinalized:false};
-    const {data:current}=await admin.from('payments').select('id,status,receipt_number').eq('id',payment.id).maybeSingle();
-    if(current?.status==='paid')return {paymentId:current.id,status:'paid',receiptNumber:current.receipt_number,alreadyFinalized:true};
-    throw new ServiceUnavailableException('Payment status could not be finalized. It remains available for reconciliation.');
+    const riskLevel=Number(validation.risk_level??1);
+    const {data:finalized,error:finalizeError}=await db.rpc('drive_finalize_sslcommerz_payment',{
+      p_secret:config.drivePaymentWebhookSecret,
+      p_tran_id:tranId,
+      p_val_id:valId,
+      p_status:String(validation.status||'').toUpperCase(),
+      p_currency_type:currency,
+      p_currency_amount:currencyAmount,
+      p_amount_bdt:amountBdt,
+      p_store_amount:Number(validation.store_amount??amountBdt),
+      p_risk_level:riskLevel,
+      p_card_type:String(validation.card_type||''),
+      p_bank_tran_id:String(validation.bank_tran_id||''),
+      p_currency_rate:validation.currency_rate==null?null:Number(validation.currency_rate),
+    });
+    if(finalizeError||!finalized)throw new ServiceUnavailableException(finalizeError?.message||'Payment could not be finalized. It remains available for reconciliation.');
+    return finalized;
   }
 
   async markSslcommerzFailed(body:any,status:'FAILED'|'CANCELLED'){
     const tranId=String(body?.tran_id||'').trim();
     if(!tranId)throw new BadRequestException('Gateway transaction reference is required.');
-    const admin=this.database.serviceClient();
-    const {data,error}=await admin.from('payments').update({
-      status:'failed',gateway_status:status,
-    }).eq('gateway_name','sslcommerz').eq('gateway_transaction_id',tranId).eq('status','pending')
-      .select('id,status').maybeSingle();
-    if(error)throw new ServiceUnavailableException(error.message);
-    if(data)return {paymentId:data.id,status:'failed'};
-    const {data:current}=await admin.from('payments').select('id,status,receipt_number')
-      .eq('gateway_name','sslcommerz').eq('gateway_transaction_id',tranId).maybeSingle();
-    if(!current)throw new NotFoundException('DRIVE payment intent not found.');
-    return {paymentId:current.id,status:current.status,receiptNumber:current.receipt_number};
+    const config=getDriveRuntimeConfig();
+    if(!config.drivePaymentWebhookSecret)throw new ServiceUnavailableException('Secure payment callback secret is not configured.');
+    const {data,error}=await this.database.publicClient().rpc('drive_mark_sslcommerz_failed',{
+      p_secret:config.drivePaymentWebhookSecret,p_tran_id:tranId,p_status:status,
+    });
+    if(error||!data)throw new ServiceUnavailableException(error?.message||'Payment status could not be updated.');
+    return data;
   }
 
   async submitReference(userId:string,token:string,paymentId:string,reference:string){
