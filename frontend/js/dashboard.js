@@ -218,7 +218,8 @@
       const meta=driveDate(payment.created_at)+(payment.provider_reference?' · ID: '+payment.provider_reference:'')+(payment.gateway_status==='risk_hold'?' · Gateway risk review':'');
       const status=payment.gateway_status==='risk_hold'?'risk_hold':payment.status;
       const receiptAction=payment.status==='paid'?miniButton('View receipt','data-payment-result',payment.id):miniButton('View status','data-payment-result',payment.id);
-      return item(driveMoney(payment.amount)+' '+payment.currency+' · '+payment.method,meta,status,refAction+receiptAction);
+      const amountText=payment.currency==='BDT'?driveMoney(payment.amount):Number(payment.amount).toFixed(2)+' '+payment.currency;
+      return item(amountText+' · '+payment.method,meta,status,refAction+receiptAction);
     }).join(''):'<div class="empty-state">No payments yet. Eligible trips can be paid from the trip list.</div>';
     $('paymentHistory').querySelectorAll('[data-reference]').forEach(button=>button.addEventListener('click',()=>{
       const payment=payments.find(p=>p.id===button.dataset.reference);const ride=rides.find(r=>r.rideId===payment?.ride_id);openPayment(ride,payment);
