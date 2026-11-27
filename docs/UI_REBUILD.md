@@ -18,11 +18,11 @@ No force-push or repository history rewrite is required.
 |---|---|
 | `index.html` | Map-first passenger ride booking, pickup/drop-off, vehicle choice, fare preview and safety/shared preferences |
 | `login.html` / `register.html` | Authentication |
-| `dashboard.html` | Passenger trips, trip history, activity, safety preferences and SOS alert |
-| `driver.html` | Driver application, availability, nearby requests, trip acceptance and trip status |
+| `dashboard.html` | Passenger trips, live driver map, trip history, payment intents, safety contacts, foreground Women Safety route monitoring, private share link and SOS contact actions |
+| `driver.html` | Driver application, availability, automatically refreshed nearby requests, trip acceptance, foreground driver GPS and active-trip location updates |
 | `owner.html` | Vehicle-owner application, vehicle listing and rental approvals |
 | `admin.html` | Admin overview, review queues, users, rides, rentals, safety alerts, payments and audit logs |
-| `vehicles.html` | Verified vehicle catalogue and rental requests |
+| `vehicles.html` | Verified vehicle catalogue, rental requests and manual/demo rental payment intents |
 | `profile.html` | Profile management |
 | `notifications.html` | Notification centre |
 | `explore.html` | Tourist destination discovery and saved plans |
