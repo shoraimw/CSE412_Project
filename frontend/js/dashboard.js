@@ -4,7 +4,8 @@
   const activeStates=['requested','matched','driver_arriving','in_progress'];
   const trackableStates=['matched','driver_arriving','in_progress'];
   let payments=[],tripMap=null,driverMarker=null,pickupMarker=null,destinationMarker=null,routeLine=null;
-  let trackedRideId=null,trackingTimer=null,paymentRide=null,pendingPaymentId=null,pendingPaymentMethod=null;\n  let safetySessions=[],safetyWatchId=null,safetyLocationSending=false;
+  let trackedRideId=null,trackingTimer=null,paymentRide=null,pendingPaymentId=null,pendingPaymentMethod=null;
+  let safetySessions=[],safetyWatchId=null,safetyLocationSending=false;
 
   const statusLabel=s=>String(s||'unknown').replaceAll('_',' ');
   const statusClass=s=>['completed','paid','approved','success'].includes(s)?'success':['pending','requested','matched','driver_arriving','in_progress','new'].includes(s)?'warning':['rejected','cancelled','failed'].includes(s)?'danger':'';
@@ -99,6 +100,7 @@
         pendingPaymentMethod=method;
         if(!pendingPaymentId)throw new Error('Payment intent was not created.');
         if(['bkash','nagad'].includes(method)){
+          $('paymentMethod').disabled=true;
           $('paymentReferenceWrap').hidden=false;$('paymentReference').required=true;
           $('paymentMessage').textContent=result.message+' Enter the demo transaction ID below. No money has been collected.';
           $('paymentSubmit').textContent='Submit transaction ID';
@@ -308,6 +310,7 @@
     if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>send({lat:p.coords.latitude,lng:p.coords.longitude}),()=>send(undefined),{timeout:7000});
     else send(undefined);
   });
-  $('logoutButton')?.addEventListener('click',()=>{stopSafetyLocationWatch();driveClearSession();location.href='index.html';});\n  window.addEventListener('pagehide',stopSafetyLocationWatch);
+  $('logoutButton')?.addEventListener('click',()=>{stopSafetyLocationWatch();driveClearSession();location.href='index.html';});
+  window.addEventListener('pagehide',stopSafetyLocationWatch);
   load();
 })();
