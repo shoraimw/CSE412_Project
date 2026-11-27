@@ -194,8 +194,12 @@
       if(status==='matched')next='driver_arriving';
       else if(status==='driver_arriving')next='in_progress';
       else if(status==='in_progress')next='completed';
+      const finalFare=ride.actualFare;
+      const fareText=finalFare!==null&&finalFare!==undefined?driveMoney(finalFare)+' final':driveMoney(ride.estimatedFare)+' estimated';
       const label=({driver_arriving:'Arrived at pickup',in_progress:'Start trip',completed:'Complete trip'})[next]||'';
-      return '<div class="list-item"><div class="list-item-main"><strong>'+driveEscape(ride.pickupAddress||'Pickup')+' → '+driveEscape(ride.destinationAddress||'Destination')+'</strong><small>'+driveDate(ride.createdAt)+' · '+driveMoney(ride.estimatedFare)+'</small><span class="pill '+stateClass(status)+'">'+driveEscape(status.replaceAll('_',' '))+'</span></div>'+(next?'<button class="button-mini dark" data-status="'+driveEscape(ride.id)+'" data-next="'+next+'">'+label+'</button>':'')+'</div>';
+      const action=next?'<button class="button-mini dark" data-status="'+driveEscape(ride.id)+'" data-next="'+next+'">'+label+'</button>':status==='completed'&&finalFare==null?'<button class="button-mini dark" data-finalize="'+driveEscape(ride.id)+'">Retry final fare</button>':'';
+      const fareState=status==='completed'&&finalFare==null?'<span class="pill warning">Final fare pending</span>':'';
+      return '<div class="list-item"><div class="list-item-main"><strong>'+driveEscape(ride.pickupAddress||'Pickup')+' → '+driveEscape(ride.destinationAddress||'Destination')+'</strong><small>'+driveDate(ride.createdAt)+' · '+fareText+'</small><span class="pill '+stateClass(status)+'">'+driveEscape(status.replaceAll('_',' '))+'</span>'+fareState+'</div>'+action+'</div>';
     }).join(''):'<div class="empty-state">Accepted trips will appear here.</div>';
 
     $('openRequests').querySelectorAll('[data-claim]').forEach(button=>button.addEventListener('click',async()=>{
@@ -205,6 +209,14 @@
         available=false;await refresh();
         if(activeTrips().length){startLocationWatch(false);setPresence('On trip','Trip in progress',true);}
         driveToast('Ride accepted. Your live trip tracking is active.');
+      }catch(error){driveToast(error.message);button.disabled=false;}
+    }));
+    $('assignedTrips').querySelectorAll('[data-finalize]').forEach(button=>button.addEventListener('click',async()=>{
+      button.disabled=true;
+      try{
+        const result=await driveRequest('/rides/'+encodeURIComponent(button.dataset.finalize)+'/finalize-fare',{method:'POST'});
+        await refresh();
+        driveToast(result.alreadyFinalized?'Final fare is already saved.':'Final fare calculated and passenger shares updated.');
       }catch(error){driveToast(error.message);button.disabled=false;}
     }));
     $('assignedTrips').querySelectorAll('[data-status]').forEach(button=>button.addEventListener('click',async()=>{
