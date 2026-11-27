@@ -314,13 +314,8 @@ export class AdminController {
       status:dto.status,method:payment.method,transactionReferenceSubmitted:Boolean(payment.provider_reference),
       gatewayStatus:payment.gateway_status,adminNote:dto.adminNote?.trim()||null,
     });
-    const notificationTitle=dto.status==='paid'?'Payment confirmed by DRIVE':'Payment marked as failed';
-    const notificationBody=dto.status==='paid'
-      ?'Your payment has been confirmed by the DRIVE administrator. Receipt: '+(data.receipt_number||'available in payment history')
-      :'Your payment was marked as failed by the DRIVE administrator. Contact support if you believe this is incorrect.';
-    const {error:notificationError}=await db.from('notifications').insert({
-      user_id:payment.user_id,title:notificationTitle,body:notificationBody,
-      type:'payment_'+dto.status,entity_id:id,
+    const {error:notificationError}=await db.rpc('drive_admin_notify_payment_status',{
+      p_payment_id:id,p_status:dto.status,p_note:dto.adminNote?.trim()||null,
     });
     if(notificationError)console.error('[DRIVE payment notification]',notificationError.message);
     return data;
