@@ -13,9 +13,11 @@ export class AuthService {
   }
 
   async oauthSession(accessToken:string,refreshToken:string) {
-    const {data,error}=await this.db.publicClient().auth.getUser(accessToken);
-    if(error||!data.user)throw new UnauthorizedException('Google sign-in session could not be verified.');
-    return this.sessionPayload({access_token:accessToken,refresh_token:refreshToken,expires_in:3600},data.user);
+    const {data,error}=await this.db.publicClient().auth.setSession({
+      access_token:accessToken,refresh_token:refreshToken,
+    });
+    if(error||!data.user||!data.session)throw new UnauthorizedException('Google sign-in session could not be verified.');
+    return this.sessionPayload(data.session,data.user);
   }
 
   async register(dto: RegisterDto) {
