@@ -121,7 +121,7 @@
     }, () => setMessage('Could not access your location. Check browser permission.', 'error'), {enableHighAccuracy:true,timeout:10000});
   });
   $('swapLocations')?.addEventListener('click', () => {
-    const oldPickup = pickup, oldDestination = destination;
+    routeCoordinates=[];\n    const oldPickup = pickup, oldDestination = destination;
     const oldPickupText = pickupInput.value, oldDestinationText = destinationInput.value;
     pickup = oldDestination; destination = oldPickup;
     pickupInput.value = oldDestinationText; destinationInput.value = oldPickupText;
