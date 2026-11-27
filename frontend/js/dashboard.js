@@ -85,7 +85,7 @@
   $('paymentMethod').addEventListener('change',()=>{
     const wallet=['bkash','nagad'].includes($('paymentMethod').value);
     $('paymentReferenceWrap').hidden=!wallet;
-    $('paymentReference').required=wallet;
+    $('paymentReference').required=false;
   });
   $('paymentForm').addEventListener('submit',async event=>{
     event.preventDefault();
@@ -150,11 +150,13 @@
     document.querySelectorAll('[data-pay]').forEach(button=>button.addEventListener('click',()=>{
       const ride=rides.find(r=>r.rideId===button.dataset.pay);if(ride)openPayment(ride);
     }));
-    document.querySelectorAll('[data-reference]').forEach(button=>button.addEventListener('click',()=>{
-      const payment=payments.find(p=>p.id===button.dataset.reference);
-      const ride=rides.find(r=>r.rideId===payment?.ride_id);
-      openPayment(ride,payment);
-    }));
+    ['activeRides','rideHistory'].forEach(containerId=>{
+      $(containerId).querySelectorAll('[data-reference]').forEach(button=>button.addEventListener('click',()=>{
+        const payment=payments.find(p=>p.id===button.dataset.reference);
+        const ride=rides.find(r=>r.rideId===payment?.ride_id);
+        openPayment(ride,payment);
+      }));
+    });
 
     $('recentActivity').innerHTML=notifications.items?.length?notifications.items.slice(0,5).map(note=>item(note.title,note.body,note.read_at?'':'new')).join(''):'<div class="empty-state">No new updates.</div>';
     $('paymentHistory').innerHTML=payments.length?payments.slice(0,8).map(payment=>{
