@@ -1,6 +1,7 @@
 # DRIVE requirement traceability and honest verification status
 
-Audit date: 2026-11-19  
+Baseline audit: 2026-11-19  
+Product-scope and active-UI supplement: 2026-11-28  
 Basis: the CSE412 project requirement document, current `main` code/database, the current feature branch, Supabase schema/policies/advisors, and the documented academic deployment constraints.
 
 ## Status legend
@@ -55,7 +56,7 @@ The current database trigger and catch-up path were exercised with temporary tra
 
 - Enable Supabase leaked-password protection in the Dashboard.
 - Configure and verify Supabase Auth Site URL, redirect allow-list and email OTP template.
-- Open `/presentation.html` for the role-by-role university demonstration sequence and live service checks.
+- The old `/presentation.html` route was removed in the 2026-11-28 frontend rebuild. Use the manual acceptance sequence in `docs/TESTING.md` and the active route map in `docs/UI_REBUILD.md`.
 - Keep only Supabase publishable/anon keys in the browser/Worker; never expose a service-role key.
 - For manual wallet payments, configure merchant account details with the project team and verify each submitted transaction ID in the official merchant app. Configure automatic gateway/webhook only after merchant eligibility and compliance are approved.
 - Configure a real SMS/WhatsApp/push provider only after delivery credentials and user consent are available.
@@ -72,8 +73,28 @@ The current database trigger and catch-up path were exercised with temporary tra
 - Duplicate mobile-wallet transaction references are prevented by a unique partial index.
 - Supabase Security Advisor no longer reports the exposed SECURITY DEFINER trip-share wrapper or multiple permissive application UPDATE policies. Leaked-password protection remains the one Security Advisor warning.
 - Frontend JavaScript syntax checks pass for the updated dashboard, rental, admin and Safety/Tourist scripts. GitHub Actions NestJS build, backend type-check, frontend validation and Cloudflare bundle validation passed for the release branch; the merged main commit also passed `npm run build`.
-- Cloudflare Pages production deployment succeeded for main commit `45c6e72b7cef45359124a685903a288dd7877ca9`; `/presentation.html` is publicly served.
-- Cloudflare Worker version 36 is deployed to 100% production traffic. The production bundle contains the payment-reference RPC, Realtime tracking/notification endpoints, nearby dispatch and security response headers.
+- The 2026-11-28 frontend rebuild has a Cloudflare Pages production deployment. Deployment success is not evidence that all functional requirements passed manual acceptance; check Cloudflare Pages for the latest deployed commit before a demonstration.
+- Cloudflare Worker deployment is separate from Pages. Verify that the Worker revision matches the active backend commit before a demonstration; a Pages-only deployment does not update the API Worker.
 - Production API readiness returned HTTP 200 with Supabase connected; the currency-catalog API returned HTTP 200 with 24 supported quote currencies.
 - The authenticated Realtime endpoint correctly rejects unauthenticated access. A real authenticated two-browser Passenger→Driver Realtime delivery test is still required before calling that specific end-to-end notification workflow fully verified.
 - Women Safety sharing was reviewed: live share tokens are generated for trusted contacts only; the mobile share sheet and contact-specific SMS/WhatsApp handoff are available; the shared map polls every five seconds. Full recipient delivery and mobile background GPS still require real-device acceptance testing and an SMS provider for automatic delivery.
+
+
+## Active UI rebuild and supplemental requirement review — 2026-11-28
+
+The new map-first screen is a UI convention only. DRIVE remains a multi-service ride-sharing and car/bike rental project. See `docs/PRODUCT_SCOPE_GUARDRAILS.md` for the binding product identity, 12 primary functional groups, domain rules and supplementary acceptance targets.
+
+The supplemental `Drive_Requirement_Analysis.pdf` adds detailed checks not fully enumerated as separate top-level groups in the submitted requirement PDF:
+- account recovery and verified identity submission;
+- ride cancellation and any applicable cancellation charge shown before confirmation;
+- final fare breakdown and successful-payment receipt;
+- supported currency, exchange rate and charge currency shown before confirmation;
+- notifications for booking, arrival, cancellation and payment;
+- passenger ratings/feedback and complaints;
+- Tourist Mode language and currency preferences.
+
+Code inspection of the active main branch found that account recovery, a dedicated rating/feedback/complaint flow, Tourist Mode language preference, explicit cancellation-charge disclosure and receipt generation are not evidenced in the current active route/API set. Treat these as gaps until implemented and tested or formally scoped with the faculty/team. The active vehicle DTO permits vehicle categories beyond the submitted cars/bikes scope; do not expand those categories without team approval.
+
+The numeric supplementary NFR acceptance targets are 100 concurrent users with p95 ordinary-request latency no greater than 3 seconds (excluding external-provider delay), tracking display refresh within 10 seconds after a new location update, and 8 of 10 first-time users completing a booking within 2 minutes without assistance. None is considered passed until measured. The existing k6 script is not a load-test result.
+
+This supplement is based on source inspection and documentation, not a completed end-to-end acceptance run. Separate Passenger, Driver, Vehicle Owner and Admin test accounts and real-device tests are still required.
