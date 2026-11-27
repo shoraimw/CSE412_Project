@@ -30,6 +30,7 @@ async function createHandler(bindings: Env) {
     supabaseUrl: bindings.SUPABASE_URL || '',
     supabaseAnonKey: bindings.SUPABASE_ANON_KEY || '',
     corsOrigin: bindings.CORS_ORIGIN || '',
+    appBaseUrl: bindings.DRIVE_PUBLIC_URL || 'https://drive-ewu.pages.dev',
     nodeEnv: 'production',
   });
 
