@@ -228,6 +228,8 @@
     }catch{$('safetyPreferences').innerHTML='<div class="empty-state">Safety preferences are unavailable.</div>';}
 
     setupTracking(active);
+    setupSafetyTracking(rides).catch(error=>{const node=$('safetyMonitor');if(node)node.textContent='Safety monitoring is unavailable: '+error.message;});
+    try{const warning=sessionStorage.getItem('drive_safety_warning');if(warning){$('safetyMessage').textContent='Women Safety setup needs attention: '+warning;$('safetyMessage').className='message error';sessionStorage.removeItem('drive_safety_warning');}}catch{}
     setupShareLink();
   }
 
