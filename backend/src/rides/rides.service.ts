@@ -43,11 +43,18 @@ export class RidesService{
   const durationMinutes=validRouteQuote&&Number.isFinite(Number(selectedRoute.durationMinutes))
     ?Math.max(1,Math.round(Number(selectedRoute.durationMinutes)))
     :Math.max(1,Math.round(estimatedKm/25*60));
-  const fareEstimate=this.fare.estimate({
+  const demandResult=await this.db(token).rpc('drive_demand_snapshot',{
+    p_lat:pickup.lat,p_lng:pickup.lng,p_vehicle_type:dto.vehicleType,p_radius_km:5,
+  }).catch(()=>({data:null,error:null}));
+  const demandRow=Array.isArray(demandResult.data)?demandResult.data[0]:demandResult.data;
+  const fareEstimate=await this.fare.estimate({
     distanceKm:estimatedKm,
     vehicleType:dto.vehicleType,
     durationMinutes,
-  });
+  },demandRow?{
+    openRequests:Number(demandRow.open_requests||0),
+    availableDrivers:Number(demandRow.available_drivers||0),
+  }:undefined);
   const fare=fareEstimate.estimatedFare;
 
   const payload={
