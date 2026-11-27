@@ -14,7 +14,7 @@
 
   function paymentFor(ride){return payments.find(p=>p.ride_id===ride.rideId)||null;}
   function ridePaymentAction(ride){
-    if(!ride.rideId||!['in_progress','completed'].includes(ride.status))return '';
+    if(!ride.rideId||ride.status!=='completed')return '';
     const payment=paymentFor(ride);
     if(payment?.status==='paid')return '<span class="pill success">Paid</span>';
     if(payment?.status==='pending'){
@@ -73,21 +73,32 @@
 
   function openPayment(ride,existing=null){
     paymentRide=ride||null;pendingPaymentId=existing?.id||null;pendingPaymentMethod=existing?.method||null;
-    $('paymentRideSummary').textContent=ride?'Your passenger fare share · '+driveMoney(ride.passengerFare??ride.estimatedFare):'Submit your wallet transaction ID';
+    $('paymentRideSummary').textContent=ride?'Your passenger fare share · '+driveMoney(ride.passengerFare??ride.actualFare??ride.estimatedFare):'Submit your wallet transaction ID';
     $('paymentMethod').value=existing?.method||'cash';
     $('paymentMethod').disabled=Boolean(existing);
+    $('paymentCurrency').value='BDT';
+    $('paymentCurrency').disabled=Boolean(existing);
     $('paymentReferenceWrap').hidden=!existing;
     $('paymentReference').required=Boolean(existing);
     $('paymentReference').value='';
-    $('paymentMessage').textContent=existing?'Enter the transaction ID from your bKash or Nagad demo transfer. No real money is collected.':'Choose a method. Wallet payments require a transaction ID for manual admin review.';
+    $('paymentMessage').textContent=existing?'Enter the transaction ID from your bKash or Nagad transfer. No money is collected by DRIVE.':'Cash is confirmed by the driver/admin. bKash/Nagad references require manual review. Online card payments open the SSLCOMMERZ secure checkout.';
     $('paymentSubmit').textContent=existing?'Submit transaction ID':'Continue';
+    syncPaymentOptions();
     $('paymentDialog').showModal();
   }
-  $('paymentMethod').addEventListener('change',()=>{
-    const wallet=['bkash','nagad'].includes($('paymentMethod').value);
+  function syncPaymentOptions(){
+    const method=$('paymentMethod').value;
+    const wallet=['bkash','nagad'].includes(method);
+    const card=method==='card';
     $('paymentReferenceWrap').hidden=!wallet;
-    $('paymentReference').required=false;
-  });
+    $('paymentReference').required=wallet;
+    $('paymentCurrencyWrap').hidden=!card;
+    $('paymentCurrency').required=card;
+    if(wallet)$('paymentMessage').textContent='Enter the bKash/Nagad transaction reference after transferring. An administrator must verify it in the merchant account.';
+    if(card)$('paymentMessage').textContent='You will be redirected to SSLCOMMERZ secure checkout. DRIVE will show Paid only after server-side gateway validation.';
+    if(method==='cash')$('paymentMessage').textContent='Cash is recorded as pending until the driver or administrator confirms receipt.';
+  }
+  $('paymentMethod').addEventListener('change',syncPaymentOptions);
   $('paymentForm').addEventListener('submit',async event=>{
     event.preventDefault();
     const button=$('paymentSubmit');button.disabled=true;
@@ -95,14 +106,25 @@
       if(!pendingPaymentId){
         if(!paymentRide?.rideId)throw new Error('The ride is not available for payment.');
         const method=$('paymentMethod').value;
-        const result=await driveRequest('/payments/intent',{method:'POST',body:JSON.stringify({rideId:paymentRide.rideId,method,currency:'BDT'})});
+        const currency=method==='card'?$('paymentCurrency').value:'BDT';
+        const result=await driveRequest('/payments/intent',{method:'POST',body:JSON.stringify({rideId:paymentRide.rideId,method,currency})});
         pendingPaymentId=result.payment?.id;
         pendingPaymentMethod=method;
         if(!pendingPaymentId)throw new Error('Payment intent was not created.');
+        if(method==='card'){
+          if(!result.checkoutUrl)throw new Error('SSLCOMMERZ did not return a secure checkout URL.');
+          const checkout=new URL(result.checkoutUrl);
+          if(checkout.protocol!=='https:'||!['sandbox.sslcommerz.com','securepay.sslcommerz.com'].includes(checkout.hostname)){
+            throw new Error('The gateway returned an untrusted checkout destination. Please contact DRIVE support.');
+          }
+          $('paymentMessage').textContent='Opening secure SSLCOMMERZ checkout…';
+          location.assign(checkout.toString());
+          return;
+        }
         if(['bkash','nagad'].includes(method)){
           $('paymentMethod').disabled=true;
           $('paymentReferenceWrap').hidden=false;$('paymentReference').required=true;
-          $('paymentMessage').textContent=result.message+' Enter the demo transaction ID below. No money has been collected.';
+          $('paymentMessage').textContent=result.message+' Enter the transaction ID below. No money has been collected by DRIVE.';
           $('paymentSubmit').textContent='Submit transaction ID';
           return;
         }
