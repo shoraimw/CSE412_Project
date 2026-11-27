@@ -5,9 +5,14 @@
   "type": "module",
   "engines": { "node": "22.x" },
   "scripts": {
-    "dev": "npm --prefix backend run start:dev",
-    "build": "npm --prefix backend install --no-audit --no-fund && npm --prefix backend run typecheck && npm --prefix backend run build",
+    "dev": "wrangler dev",
+    "build": "npm --prefix backend install --no-audit --no-fund && npm --prefix backend run typecheck && npm --prefix backend run build && wrangler deploy --dry-run",
+    "build:vercel": "npm --prefix backend install --no-audit --no-fund && npm --prefix backend run typecheck && npm --prefix backend run build",
     "typecheck": "npm --prefix backend run typecheck",
-    "smoke": "node scripts/smoke-check.mjs"
+    "smoke": "node scripts/smoke-check.mjs",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.45.0"
   }
 }

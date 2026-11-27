@@ -2,53 +2,43 @@
 
 DRIVE is an East West University CSE412 project for ride booking, shared journeys, vehicle rental, passenger safety and tourist planning.
 
-## Current architecture
+## Active production architecture (verified 2026-11-28)
 
-- **Frontend:** existing HTML, CSS and Vanilla JavaScript application in `frontend/`
-- **Backend:** NestJS 11 + TypeScript in `backend/`
+- **Frontend:** HTML, CSS and Vanilla JavaScript in `frontend/`
+- **API:** NestJS 11 + TypeScript in `backend/`
+- **Static hosting:** Cloudflare Pages project `drive-ewu`
+- **API runtime:** Cloudflare Worker `cse412-project`
+- **Pages-to-API routing:** Cloudflare Pages Function `functions/api/[[path]].js` using the `DRIVE_API` service binding
 - **Database and authentication:** Supabase PostgreSQL, Supabase Auth and Row Level Security
-- **Hosting:** Vercel (static frontend + serverless NestJS API)
-- **Maps and routing:** OpenStreetMap, Leaflet, Nominatim and OSRM
+- **Maps:** Leaflet/OpenStreetMap, Nominatim and OSRM
 - **API prefix:** `/api`
 
-The current frontend/backend structure is intentionally retained for the first Vercel release. Replacing it with a new framework before validating the existing application would add migration risk and delay the first working release. Backend services are already TypeScript. A frontend TypeScript migration can be considered module by module after the release baseline is stable.
+The production site is `https://drive-ewu.pages.dev`. The active Pages production branch is `main`.
 
-## Vercel deployment
+## Deployment and stale-build protection
 
-The repository root is the Vercel project root.
+The stale website issue was traced to Cloudflare Pages `path_includes`: it previously watched only selected frontend and Pages Function folders. Backend, database and deployment-only commits were skipped, leaving an older successful deployment as the canonical site.
 
-- Root Directory: `./`
-- Framework Preset: `Other`
-- Build Command: defined in `vercel.json`
-- Output Directory: `frontend`
-- API Function: `api/[...path].js`
-- Function bundle: `backend/dist/**`
-- Primary production branch: `main`
+The Pages project now watches all repository paths (`path_includes: ["*"]`). A new production deployment was triggered from commit `8e1c67c25b4e863f294dbf065923d00c69ab4aa2` and completed successfully. The production deployment URL is `https://091f592d.drive-ewu.pages.dev`; the Pages canonical deployment now points to that release.
 
-See [docs/VERCEL_DEPLOYMENT.md](docs/VERCEL_DEPLOYMENT.md) for setup and smoke-test instructions.
+The API Worker is deployed separately from the static Pages frontend. The GitHub Actions workflow `.github/workflows/cloudflare-deploy.yml` now rebuilds and deploys the Worker for backend/config changes on `main`. It requires the GitHub repository Actions secret `CLOUDFLARE_API_TOKEN` with Workers Scripts:Edit permission. If the secret is missing, the workflow explicitly warns that only the static frontend was deployed.
 
-Vercel deploys from GitHub. A push to `main` can trigger a production deployment, so changes must pass validation before they are pushed.
+- Pages build output: `frontend/`
+- Worker entrypoint: `backend/src/worker.ts`
+- Worker config: `wrangler.jsonc`
+- Local development: `npm install && npm run dev`
+- Full build check: `npm run build`
+- Production Worker deploy: `npm run deploy` (after validation and approval)
 
-## Environment variables
+See [docs/CLOUDFLARE_DEPLOYMENT.md](docs/CLOUDFLARE_DEPLOYMENT.md).
 
-Configure these in Vercel Project Settings → Environment Variables:
+## Supabase
 
-| Variable | Purpose |
-|---|---|
-| `SUPABASE_URL` | Supabase project URL |
-| `SUPABASE_ANON_KEY` | Supabase publishable key (or legacy anon key) |
+Project: `CSE412_Project`, region `ap-southeast-1`.
 
-Use the same variable names for Preview and Production, but prefer a separate Supabase development project for Preview when available. Never put a service-role key in frontend code or public environment variables.
+The baseline schema and all existing incremental feature migrations were applied to the previously empty project. The current public schema contains 23 DRIVE application tables with RLS enabled. The database migration history contains 36 applied entries, including the baseline and incremental feature migrations.
 
-The checked-in `backend/.env.example` contains placeholders only.
-
-## Database bootstrap status — important
-
-The connected Supabase project was inspected on 2026-11-28. Its `public` schema contains no DRIVE application tables, and its Supabase migration history is empty.
-
-The repository contains incremental feature migrations, but the original bootstrap schema is not committed. Those later migrations assume that core tables, enum types, helper functions and policies already exist.
-
-**Do not replay the existing incremental migrations against the empty database yet.** A reviewed baseline migration must be created and validated first. See [docs/DATABASE_BOOTSTRAP_AUDIT.md](docs/DATABASE_BOOTSTRAP_AUDIT.md).
+The baseline migration SQL must remain in the repository and be kept in sync with the migration history before treating this as a reproducible fresh-install workflow. Do not reset the project or apply destructive schema changes without review.
 
 ## Functional scope
 
@@ -67,31 +57,29 @@ The project requirements define 12 functional requirement groups:
 11. Smart Emergency & Safe Trip System
 12. Tourist Mode
 
-They also define five non-functional requirements: Performance, Usability, Scalability, Security and Portability, plus domain requirements for roles, verified drivers, non-overlapping rentals, non-conflicting driver assignments, fare correctness, payments and safety.
+They also define five non-functional requirements: Performance, Usability, Scalability, Security and Portability.
 
-See [docs/REQUIREMENTS_TRACEABILITY.md](docs/REQUIREMENTS_TRACEABILITY.md). Existing code is not considered production-ready until the corresponding database, integration and acceptance tests pass.
+See [docs/REQUIREMENTS_TRACEABILITY.md](docs/REQUIREMENTS_TRACEABILITY.md) and [docs/TESTING.md](docs/TESTING.md). A page, button, table or successful build alone is not proof of end-to-end completion.
 
-## Known integration boundaries
+## Important service boundaries
 
-- **Payments:** the current code supports payment intents and manual bKash/Nagad reference review. No automatic merchant gateway or verified payment webhook is configured.
-- **Emergency assistance:** SOS records and in-app admin alerts are supported in the existing implementation. No police dispatch or guaranteed SMS/WhatsApp delivery is configured.
-- **Location tracking:** browser-based foreground GPS is not equivalent to native background GPS. Test on real mobile browsers.
-- **Maps:** public OpenStreetMap/OSRM endpoints are best-effort and do not provide guaranteed live traffic. Review provider usage policies before commercial traffic.
-- **AI claims:** deterministic fare formulas and route-provider alternatives must not be described as trained ML/AI models.
-- **Scale:** no user or concurrency capacity should be claimed until staged load tests have been executed and measured.
+- **Payments:** bKash/Nagad transaction references can be submitted and manually reviewed. No automatic merchant gateway or payment webhook is connected.
+- **Emergency assistance:** SOS is stored and administrators receive in-app alerts. No police dispatch or guaranteed SMS/WhatsApp delivery is configured.
+- **Location:** browser foreground GPS is not native background tracking. Test on real phones.
+- **Maps:** public OpenStreetMap/OSRM services provide standard road estimates, not guaranteed live traffic or commercial SLAs.
+- **Fare:** current estimate is a deterministic formula, not a trained ML model.
+- **Scale:** no concurrent-user capacity is claimed until staged load tests are run and measured.
 
-## Git and release workflow
+## Security and release checklist
 
-- `main` is the active development and production branch, as requested by the project owner.
-- Previous implementation is preserved in Git history and the `archive/pre-v2-main-20261128` snapshot branch.
-- Do not force-push or reset `main`.
-- Keep commits small and descriptive.
-- Run validation before each push because Vercel may deploy `main` automatically.
-- Do not apply destructive production database changes without explicit approval.
-
-## Local development
-
-Local development is optional. The owner does not need to install Node.js or Docker for the GitHub/Vercel cloud workflow. CI and Vercel perform builds in their cloud environments.
+- Public registration creates Passenger accounts only.
+- Driver and Vehicle Owner privileges require application and administrator approval.
+- Authenticated APIs validate Supabase access tokens and use user-scoped clients.
+- RLS is enabled on all DRIVE public application tables.
+- Never expose Supabase service-role credentials in browser code, Git or public environment variables.
+- Enable Supabase leaked-password protection before public launch.
+- Verify cross-user isolation, all role workflows, mobile GPS and emergency handoff on dedicated test accounts.
+- Run staged load and recovery tests before real-world use.
 
 ## Team
 

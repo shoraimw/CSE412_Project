@@ -21,6 +21,9 @@ jobs:
         with:
           node-version: 22
 
+      - name: Install root deployment dependencies
+        run: npm install --no-audit --no-fund
+
       - name: Install backend dependencies
         run: npm install --no-audit --no-fund
         working-directory: backend
@@ -29,7 +32,7 @@ jobs:
         run: npm run typecheck
         working-directory: backend
 
-      - name: Build NestJS backend for Vercel
+      - name: Build NestJS backend
         run: npm run build
         working-directory: backend
 
@@ -37,18 +40,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          while IFS= read -r -d '' file; do
-            node --check "$file"
-          done < <(find frontend/js -type f -name '*.js' -print0)
+          while IFS= read -r -d '' file; do node --check "$file"; done < <(find frontend/js -type f -name '*.js' -print0)
 
-      - name: Validate Vercel API entrypoint
-        run: node --check 'api/[...path].js'
+      - name: Validate Vercel API adapter and configuration
+        run: |
+          node --check 'api/[...path].js'
+          node --input-type=module -e "import { readFileSync } from 'node:fs'; JSON.parse(readFileSync('vercel.json', 'utf8'));"
 
-      - name: Validate Vercel configuration
-        run: node --input-type=module -e "import { readFileSync } from 'node:fs'; JSON.parse(readFileSync('vercel.json', 'utf8'));"
-
-      - name: Check application assets and deployment wiring
+      - name: Validate application assets
         run: npm run smoke
+
+      - name: Validate Cloudflare Worker bundle
+        run: npx wrangler deploy --dry-run
 
       - name: Ensure no server-only Supabase key is exposed in frontend
         shell: bash

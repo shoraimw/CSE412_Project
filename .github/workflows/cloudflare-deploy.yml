@@ -1,13 +1,42 @@
-name: Archived — Cloudflare deploy disabled
+name: Deploy DRIVE API Worker
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'wrangler.jsonc'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/cloudflare-deploy.yml'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  retired:
+  deploy:
     runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
     steps:
-      - name: Explain current pipeline
-        run: |
-          echo "Cloudflare deployment is intentionally disabled for the Vercel-first release. Do not deploy this repository with Wrangler."
-          echo "The active validation workflow is .github/workflows/drive-validation.yml."
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Validate and build Worker
+        run: npm run build
+      - name: Deploy API Worker
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: 0f20ed886931ae4004982c7112f42636
+          command: deploy
+      - name: Explain skipped Worker deployment
+        if: ${{ env.CLOUDFLARE_API_TOKEN == '' }}
+        run: echo "::warning::CLOUDFLARE_API_TOKEN is not configured. The static Pages site may deploy, but the API Worker was not updated. Add the GitHub Actions secret to enable automatic backend releases."

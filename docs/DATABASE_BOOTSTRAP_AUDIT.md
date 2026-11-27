@@ -4,56 +4,45 @@ Audit date: 2026-11-28
 Supabase project: `CSE412_Project`  
 Region: `ap-southeast-1`
 
-## Observed remote state
+## Initial and current state
 
-The connected project is active and healthy.
+The project was initially active but had no DRIVE application tables and an empty migration history.
 
-- The `public` schema currently has no DRIVE application tables.
-- Supabase migration history is empty.
-- Supabase system schemas (Auth, Storage and Realtime) are present; they are managed by Supabase and are not DRIVE application tables.
+A baseline schema was then applied, followed by the repository's incremental feature migrations and a security/performance cleanup migration.
 
-## Repository migration state
+Current verification:
+- 23 DRIVE application tables exist in `public`.
+- All 23 tables have Row Level Security enabled.
+- 36 migration records are present in Supabase migration history.
+- Tourist destination seed records are present.
+- Driver applications, owner applications, driver locations, safety sessions, trip shares and admin audit tables exist.
+- The Supabase project is healthy.
 
-The repository contains later feature migrations under `supabase/migrations/`, beginning with sensitive-write guards and feature extensions.
+## Baseline scope
 
-Those migrations refer to pre-existing objects such as:
+The baseline includes profiles and roles; driver documents; vehicles; ride requests, rides, ride passengers and trip locations; rental bookings; payments; reviews; notifications; trusted contacts and safety preferences; safety alerts; tourist places and plans; helper functions, profile trigger, indexes and initial RLS policies.
 
-- `public.profiles`
-- `public.vehicles`
-- `public.driver_documents`
-- `public.payments`
-- `public.ride_requests`
-- `public.rides`
-- `public.ride_passengers`
-- `public.rental_bookings`
-- `public.notifications`
-- `public.trusted_contacts`
-- `public.user_safety_preferences`
-- `public.tourist_places`
-- `public.tourist_plans`
-- The `public.drive_role` type and helper functions in the `private` schema.
+Incremental migrations add driver/owner application workflows, Women Safety sessions and expiring shares, shared rides, driver dispatch, notifications, admin review/audit, payment proof, transaction state guards and security policy hardening.
 
-The original bootstrap SQL that created these objects is not present in the current repository migration history.
+## Compatibility fix
 
-## Safety decision
+The first baseline defined tourist-place IDs as text, while the existing feature migration inserts records using generated UUID IDs. This mismatch was corrected before the tourist-plan migration was applied: the seed-only destination records were cleared and the column was converted to UUID with a generated default. No user-created tourist plans existed at that time.
 
-Do not apply the existing incremental migration files to this empty database yet. They are not a complete fresh-install sequence.
+## Security review
 
-Do not reset the Supabase project. Do not modify Supabase system schemas. Do not insert a hard-coded administrator or sample production user.
+- RLS is enabled on every DRIVE public table.
+- The public schema's `rls_auto_enable()` event-trigger function has had API execute privileges revoked; it remains an event trigger function.
+- The `btree_gist` extension was moved into the `extensions` schema.
+- Duplicate permissive policies were removed from ride requests and tourist places.
+- Duplicate trip-location indexes were removed.
+- Missing foreign-key indexes were added.
 
-## Required next database milestone
+The Security Advisor should be re-run after any further schema change. Supabase leaked-password protection still needs to be enabled in Dashboard → Authentication → Security.
 
-1. Reconstruct the base schema from the current NestJS modules, frontend contracts and all existing SQL migrations.
-2. Create a versioned baseline migration that creates required enums, schemas, tables, constraints, indexes, triggers, RLS policies and helper functions in dependency order.
-3. Validate the baseline in an isolated PostgreSQL/Supabase development environment.
-4. Reconcile and order the existing incremental migrations, including duplicate or superseded migrations.
-5. Apply the reviewed migration sequence to the connected project only after confirming it is the intended DRIVE database.
-6. Verify the resulting tables, RLS policies, RPC grants and Supabase Security Advisor findings.
+## Important reproducibility follow-up
 
-The migration must be idempotent where practical, but must not hide schema drift by silently ignoring unexpected errors.
+The baseline SQL and its version must be checked into `supabase/migrations/` in the correct chronological order alongside every incremental migration. The Supabase migration history currently records the baseline and later migrations as applied. Do not reset the database. Before setting up a new Supabase project, verify that the repository migration filenames exactly match the applied versions and that a fresh isolated database can run the complete sequence from empty state.
 
-## Minimum entities to reconcile
+## Safety
 
-Profiles and roles; driver and vehicle-owner applications; driver documents and locations; vehicles and rental bookings; ride requests, rides, ride passengers and trip locations; fare configuration/quotes; payments; notifications; trusted contacts and safety preferences; safety alerts and trip sessions/locations/shares; tourist places and plans; admin audit logs.
-
-The final schema may normalize or combine entities where justified by the actual application behavior. This list is a reconciliation checklist, not a mandate to create one table per bullet.
+Do not reset the Supabase project, drop user tables, delete auth users, or replay incremental migrations against production without reviewing the expected state.

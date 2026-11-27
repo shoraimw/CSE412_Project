@@ -4,60 +4,48 @@ Audit date: 2026-11-28
 Repository: `shoraimw/CSE412_Project`  
 Active branch: `main`
 
-## ADR-001 — Preserve the existing application structure for the first release
+## ADR-001 — Retain the existing application structure
 
-**Decision:** Retain the existing static frontend (HTML/CSS/Vanilla JavaScript) and NestJS 11 + TypeScript backend for the first Vercel release.
+Keep the existing static HTML/CSS/Vanilla JavaScript frontend and NestJS 11 + TypeScript backend for the current release. The repository already contains role-specific pages and modular API services. A framework rewrite is deferred until the deployed release is stable.
 
-**Reasoning:**
-- The repository already contains passenger, driver, vehicle-owner and admin pages.
-- The backend already has separate NestJS modules for authentication, users, rides, rentals, fares, routes, payments, safety, tourist services, notifications and administration.
-- The root repository already contains a Vercel serverless adapter and deployment configuration.
-- A framework rewrite to Next.js before validating the current implementation would add migration work and delay the first usable release.
+## ADR-002 — Cloudflare Pages + Workers is the active production host
 
-Backend code remains TypeScript. A frontend TypeScript migration can be evaluated incrementally after the first stable release.
+The actual connected production project is Cloudflare Pages `drive-ewu`, connected to `shoraimw/CSE412_Project` with production branch `main`.
 
-## ADR-002 — Vercel is the primary application host
+- Static assets: `frontend/`
+- Pages API catch-all: `functions/api/[[path]].js`
+- API service binding: `DRIVE_API`
+- Worker: `cse412-project`
+- Worker entrypoint: `backend/src/worker.ts`
+- Worker config: `wrangler.jsonc`
+- Supabase URL and publishable key are stored as Worker secrets.
 
-**Decision:** Deploy the frontend and API from the repository root on Vercel.
+The stale-build root cause was a restrictive Pages `path_includes` filter. It is now `["*"]`, so backend, database, deployment and frontend commits all trigger a production Pages build.
 
-- Static frontend output: `frontend/`
-- Vercel function entrypoint: `api/[...path].js`
-- NestJS compiled output: `backend/dist/`
-- API prefix: `/api`
-- Primary function region: Singapore (`sin1`) to reduce round-trip latency to the Supabase Singapore project.
+The current Pages deployment from commit `8e1c67c25b4e863f294dbf065923d00c69ab4aa2` completed successfully.
 
-Cloudflare deployment workflows are disabled for the active V2 release. Existing Wrangler configuration remains in Git history and is not used by the Vercel release.
+## ADR-003 — Supabase is the data platform
 
-## ADR-003 — Supabase is the application data platform
-
-**Decision:** Use the connected Supabase project for PostgreSQL, Auth and RLS.
-
-All application data access must use user-scoped Supabase clients and server-side role checks. Never expose a service-role key in frontend assets.
+Use Supabase PostgreSQL, Auth and RLS. All authenticated API database access uses user-scoped Supabase clients. Do not expose a service-role key in browser assets.
 
 ## ADR-004 — Main is the active branch
 
-**Decision:** The project owner requested direct development commits to `main`.
+The project owner requested direct work on `main`. Previous implementation remains in Git history. Do not force-push or reset `main`.
 
-The previous implementation is preserved in Git history and the `archive/pre-v2-main-20261128` branch. Do not force-push, reset or delete the archive.
+## ADR-005 — Deploy frontend and API independently
 
-Because a push to `main` may trigger Vercel Production deployment, validate each change before pushing.
+Cloudflare Pages serves static frontend assets. The `DRIVE_API` service binding forwards `/api/*` to the separate Worker. A Pages build does not update the Worker source. Therefore, backend/config changes must also run the Cloudflare Worker deployment workflow.
 
-## ADR-005 — Database bootstrap is a release blocker
+The GitHub Actions Worker deployment workflow requires `CLOUDFLARE_API_TOKEN`. It emits a warning rather than claiming deployment success if the secret is absent.
 
-The connected Supabase project was inspected on 2026-11-28:
+## ADR-006 — Vercel is not currently linked
 
-- The `public` schema contains no DRIVE application tables.
-- Supabase migration history is empty.
-- The repository contains incremental migrations that assume an earlier base schema.
+A Vercel configuration is retained as a possible future hosting option, but the Vercel team has no DRIVE project linked to this repository. The Vercel connection currently lacks permission to create a project. Do not call Vercel the active host until the owner approves team access and a successful production deployment is verified.
 
-A fresh, reviewed baseline migration must be reconstructed and validated before applying the incremental migrations. See [DATABASE_BOOTSTRAP_AUDIT.md](DATABASE_BOOTSTRAP_AUDIT.md).
+## Deferred
 
-## Deferred decisions
-
-- Whether to migrate the frontend to TypeScript/React/Next.js.
-- Whether to add a dedicated routing provider with guaranteed traffic data.
-- Whether to integrate live bKash/Nagad merchant APIs.
-- Whether to add native mobile background GPS and push notifications.
-- Whether to split the modular monolith into separate services.
-
-These decisions require demonstrated product or operational need, not technology preference alone.
+- Frontend TypeScript/React migration.
+- Live traffic routing provider.
+- Automatic bKash/Nagad merchant gateway.
+- Native mobile background GPS and push notifications.
+- Separate microservices.
