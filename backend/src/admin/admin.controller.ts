@@ -89,6 +89,15 @@ export class AdminController {
     @Body() dto: ReviewDto,
   ) {
     const db = this.client(request);
+    if(dto.status==='approved'){
+      const {data:application,error:applicationError}=await db.from('driver_applications').select('user_id').eq('id',id).maybeSingle();
+      if(applicationError||!application)throw new NotFoundException(applicationError?.message||'Driver application not found.');
+      const {data:documents,error:documentsError}=await db.from('driver_documents').select('document_type,verification_status').eq('driver_id',application.user_id).in('document_type',['license_front','license_back','national_id']);
+      if(documentsError)throw new BadRequestException(documentsError.message);
+      const approved=new Set((documents||[]).filter((d:any)=>d.verification_status==='approved').map((d:any)=>d.document_type));
+      const missing=['license_front','license_back','national_id'].filter(type=>!approved.has(type));
+      if(missing.length)throw new BadRequestException('Approve the required Driver documents first: '+missing.join(', ')+'.');
+    }
     const { data, error } = await db.rpc('drive_admin_review_driver_application', {
       p_application_id: id,
       p_status: dto.status,
@@ -121,6 +130,15 @@ export class AdminController {
     @Body() dto: ReviewDto,
   ) {
     const db = this.client(request);
+    if(dto.status==='approved'){
+      const {data:application,error:applicationError}=await db.from('vehicle_owner_applications').select('user_id').eq('id',id).maybeSingle();
+      if(applicationError||!application)throw new NotFoundException(applicationError?.message||'Vehicle Owner application not found.');
+      const {data:documents,error:documentsError}=await db.from('owner_documents').select('document_type,verification_status').eq('owner_id',application.user_id).is('vehicle_id',null).in('document_type',['national_id','business_license']);
+      if(documentsError)throw new BadRequestException(documentsError.message);
+      const approved=new Set((documents||[]).filter((d:any)=>d.verification_status==='approved').map((d:any)=>d.document_type));
+      const missing=['national_id','business_license'].filter(type=>!approved.has(type));
+      if(missing.length)throw new BadRequestException('Approve the required Vehicle Owner documents first: '+missing.join(', ')+'.');
+    }
     const { data, error } = await db.rpc('drive_admin_review_owner_application', {
       p_application_id: id,
       p_status: dto.status,
@@ -155,7 +173,7 @@ export class AdminController {
     const db = this.client(request);
     const { data: existing, error: readError } = await db
       .from('vehicles')
-      .select('id,verification_status')
+      .select('id,owner_id,verification_status')
       .eq('id', id)
       .maybeSingle();
     if (readError || !existing) throw new NotFoundException(readError?.message || 'Vehicle not found.');
@@ -163,6 +181,13 @@ export class AdminController {
       throw new BadRequestException('Only pending vehicles can be reviewed.');
     }
     const approved = dto.status === 'approved';
+    if(approved){
+      const {data:registration,error:registrationError}=await db.from('owner_documents')
+        .select('id').eq('owner_id',existing.owner_id).eq('vehicle_id',id)
+        .eq('document_type','vehicle_registration').eq('verification_status','approved').limit(1);
+      if(registrationError)throw new BadRequestException(registrationError.message);
+      if(!registration?.length)throw new BadRequestException('Approve the vehicle registration document before approving this vehicle.');
+    }
     const { data, error } = await db
       .from('vehicles')
       .update({
