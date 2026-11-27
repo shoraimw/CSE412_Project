@@ -20,3 +20,8 @@ export class VerifyPhoneOtpDto extends PhoneOtpDto {
 export class UpdatePasswordDto {
   @IsString() @MinLength(8) @MaxLength(72) password!: string;
 }
+
+export class OAuthSessionDto {
+  @IsString() @MinLength(20) @MaxLength(4096) accessToken!: string;
+  @IsString() @MinLength(20) @MaxLength(4096) refreshToken!: string;
+}
