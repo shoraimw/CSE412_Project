@@ -176,7 +176,12 @@
       driveRequest('/rides').catch(()=>[])
     ]);
     assignedTrips=Array.isArray(trips)?trips:[];
+    const completedTrips=assignedTrips.filter(ride=>ride.status==='completed');
+    const finalizedFares=completedTrips.filter(ride=>ride.actualFare!==null&&ride.actualFare!==undefined);
+    const grossFare=finalizedFares.reduce((total,ride)=>total+Number(ride.actualFare||0),0);
     $('openCount').textContent=requests.length;$('driverTripCount').textContent=assignedTrips.length;
+    $('completedTripCount').textContent=completedTrips.length;
+    $('driverFareTotal').textContent=driveMoney(grossFare);
     $('openRequests').innerHTML=requests.length?requests.map(ride=>{
       const requestId=ride.requestId||ride.id;
       return '<div class="list-item"><div class="list-item-main"><strong>'+driveEscape(ride.pickupAddress||ride.pickup_label||'Pickup')+' → '+driveEscape(ride.destinationAddress||ride.destination_label||'Destination')+'</strong><small>'+driveEscape(ride.vehicleType||ride.requested_vehicle)+' · '+driveMoney(ride.estimatedFare||ride.estimated_fare)+' · '+driveDate(ride.createdAt||ride.created_at)+'</small></div><div class="row-actions"><button class="button-mini dark" data-claim="'+driveEscape(requestId)+'">Accept</button><button class="button-mini" data-pass="'+driveEscape(requestId)+'">Pass</button></div></div>';
