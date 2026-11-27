@@ -3,8 +3,17 @@
 ## Automated checks
 - Backend: GitHub Actions runs `npm install`, `npx tsc --noEmit -p backend/tsconfig.json` and `npm run build`.
 - Frontend: GitHub Actions runs `node --check` on every JavaScript file under `frontend/js`.
-- Supabase: migrations are versioned under `supabase/migrations`; security advisor should be checked after schema changes.
+- Supabase: 23 public application tables currently have RLS enabled; the Security Advisor returned no security or health lints in the 2026-11-28 audit. Re-run advisors after every schema change.
 - Deployment: Cloudflare Pages hosts the static frontend and a separate Cloudflare Worker serves the NestJS API. Pages and Worker deployments are separate; the Worker deploy workflow requires `CLOUDFLARE_API_TOKEN`.
+
+## Current integration readiness — 2026-11-28
+
+- The `CSE412_Project` Supabase database is healthy and contains 23 public DRIVE tables; all 23 have RLS enabled.
+- The database currently has **zero Auth users and zero profiles**. Seven tourist-place seed records exist. End-to-end role testing therefore requires the team to register accounts first.
+- Follow [ADMIN_BOOTSTRAP.md](ADMIN_BOOTSTRAP.md) to promote the first trusted team account to Admin. Do not add a public admin bootstrap endpoint.
+- Cloudflare Pages production and preview configurations both have a `DRIVE_API` service binding to the `cse412-project` Worker.
+- The payment UI creates academic-demo payment intents. Cash can be recorded; bKash/Nagad transaction IDs are submitted for manual admin verification. No real payment gateway or money collection is connected.
+- Women Safety uses foreground browser GPS. Add trusted/emergency contacts in Passenger Dashboard, save the preference, then request a ride with Women Safety enabled. The passenger dashboard must remain open and have location permission to update the safety session; the private share link expires after 24 hours. SMS/WhatsApp delivery is not configured.
 
 ## Local integration test
 1. Configure `backend/.env` from `.env.example` with the DRIVE Supabase project URL and publishable key.
@@ -13,10 +22,10 @@
 4. Register a passenger, confirm the email if required, sign in, and test profile retrieval.
 5. Create a ride request using real Dhaka addresses; verify it appears in the passenger dashboard.
 6. Submit a driver application. An admin approves it and verifies the driver profile.
-7. The approved driver opens Driver workspace, selects **Go online**, and grants browser location permission. Confirm their marker appears on the passenger map and their nearest-first request list refreshes.
+7. The approved driver opens Driver workspace, selects **Go online**, and grants browser location permission. Confirm the driver's fresh location appears in the passenger tracking map and the nearby request feed refreshes automatically.
 8. Submit a passenger ride request while an eligible driver is online with a fresh GPS heartbeat. Confirm only matching vehicle-type drivers within 20 km receive a persisted alert; the open Driver workspace receives it through Supabase Realtime, with 7-second polling as fallback. If a driver goes online after a request already exists, confirm the deduplicated catch-up alert appears once. If browser notifications are allowed, a browser alert also appears.
-9. Confirm the Driver request feed hides requests outside the 20 km radius and is empty while the driver is offline or the GPS heartbeat is stale. Have two eligible online drivers try to accept the same request. The first valid claim wins; the other receives a no-longer-available response. Confirm the passenger receives an acceptance notification and sees the driver's live location while the driver approaches.
-10. Test rental listing, owner approval, rejection/resubmission, pending→approved→active→completed booking transitions, invalid direct status changes, safety trip sharing, SOS record creation, tourist plan persistence and individual shared-ride payment intents.
+9. Confirm the Driver request feed hides requests outside the 20 km radius and is empty while the driver is offline or the GPS heartbeat is stale. Have two eligible online drivers try to accept the same request. The first valid claim wins; the other receives a no-longer-available response. After accepting, the driver's availability is paused while GPS continues to update the active trip. Confirm the passenger receives an acceptance notification and sees the driver's live location on the dashboard map (10-second refresh).
+10. Test rental listing, owner approval, rejection/resubmission, pending→approved→active→completed booking transitions, invalid direct status changes, approved-rental payment intents, ride payment intents, manual bKash/Nagad reference submission, safety contact management, Women Safety route monitoring, 24-hour trip sharing, SOS contact links, tourist plan persistence and shared-ride payment shares.
 11. Verify that a passenger cannot read another passenger's records, a non-driver cannot claim a ride, and clients cannot mark payments or vehicles verified.
 
 ## k6 load test
