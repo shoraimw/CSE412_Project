@@ -171,15 +171,55 @@
 
     try{
       const settings=await driveRequest('/safety/settings');
+      let trustedContacts=Array.isArray(settings.trustedContacts)?settings.trustedContacts.slice():[];
+      let emergencyContacts=Array.isArray(settings.emergencyContacts)?settings.emergencyContacts.slice():[];
+      const renderContactList=()=>{
+        const all=[...trustedContacts.map((x,i)=>({...x,kind:'trusted',index:i})),...emergencyContacts.map((x,i)=>({...x,kind:'emergency',index:i}))];
+        $('safetyContactList').innerHTML=all.length?all.map(contact=>
+          '<div class="list-item"><div class="list-item-main"><strong>'+driveEscape(contact.name)+'</strong><small>'+driveEscape(contact.phone)+' · '+driveEscape(contact.relation||'Contact')+' · '+(contact.kind==='trusted'?'Trip sharing':'Emergency')+'</small></div><button class="button-mini danger" data-remove-contact="'+contact.kind+':'+contact.index+'">Remove</button></div>'
+        ).join(''):'<div class="empty-state">No trusted or emergency contacts saved yet.</div>';
+        $('safetyContactList').querySelectorAll('[data-remove-contact]').forEach(button=>button.addEventListener('click',()=>{
+          const [kind,index]=button.dataset.removeContact.split(':');
+          if(kind==='trusted')trustedContacts.splice(Number(index),1);else emergencyContacts.splice(Number(index),1);
+          renderContactList();
+        }));
+      };
       $('safetyPreferences').innerHTML=
         '<label class="check-row"><input type="checkbox" id="womenSafetyToggle" '+(settings.womenSafetyEnabled?'checked':'')+'> Women Safety Mode</label>'+
         '<label class="check-row"><input type="checkbox" id="verifiedDriverToggle" '+(settings.preferVerifiedDrivers!==false?'checked':'')+'> Prefer verified drivers</label>'+
-        '<button class="button button-outline button-small" id="saveSafety">Save preferences</button>';
+        '<div class="divider"></div><strong>Trusted & emergency contacts</strong>'+
+        '<p class="muted small">Trusted contacts can receive your private trip link. Emergency contacts are shown after an SOS alert; you must choose to call or text them.</p>'+
+        '<div id="safetyContactList" class="list"></div>'+
+        '<div class="form-grid">'+
+          '<div class="form-field"><label for="contactName">Contact name</label><input id="contactName" maxlength="80" placeholder="Full name"></div>'+
+          '<div class="form-field"><label for="contactPhone">Phone number</label><input id="contactPhone" type="tel" maxlength="20" pattern="\\+?[0-9][0-9\\s-]{6,18}" placeholder="+8801XXXXXXXXX"></div>'+
+          '<div class="form-field"><label for="contactRelation">Relationship</label><input id="contactRelation" maxlength="40" placeholder="Family, friend…"></div>'+
+          '<div class="form-field"><label for="contactKind">Contact type</label><select id="contactKind"><option value="trusted">Trusted trip contact</option><option value="emergency">Emergency contact</option></select></div>'+
+        '</div>'+
+        '<div class="row-actions"><button class="button button-outline button-small" id="addSafetyContact" type="button">Add contact</button><button class="button button-dark button-small" id="saveSafety" type="button">Save preferences & contacts</button></div>';
+      renderContactList();
+      $('addSafetyContact').addEventListener('click',()=>{
+        const name=$('contactName').value.trim(),phone=$('contactPhone').value.trim(),relation=$('contactRelation').value.trim();
+        if(!name||!phone||!/^\\+?[0-9][0-9\\s-]{6,18}$/.test(phone)){
+          $('safetyMessage').textContent='Enter a contact name and a valid phone number.';$('safetyMessage').className='message error';return;
+        }
+        const contact={name,phone,relation};
+        if($('contactKind').value==='trusted')trustedContacts.push(contact);else emergencyContacts.push(contact);
+        $('contactName').value='';$('contactPhone').value='';$('contactRelation').value='';
+        $('safetyMessage').textContent='Contact added to the form. Save preferences & contacts to keep it.';$('safetyMessage').className='message';
+        renderContactList();
+      });
       $('saveSafety').addEventListener('click',async()=>{
         $('saveSafety').disabled=true;
         try{
-          await driveRequest('/safety/settings',{method:'PUT',body:JSON.stringify({womenSafetyEnabled:$('womenSafetyToggle').checked,preferVerifiedDrivers:$('verifiedDriverToggle').checked})});
-          $('safetyMessage').textContent='Safety preferences saved.';$('safetyMessage').className='message success';
+          const saved=await driveRequest('/safety/settings',{method:'PUT',body:JSON.stringify({
+            womenSafetyEnabled:$('womenSafetyToggle').checked,
+            preferVerifiedDrivers:$('verifiedDriverToggle').checked,
+            trustedContacts,emergencyContacts
+          })});
+          trustedContacts=saved.trustedContacts||[];emergencyContacts=saved.emergencyContacts||[];
+          renderContactList();
+          $('safetyMessage').textContent='Safety preferences and contacts saved.';$('safetyMessage').className='message success';
         }catch(error){$('safetyMessage').textContent=error.message;$('safetyMessage').className='message error';}
         finally{$('saveSafety').disabled=false;}
       });
@@ -205,7 +245,14 @@
     const send=async location=>{
       try{
         const result=await driveRequest('/safety/sos',{method:'POST',body:JSON.stringify({message:'Emergency assistance requested from passenger dashboard.',location})});
-        $('sosMessage').textContent=result.message||'SOS alert recorded in the DRIVE admin console.';$('sosMessage').className='message success';
+        const contacts=Array.isArray(result.emergencyContacts)?result.emergencyContacts:[];
+        const links=contacts.map(contact=>{
+          const phone=String(contact.phone||'').replace(/[^+0-9]/g,'');
+          const sms='sms:'+phone+'?body='+encodeURIComponent('I need help. My DRIVE SOS alert has been triggered.');
+          return '<div class="row-actions"><a href="tel:'+phone+'">Call '+driveEscape(contact.name)+'</a><a href="'+sms+'">Text '+driveEscape(contact.name)+'</a></div>';
+        }).join('');
+        $('sosMessage').innerHTML=driveEscape(result.message||'SOS alert recorded in the DRIVE admin console.')+links;
+        $('sosMessage').className='message success';
       }catch(error){$('sosMessage').textContent=error.message;$('sosMessage').className='message error';}
       finally{button.disabled=false;}
     };
