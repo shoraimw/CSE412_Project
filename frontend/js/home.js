@@ -4,7 +4,7 @@
   const message = $('rideMessage');
   const dhaka = [23.8103, 90.4125];
   let map, pickupMarker = null, destinationMarker = null, routeLine = null;
-  let pickup = null, destination = null, target = 'pickup', routeDistanceKm = null, routeDurationMin = null;
+  let pickup = null, destination = null, target = 'pickup', routeDistanceKm = null, routeDurationMin = null, routeCoordinates = [];
   const money = value => '৳' + Number(value || 0).toLocaleString('en-BD', { maximumFractionDigits:0 });
   const setMessage = (text, kind='') => { message.textContent = text; message.className = 'form-message ' + kind; };
 
@@ -68,7 +68,7 @@
       if (!data.routes?.length) throw new Error('No route found.');
       const route = data.routes[0];
       routeDistanceKm = route.distance / 1000;
-      routeDurationMin = Math.max(1, Math.round(route.duration / 60));
+      routeDurationMin = Math.max(1, Math.round(route.duration / 60));\n      const rawCoordinates=Array.isArray(route.geometry?.coordinates)?route.geometry.coordinates:[];\n      routeCoordinates=rawCoordinates.length>100?Array.from({length:100},(_,i)=>rawCoordinates[Math.round(i*(rawCoordinates.length-1)/99)]).map(([lng,lat])=>({lat,lng})):rawCoordinates.map(([lng,lat])=>({lat,lng}));
       if (routeLine) map.removeLayer(routeLine);
       routeLine = L.geoJSON(route.geometry, {style:{color:'#111',weight:5,opacity:.82}}).addTo(map);
       map.fitBounds(routeLine.getBounds(), {padding:[35,35]});
@@ -150,7 +150,7 @@
           pickupAddress:from.label, destinationAddress:to.label, vehicleType,
           pickupLat:from.lat, pickupLng:from.lng, destinationLat:to.lat, destinationLng:to.lng,
           isShared:$('sharedRide').checked, womenSafetyPreference:$('womenSafety').checked,
-          routePreference:'balanced', seatsRequested:1
+          routePreference:'balanced', seatsRequested:1,\n          safetyInitialLocation:$('womenSafety').checked?{lat:from.lat,lng:from.lng}:undefined,\n          safetyPlannedRoute:$('womenSafety').checked&&routeCoordinates.length>=2?routeCoordinates:undefined
         })
       });
       if(result.womenSafety?.shareToken){\n        const shareUrl=new URL('shared-trip.html?token='+encodeURIComponent(result.womenSafety.shareToken),window.location.href).toString();\n        try{sessionStorage.setItem('drive_pending_share_url',shareUrl);}catch{}\n      }\n      setMessage('Ride request created. Open your dashboard to follow the trip.', 'success');
