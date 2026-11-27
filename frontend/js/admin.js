@@ -8,7 +8,7 @@
     ownerDocs:{url:'/admin/owner-documents',title:'Owner verification documents',cols:['Applicant','Document','Vehicle ID','Status','Submitted'],map:r=>[r.profile?.full_name||r.owner_id,r.document_type,r.vehicle_id||'Owner identity',r.verification_status,driveDate(r.created_at)],action:'/admin/owner-documents/',actions:['approved','rejected'],preview:true},
     vehicles:{url:'/admin/vehicles',title:'Vehicle verification',cols:['Vehicle','Registration','Owner','City','Submitted'],map:r=>[(r.make||'')+' '+(r.model||''),r.plate_number,r.owner?.full_name||r.owner_id,r.city,driveDate(r.created_at)],action:'/admin/vehicles/',actions:['approved','rejected']},
     safety:{url:'/admin/safety-alerts',title:'Safety alerts',cols:['Type','User','Message','Created','Status'],map:r=>[r.alert_type,r.profiles?.full_name||r.user_id,r.message||'—',driveDate(r.created_at),r.status],action:'/admin/safety-alerts/',actions:['acknowledged','resolved','false_alarm']},
-    payments:{url:'/admin/payments',title:'Pending payments',cols:['Payer','Amount','Method','Transaction reference','Created'],map:r=>[r.payer?.full_name||r.user_id,driveMoney(r.amount),r.method,r.provider_reference||'Not submitted',driveDate(r.created_at)],action:'/admin/payments/',actions:['paid','failed']},
+    payments:{url:'/admin/payments',title:'Pending and risk-held payments',cols:['Payer','Amount','Method','Transaction reference','Gateway status','Created'],map:r=>[r.payer?.full_name||r.user_id,driveMoney(r.amount)+' '+r.currency,r.method,r.provider_reference||r.gateway_transaction_id||'Not submitted',r.gateway_status||'Manual',driveDate(r.created_at)],action:'/admin/payments/',actions:['paid','failed']},
     users:{url:'/admin/users',title:'User accounts',cols:['Name','Phone','Role','Joined','Account'],map:r=>[r.full_name,r.phone||'—',r.role,driveDate(r.created_at),r.is_active?'Active':'Disabled'],action:'/admin/users/',actions:['toggle']},
     rides:{url:'/admin/rides',title:'Ride requests',cols:['Passenger','Pickup','Destination','Vehicle','Fare','Status'],map:r=>[r.profiles?.full_name||r.passenger_id,r.pickup_label,r.destination_label,r.requested_vehicle,driveMoney(r.estimated_fare),r.ride?.status||r.status]},
     rentals:{url:'/admin/rental-bookings',title:'Rental bookings',cols:['Renter','Vehicle','Period','Total','Status'],map:r=>[r.renter?.full_name||r.renter_id,(r.vehicles?.make||'')+' '+(r.vehicles?.model||''),driveDate(r.start_at)+' – '+driveDate(r.end_at),driveMoney(r.total_amount),r.status],action:'/admin/rental-bookings/',actions:['approved','rejected','cancelled']},
@@ -85,7 +85,11 @@
       if(action==='false_alarm'&&!confirm('Mark this alert as a false alarm?'))return;
     }else if(activeTab==='payments'){
       body={status:action};
-      if(action==='paid'&&!confirm('Confirm that this payment has been verified?'))return;
+      if(action==='paid'){
+        const note=prompt('Verification note (required for a risk-held card payment):');
+        if(note?.trim())body.adminNote=note.trim();
+        if(!confirm('Confirm that the payment has been checked in the merchant account and should be marked '+action+'?'))return;
+      }else if(!confirm('Mark this payment as failed?'))return;
     }else if(activeTab==='driverDocs'||activeTab==='ownerDocs'){
       body={status:action};
       if(action==='rejected'){
