@@ -240,7 +240,7 @@
       const remaining=[];
       for(const session of safetySessions){
         const related=rides.find(ride=>(session.rideId&&ride.rideId===session.rideId)||(session.rideRequestId&&ride.requestId===session.rideRequestId));
-        if(related?.status==='completed'){
+        if(related&&['completed','cancelled','rejected'].includes(related.status)){
           await driveRequest('/safety/trips/'+encodeURIComponent(session.id)+'/complete',{method:'POST'}).catch(()=>{});
         }else remaining.push(session);
       }
