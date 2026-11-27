@@ -8,7 +8,7 @@
     try{
       places=await driveRequest('/tourist/places?'+params.toString());
       $('placeCount').textContent=places.length+' places';
-      $('placesGrid').innerHTML=places.length?places.map(place=>'<label class="vehicle-card"><div class="vehicle-image">⌖</div><div class="vehicle-body"><div class="toolbar"><span class="pill">'+driveEscape(place.category||'Explore')+'</span><input type="checkbox" class="place-select" value="'+driveEscape(place.id)+'" aria-label="Select '+driveEscape(place.name)+'"></div><h3>'+driveEscape(place.name)+'</h3><p>'+driveEscape(place.description||'Explore this destination.')+'</p><p>'+driveEscape(place.city)+' · '+driveEscape(place.estimated_visit_hours||1)+' hour(s)</p></div></label>').join(''):'<div class="empty-state">No destinations found for this city.</div>';
+      $('placesGrid').innerHTML=places.length?places.map(place=>'<label class="vehicle-card"><div class="vehicle-image">⌖</div><div class="vehicle-body"><div class="toolbar"><span class="pill">'+driveEscape(place.category||'Explore')+'</span><input type="checkbox" class="place-select" value="'+driveEscape(place.id)+'" aria-label="Select '+driveEscape(place.name)+'"></div><h3>'+driveEscape(place.name)+'</h3><p>'+driveEscape(place.description||'Explore this destination.')+'</p><p>'+driveEscape(place.city)+' · '+driveEscape(place.estimatedVisitHours||1)+' hour(s)</p></div></label>').join(''):'<div class="empty-state">No destinations found for this city.</div>';
     }catch(error){$('placesGrid').innerHTML='<div class="empty-state">'+driveEscape(error.message)+'</div>';}
   }
   async function loadPlans(){
