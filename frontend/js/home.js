@@ -35,7 +35,13 @@
       destination=point;destinationInput.value=point.label;
       if(map&&window.L){if(destinationMarker)map.removeLayer(destinationMarker);destinationMarker=L.marker([point.lat,point.lng],{icon:markerIcon('pin-destination')}).addTo(map).bindPopup('Drop-off');}
     }
-    if(pickup&&destination)previewRoute();
+    if(pickup&&destination){
+      if(map&&window.L){
+        if(!pickupMarker)pickupMarker=L.marker([pickup.lat,pickup.lng],{icon:markerIcon('pin-pickup')}).addTo(map).bindPopup('Pickup');
+        if(!destinationMarker)destinationMarker=L.marker([destination.lat,destination.lng],{icon:markerIcon('pin-destination')}).addTo(map).bindPopup('Drop-off');
+      }
+      previewRoute();
+    }
   }
   async function reverseGeocode(lat,lng){
     try{
