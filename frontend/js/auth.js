@@ -8,7 +8,7 @@
   };
   function destination(user) {
     const requested = new URLSearchParams(location.search).get('next');
-    if (requested && /^(dashboard|driver|owner|admin)\.html$/.test(requested)) return requested;
+    if (requested && /^(index|dashboard|driver|owner|admin|vehicles|explore|profile|notifications)\.html$/.test(requested)) return requested;
     return driveRoleHome(user?.role);
   }
   loginForm?.addEventListener('submit', async event => {
