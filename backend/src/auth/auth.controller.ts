@@ -1,10 +1,10 @@
-import { Body, Controller, Inject, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Post, Req, UseGuards } from '@nestjs/common';
 import { IsString, MinLength } from 'class-validator';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { AuthGuard } from './auth.guard';
 import { RegisterDto } from './dto/register.dto';
-import { LoginDto, EmailOtpDto, VerifyEmailOtpDto, PhoneOtpDto, VerifyPhoneOtpDto, UpdatePasswordDto } from './dto/login.dto';
+import { LoginDto, EmailOtpDto, VerifyEmailOtpDto, PhoneOtpDto, VerifyPhoneOtpDto, UpdatePasswordDto, OAuthSessionDto } from './dto/login.dto';
 
 class RefreshDto { @IsString() @MinLength(20) refreshToken!: string; }
 type AuthRequest = Request & { user: { id: string; accessToken: string } };
@@ -12,6 +12,8 @@ type AuthRequest = Request & { user: { id: string; accessToken: string } };
 @Controller('auth')
 export class AuthController {
   constructor(@Inject(AuthService) private readonly auth: AuthService) {}
+  @Get('config') publicConfig() { return this.auth.publicConfig(); }
+  @Post('oauth-session') oauthSession(@Body() dto: OAuthSessionDto) { return this.auth.oauthSession(dto.accessToken,dto.refreshToken); }
   @Post('register') register(@Body() dto: RegisterDto) { return this.auth.register(dto); }
   @Post('login') login(@Body() dto: LoginDto) { return this.auth.login(dto); }
   @Post('email-otp') sendEmailOtp(@Body() dto: EmailOtpDto) { return this.auth.sendEmailOtp(dto); }
