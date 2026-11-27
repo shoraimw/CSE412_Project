@@ -132,6 +132,10 @@
     try{rides=await driveRequest('/rides');}catch(error){$('activeRides').innerHTML='<div class="empty-state">'+driveEscape(error.message)+'</div>';}
     try{notifications=await driveRequest('/notifications');}catch{}
     try{payments=await driveRequest('/payments/me');if(!Array.isArray(payments))payments=[];}catch{payments=[];}
+    let sharedRides=[],myReviews=[],supportCases=[];
+    try{sharedRides=await driveRequest('/rides/shared');if(!Array.isArray(sharedRides))sharedRides=[];}catch{}
+    try{myReviews=await driveRequest('/reviews/me');if(!Array.isArray(myReviews))myReviews=[];}catch{}
+    try{supportCases=await driveRequest('/support/cases');if(!Array.isArray(supportCases))supportCases=[];}catch{}
 
     const active=rides.filter(r=>activeStates.includes(r.status));
     const history=rides.filter(r=>!activeStates.includes(r.status));
@@ -143,11 +147,34 @@
       const cancel=canCancel?miniButton('Cancel','data-cancel',ride.requestId):'';
       return item((ride.pickupAddress||'Pickup')+' → '+(ride.destinationAddress||'Destination'),driveDate(ride.createdAt)+' · '+driveMoney(ride.passengerFare??ride.estimatedFare),ride.status,cancel+ridePaymentAction(ride));
     }).join(''):'<div class="empty-state">No active trips. Your next journey starts here.</div>';
-    $('rideHistory').innerHTML=history.length?history.slice(0,8).map(ride=>item((ride.pickupAddress||'Pickup')+' → '+(ride.destinationAddress||'Destination'),driveDate(ride.createdAt)+' · '+driveMoney(ride.estimatedFare),ride.status,ridePaymentAction(ride))).join(''):'<div class="empty-state">Completed and cancelled trips will appear here.</div>';
+    $('rideHistory').innerHTML=history.length?history.slice(0,8).map(ride=>{
+      const finalFare=ride.actualFare??ride.ride?.actual_fare;
+      const amount=finalFare!==null&&finalFare!==undefined?driveMoney(finalFare)+' final':driveMoney(ride.estimatedFare)+' estimated';
+      return item((ride.pickupAddress||'Pickup')+' → '+(ride.destinationAddress||'Destination'),driveDate(ride.createdAt)+' · '+amount,ride.status,ridePaymentAction(ride));
+    }).join(''):'<div class="empty-state">Completed and cancelled trips will appear here.</div>';
+
+    const reviewedRideIds=new Set(myReviews.map(review=>review.ride_id));
+    const reviewable=history.filter(ride=>ride.status==='completed'&&ride.rideId&&!reviewedRideIds.has(ride.rideId));
+    $('reviewQueue').innerHTML=reviewable.length?reviewable.map(ride=>'<div class="list-item"><div class="list-item-main"><strong>'+driveEscape((ride.pickupAddress||'Pickup')+' → '+(ride.destinationAddress||'Destination'))+'</strong><small>'+driveDate(ride.createdAt)+'</small></div><button class="button-mini dark" data-review="'+driveEscape(ride.rideId)+'">Rate driver</button></div>').join(''):'<div class="empty-state">No completed rides waiting for feedback.</div>';
+    $('reviewQueue').querySelectorAll('[data-review]').forEach(button=>button.addEventListener('click',()=>{
+      $('reviewRideId').value=button.dataset.review;$('reviewComment').value='';$('reviewMessage').textContent='';$('reviewDialog').showModal();
+    }));
+
+    $('sharedRides').innerHTML=sharedRides.length?sharedRides.map(ride=>'<div class="list-item"><div class="list-item-main"><strong>'+driveEscape(ride.pickup_label)+' → '+driveEscape(ride.destination_label)+'</strong><small>'+driveEscape(ride.vehicle_type)+' · '+driveMoney(ride.estimated_fare)+' total · '+Number(ride.seats_available)+' seats left · '+Number(ride.distance_km||0).toFixed(1)+' km</small></div><button class="button-mini dark" data-join-shared="'+driveEscape(ride.ride_id)+'">Join</button></div>').join(''):'<div class="empty-state">No shared rides are accepting passengers right now.</div>';
+    $('sharedRides').querySelectorAll('[data-join-shared]').forEach(button=>button.addEventListener('click',async()=>{
+      if(!confirm('Join this shared ride? Your individual fare share will be recalculated when you join.'))return;
+      button.disabled=true;
+      try{const result=await driveRequest('/rides/'+encodeURIComponent(button.dataset.joinShared)+'/share',{method:'POST'});driveToast(result.message||'You joined the shared ride.');await load();}
+      catch(error){driveToast(error.message);button.disabled=false;}
+    }));
+
+    $('supportRide').innerHTML='<option value="">No linked ride</option>'+rides.filter(ride=>ride.rideId).map(ride=>'<option value="'+driveEscape(ride.rideId)+'">'+driveEscape((ride.pickupAddress||'Pickup')+' → '+(ride.destinationAddress||'Destination')+' · '+statusLabel(ride.status))+'</option>').join('');
+    $('supportCases').innerHTML=supportCases.length?supportCases.slice(0,8).map(c=>item(c.subject,driveDate(c.created_at)+' · '+c.category,c.status)).join(''):'<div class="empty-state">No support cases submitted yet.</div>';
 
     $('activeRides').querySelectorAll('[data-cancel]').forEach(button=>button.addEventListener('click',async()=>{
       button.disabled=true;
-      try{await driveRequest('/rides/requests/'+encodeURIComponent(button.dataset.cancel)+'/cancel',{method:'POST'});driveToast('Ride request cancelled.');await load();}
+      if(!confirm('Cancel this unaccepted request? No cancellation fee applies while a driver has not accepted it.')){button.disabled=false;return;}
+      try{await driveRequest('/rides/requests/'+encodeURIComponent(button.dataset.cancel)+'/cancel',{method:'POST'});driveToast('Ride request cancelled. No cancellation fee was charged.');await load();}
       catch(error){driveToast(error.message);button.disabled=false;}
     }));
     document.querySelectorAll('[data-pay]').forEach(button=>button.addEventListener('click',()=>{
@@ -301,6 +328,34 @@
       catch{$('shareLinkMessage').textContent='Copy is unavailable. Open the link and copy the address from your browser.';$('shareLinkMessage').className='message error';}
     };
   }
+
+  $('reviewForm')?.addEventListener('submit',async event=>{
+    event.preventDefault();if(!$('reviewForm').reportValidity())return;
+    const button=$('reviewSubmit');button.disabled=true;
+    try{
+      await driveRequest('/reviews',{method:'POST',body:JSON.stringify({
+        rideId:$('reviewRideId').value,rating:Number($('reviewRating').value),comment:$('reviewComment').value.trim()||undefined
+      })});
+      $('reviewMessage').textContent='Thank you. Your feedback has been saved.';$('reviewMessage').className='message success';
+      $('reviewDialog').close();await load();
+    }catch(error){$('reviewMessage').textContent=error.message;$('reviewMessage').className='message error';}
+    finally{button.disabled=false;}
+  });
+  $('closeReview')?.addEventListener('click',()=>$('reviewDialog').close());
+  $('supportForm')?.addEventListener('submit',async event=>{
+    event.preventDefault();if(!$('supportForm').reportValidity())return;
+    const button=$('supportSubmit');button.disabled=true;
+    try{
+      const rideId=$('supportRide').value;
+      const result=await driveRequest('/support/cases',{method:'POST',body:JSON.stringify({
+        category:$('supportCategory').value,subject:$('supportSubject').value.trim(),
+        description:$('supportDescription').value.trim(),rideId:rideId||undefined
+      })});
+      $('supportMessage').textContent=result.message||'Support case submitted.';$('supportMessage').className='message success';
+      $('supportForm').reset();await load();
+    }catch(error){$('supportMessage').textContent=error.message;$('supportMessage').className='message error';}
+    finally{button.disabled=false;}
+  });
 
   $('sosButton')?.addEventListener('click',async()=>{
     if(!confirm('Send an SOS alert to the DRIVE administrator with your current location?'))return;
