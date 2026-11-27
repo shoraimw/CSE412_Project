@@ -4,7 +4,7 @@
 - Backend: GitHub Actions runs `npm install`, `npx tsc --noEmit -p backend/tsconfig.json` and `npm run build`.
 - Frontend: GitHub Actions runs `node --check` on every JavaScript file under `frontend/js`.
 - Supabase: migrations are versioned under `supabase/migrations`; security advisor should be checked after schema changes.
-- Cloudflare: `.github/workflows/cloudflare-deploy.yml` validates and deploys the Worker. Add repository secret `CLOUDFLARE_API_TOKEN` with Workers Scripts:Edit permission, then run Actions → Deploy DRIVE to Cloudflare Workers.
+- Deployment: Vercel is the selected host. GitHub Actions validates the NestJS backend, frontend assets and Vercel configuration; Vercel Git integration performs Preview/Production builds after the project is connected.
 
 ## Local integration test
 1. Configure `backend/.env` from `.env.example` with the DRIVE Supabase project URL and publishable key.
@@ -30,7 +30,7 @@ Configure the target and optional test token with environment variables:
 - `API_BASE_URL`: API origin, without the `/api` suffix.
 - `DRIVE_ACCESS_TOKEN`: dedicated test user's Supabase access token.
 
-The default scenario ramps from 10 to 250 virtual users. Increase stages gradually only after checking database pool usage, Supabase quotas, Cloudflare limits, error rates and p95/p99 latency. Do not run large load tests against production without approval. A 100,000-user registration target is not evidence of 100,000 concurrent-user capacity; concurrency must be measured separately.
+The default scenario ramps from 10 to 250 virtual users. Increase stages gradually only after checking database pool usage, Supabase quotas, Vercel function-duration and Supabase limits, error rates and p95/p99 latency. Do not run large load tests against production without approval. A 100,000-user registration target is not evidence of 100,000 concurrent-user capacity; concurrency must be measured separately.
 
 ## Requirement coverage and honest demo boundaries
 
@@ -52,13 +52,13 @@ The team requirement PDF defines 12 functional requirement groups and five non-f
 | Tourist Mode | Seeded tourist places, recommendations and saved multi-stop plans | Validate location accuracy and route provider availability |
 | Performance | Indexed relational schema, bounded list endpoints, request validation and CI build checks | No latency SLO or load capacity is claimed until k6 runs are measured |
 | Usability | Responsive pages, consistent forms, map-based booking, accessible show/hide password control | Test desktop and mobile viewport sizes |
-| Scalability | Cloudflare Worker + Supabase managed Postgres; k6 test script included | Free-tier quotas apply; 100,000 concurrent users are not verified |
+| Scalability | Vercel static hosting + NestJS serverless API + Supabase managed Postgres; k6 test script included | Free-tier quotas apply; 100,000 concurrent users are not verified |
 | Security | Supabase RLS on public tables, user-scoped clients, server-side role checks and guarded RPCs | Shared-ride privileged functions live in the private schema behind SECURITY INVOKER wrappers. The anonymous live-share RPC is intentionally SECURITY DEFINER and accepts only a high-entropy, expiring token hash. Enable Supabase leaked-password protection before public launch and run role-isolation/abuse tests |
 | Portability | Responsive web frontend on modern browsers | Native mobile background GPS and push notifications are outside this web build |
 
 ## $0 academic deployment envelope
 
-- Cloudflare Workers Free currently includes 100,000 requests per day and a 10 ms CPU limit per invocation. Stay within the published free quota.
+- Vercel Hobby and Supabase Free have usage and function-duration limits. Verify current plan limits before load testing; do not promise unlimited traffic.
 - Supabase Free currently includes a 500 MB database and 50,000 monthly active users; free projects may pause after one week of inactivity.
 - OpenStreetMap map tiles and the public OSRM routing demo are community/best-effort services, not commercial SLAs. OSRM's public demo is best-effort, intended for reasonable non-commercial use, and asks users not to exceed one request per second. The backend throttles requests and caches repeated route queries within a Worker instance.
 - Ride booking uses map-selected coordinates and does not geocode typed addresses. If geocoding is added later, public Nominatim has a maximum of one request per second per application; avoid autocomplete or bulk geocoding.

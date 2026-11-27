@@ -1,27 +1,13 @@
-name: NestJS Backend Build
+name: Archived — duplicate backend build disabled
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'backend/**'
-      - '.github/workflows/backend-build.yml'
-  push:
-    branches: [main, member4-fare-route-multicurrency]
-    paths:
-      - 'backend/**'
-      - '.github/workflows/backend-build.yml'
+  workflow_dispatch:
 
 jobs:
-  build:
+  retired:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - run: npm install
-      - run: npm run build
+      - name: Explain current pipeline
+        run: |
+          echo "This duplicate NestJS build workflow is retired to prevent duplicate and conflicting release checks."
+          echo "The active validation workflow is .github/workflows/drive-validation.yml."

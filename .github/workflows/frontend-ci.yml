@@ -1,19 +1,13 @@
-name: DRIVE frontend validation
+name: Archived — legacy frontend CI disabled
+
 on:
-  pull_request:
-    branches: [main]
-    paths: ['frontend/**', '.github/workflows/frontend-ci.yml']
-  push:
-    branches: [feature/drive-full-platform, feature/complete-system-integration]
-    paths: ['frontend/**', '.github/workflows/frontend-ci.yml']
+  workflow_dispatch:
+
 jobs:
-  frontend-js:
+  retired:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Check JavaScript syntax
+      - name: Explain current pipeline
         run: |
-          find frontend/js -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+          echo "The feature-branch frontend CI workflow is retired. Use the single main/PR validation workflow."
+          echo "The active validation workflow is .github/workflows/drive-validation.yml."

@@ -7,7 +7,7 @@ jobs:
   retired:
     runs-on: ubuntu-latest
     steps:
-      - name: Explain current build target
+      - name: Explain current pipeline
         run: |
-          echo "Cloudflare build validation is retired for the DRIVE V2 rebuild."
+          echo "Cloudflare is not the selected application host for the current Vercel-first release."
           echo "The active validation workflow is .github/workflows/drive-validation.yml."

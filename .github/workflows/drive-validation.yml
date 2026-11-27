@@ -7,17 +7,22 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
 
       - name: Install backend dependencies
-        run: npm install
+        run: npm install --no-audit --no-fund
         working-directory: backend
 
       - name: Type-check backend
@@ -42,10 +47,13 @@ jobs:
       - name: Validate Vercel configuration
         run: node --input-type=module -e "import { readFileSync } from 'node:fs'; JSON.parse(readFileSync('vercel.json', 'utf8'));"
 
+      - name: Check application assets and deployment wiring
+        run: npm run smoke
+
       - name: Ensure no server-only Supabase key is exposed in frontend
         shell: bash
         run: |
-          if grep -R --line-number --exclude='*.map' 'SUPABASE_SERVICE_ROLE_KEY\|service_role' frontend; then
+          if grep -R --line-number --exclude='*.map' 'SUPABASE_SERVICE_ROLE_KEY\\|service_role' frontend; then
             echo 'A server-only Supabase key or role marker was found in frontend assets.'
             exit 1
           fi

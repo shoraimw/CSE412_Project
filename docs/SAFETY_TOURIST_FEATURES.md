@@ -45,6 +45,6 @@
 \`\`\`
 
 ## Production follow-up
-Replace in-memory stores with the team's shared database. Integrate a real maps/directions provider, verified driver source and notification provider. Obtain clear user consent before collecting or sharing location, expire share tokens, and add access logs and rate limiting.
+The current API persists these workflows through Supabase PostgreSQL and Row Level Security. Before public launch, validate the baseline schema, role-isolation policies, expiring share tokens, access logs and rate limits. Obtain clear user consent before collecting or sharing location.
 
 - Tourist plans can optionally use the passenger's browser-provided current coordinates as the first route origin; permission is requested only when the user presses the location button.

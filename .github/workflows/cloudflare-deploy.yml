@@ -1,4 +1,4 @@
-name: Archived — Cloudflare deployment disabled
+name: Archived — Cloudflare deploy disabled
 
 on:
   workflow_dispatch:
@@ -7,8 +7,7 @@ jobs:
   retired:
     runs-on: ubuntu-latest
     steps:
-      - name: Explain current deployment target
+      - name: Explain current pipeline
         run: |
-          echo "Cloudflare deployment is intentionally disabled for the DRIVE V2 rebuild."
-          echo "Vercel is the selected hosting platform."
-          echo "This workflow is retained only as historical configuration."
+          echo "Cloudflare deployment is intentionally disabled for the Vercel-first release. Do not deploy this repository with Wrangler."
+          echo "The active validation workflow is .github/workflows/drive-validation.yml."

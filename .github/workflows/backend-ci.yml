@@ -1,21 +1,13 @@
-name: DRIVE backend CI
+name: Archived — legacy backend CI disabled
+
 on:
-  pull_request:
-    branches: [main]
-    paths: ['backend/**', 'supabase/**', '.github/workflows/backend-ci.yml']
-  push:
-    branches: [feature/drive-full-platform, feature/complete-system-integration]
-    paths: ['backend/**', 'supabase/**', '.github/workflows/backend-ci.yml']
+  workflow_dispatch:
+
 jobs:
-  backend-build:
+  retired:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - run: npm install
-      - run: npm run build
+      - name: Explain current pipeline
+        run: |
+          echo "The feature-branch backend CI workflow is retired. Use the single main/PR validation workflow."
+          echo "The active validation workflow is .github/workflows/drive-validation.yml."
