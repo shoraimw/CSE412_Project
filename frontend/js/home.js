@@ -153,7 +153,7 @@
           routePreference:'balanced', seatsRequested:1
         })
       });
-      setMessage('Ride request created. Open your dashboard to follow the trip.', 'success');
+      if(result.womenSafety?.shareToken){\n        const shareUrl=new URL('shared-trip.html?token='+encodeURIComponent(result.womenSafety.shareToken),window.location.href).toString();\n        try{sessionStorage.setItem('drive_pending_share_url',shareUrl);}catch{}\n      }\n      setMessage('Ride request created. Open your dashboard to follow the trip.', 'success');
       driveToast('Your ride request has been placed.');
       window.location.href='dashboard.html';
     } catch (error) { setMessage(error.message || 'Could not create the ride request.', 'error'); }
