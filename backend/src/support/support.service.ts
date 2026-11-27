@@ -63,14 +63,11 @@ export class SupportService {
   }
 
   async updateCase(token:string,adminId:string,id:string,input:any){
-    const {data:existing,error:readError}=await this.db(token).from('support_cases').select('id,status').eq('id',id).maybeSingle();
-    if(readError||!existing)throw new NotFoundException(readError?.message||'Support case not found.');
-    const patch:any={status:input.status,priority:input.priority||undefined,admin_note:input.adminNote?.trim()||null,assigned_to:adminId,updated_at:new Date().toISOString()};
-    if(input.status==='resolved'||input.status==='rejected')patch.resolved_at=new Date().toISOString();
-    else patch.resolved_at=null;
-    const {data,error}=await this.db(token).from('support_cases').update(patch).eq('id',id).select('*').single();
+    const {data,error}=await this.db(token).rpc('drive_admin_update_support_case',{
+      p_case_id:id,p_status:input.status,p_priority:input.priority||null,p_admin_note:input.adminNote?.trim()||null,
+    });
     if(error||!data)throw new BadRequestException(error?.message||'Support case could not be updated.');
-    return {message:'Support case updated.',case:data};
+    return {message:'Support case updated and customer notified.',case:data};
   }
 
   async adminReviews(token:string){
@@ -103,6 +100,11 @@ export class SupportService {
     if(Object.keys(patch).length===2)throw new BadRequestException('No fare rule fields were provided.');
     const {data,error}=await this.db(token).from('fare_rules').update(patch).eq('vehicle_type',vehicleType).select('*').single();
     if(error||!data)throw new BadRequestException(error?.message||'Fare rule could not be updated.');
+    const {error:auditError}=await this.db(token).from('admin_audit_logs').insert({
+      admin_id:adminId,action:'fare_rule.updated',entity_type:'fare_rule',entity_id:null,
+      details:{vehicleType,changes:input},
+    });
+    if(auditError)console.error('[DRIVE fare audit]',auditError.message);
     return {message:'Fare rule updated.',rule:data};
   }
 }
