@@ -229,7 +229,12 @@ export class PaymentsService {
       throw new BadRequestException('Validated currency or amount does not match the original DRIVE payment intent.');
     }
     const amountBdt=Number(validation.amount);
-    const riskLevel=Number(validation.risk_level??1);
+    const riskCandidate=Number(validation.risk_level??1);
+    const riskLevel=Number.isInteger(riskCandidate)&&riskCandidate>=0?riskCandidate:1;
+    const storeCandidate=Number(validation.store_amount);
+    const storeAmount=Number.isFinite(storeCandidate)&&storeCandidate>=0?storeCandidate:amountBdt;
+    const rateCandidate=Number(validation.currency_rate);
+    const currencyRate=Number.isFinite(rateCandidate)&&rateCandidate>0?rateCandidate:null;
     const {data:finalized,error:finalizeError}=await db.rpc('drive_finalize_sslcommerz_payment',{
       p_secret:config.drivePaymentWebhookSecret,
       p_tran_id:tranId,
@@ -238,11 +243,11 @@ export class PaymentsService {
       p_currency_type:currency,
       p_currency_amount:currencyAmount,
       p_amount_bdt:amountBdt,
-      p_store_amount:Number(validation.store_amount??amountBdt),
+      p_store_amount:storeAmount,
       p_risk_level:riskLevel,
       p_card_type:String(validation.card_type||''),
       p_bank_tran_id:String(validation.bank_tran_id||''),
-      p_currency_rate:validation.currency_rate==null?null:Number(validation.currency_rate),
+      p_currency_rate:currencyRate,
     });
     if(finalizeError||!finalized)throw new ServiceUnavailableException(finalizeError?.message||'Payment could not be finalized. It remains available for reconciliation.');
     return finalized;
