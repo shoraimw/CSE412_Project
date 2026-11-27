@@ -52,6 +52,24 @@
     finally { button.disabled = false; }
   });
 
+  const googleButton=document.getElementById('googleSignInButton');
+  googleButton?.addEventListener('click',async()=>{
+    googleButton.disabled=true;setMessage('Connecting to Google…');
+    try{
+      if(!window.supabase?.createClient)throw new Error('Google sign-in library could not be loaded. Refresh and try again.');
+      const config=await driveRequest('/auth/config');
+      const client=window.supabase.createClient(config.url,config.anonKey,{
+        auth:{persistSession:true,autoRefreshToken:false,detectSessionInUrl:true,flowType:'pkce'}
+      });
+      const {data,error}=await client.auth.signInWithOAuth({
+        provider:'google',
+        options:{redirectTo:location.origin+'/oauth-callback.html',skipBrowserRedirect:true,queryParams:{access_type:'offline',prompt:'select_account'}}
+      });
+      if(error||!data?.url)throw new Error(error?.message||'Google sign-in could not be started.');
+      location.assign(data.url);
+    }catch(error){setMessage(error.message,'error');googleButton.disabled=false;}
+  });
+
   const phoneRequest = document.getElementById('phoneOtpRequestForm');
   const phoneVerify = document.getElementById('phoneOtpVerifyForm');
   const phoneMessage = document.getElementById('phoneOtpMessage');
