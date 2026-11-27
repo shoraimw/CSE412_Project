@@ -119,7 +119,9 @@
     }
     $('ownerBookings').innerHTML=bookings.length?bookings.map(b=>{
       const vehicle=b.vehicles||{};const canReview=b.status==='pending';
-      return '<div class="list-item"><div class="list-item-main"><strong>'+driveEscape((vehicle.make||'Vehicle')+' '+(vehicle.model||''))+'</strong><small>'+driveDate(b.start_at)+' – '+driveDate(b.end_at)+' · '+driveMoney(b.total_amount)+'</small></div><div class="row-actions"><span class="pill '+statusClass(b.status)+'">'+driveEscape(b.status)+'</span>'+(canReview?'<button class="button-mini dark" data-booking="'+driveEscape(b.id)+'" data-next="approved">Approve</button><button class="button-mini danger" data-booking="'+driveEscape(b.id)+'" data-next="rejected">Reject</button>':'')+'</div></div>';
+      const next=b.status==='approved'?'active':b.status==='active'?'completed':null;
+      const action=canReview?'<button class="button-mini dark" data-booking="'+driveEscape(b.id)+'" data-next="approved">Approve</button><button class="button-mini danger" data-booking="'+driveEscape(b.id)+'" data-next="rejected">Reject</button>':next?'<button class="button-mini dark" data-booking="'+driveEscape(b.id)+'" data-next="'+next+'">'+(next==='active'?'Mark active':'Complete rental')+'</button>':'';
+      return '<div class="list-item"><div class="list-item-main"><strong>'+driveEscape((vehicle.make||'Vehicle')+' '+(vehicle.model||''))+'</strong><small>'+driveDate(b.start_at)+' – '+driveDate(b.end_at)+' · '+driveMoney(b.total_amount)+'</small></div><div class="row-actions"><span class="pill '+statusClass(b.status)+'">'+driveEscape(b.status)+'</span>'+action+'</div></div>';
     }).join(''):'<div class="empty-state">Rental requests will appear here.</div>';
     $('ownerBookings').querySelectorAll('[data-booking]').forEach(button=>button.addEventListener('click',async()=>{
       button.disabled=true;
