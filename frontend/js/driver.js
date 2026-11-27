@@ -26,7 +26,13 @@
       if(!user.is_verified){setMessage('gpsMessage','Your driver account is awaiting verification. You cannot go online yet.','error');$('onlineToggle').disabled=true;}
       await refresh();
       if(activeTrips().length)startLocationWatch(false);
-      setInterval(async()=>{\n        if(document.hidden)return;\n        try{\n          if(watchId!==null&&lastPosition){const onTrip=activeTrips().length>0;await updateDriverLocation(available&&!onTrip);if(onTrip)await updateActiveRideLocations();}\n          await refresh();\n        }catch(error){setMessage('gpsMessage',error.message,'error');}\n      },15000);
+      setInterval(async()=>{
+        if(document.hidden)return;
+        try{
+          if(watchId!==null&&lastPosition){const onTrip=activeTrips().length>0;await updateDriverLocation(available&&!onTrip);if(onTrip)await updateActiveRideLocations();}
+          await refresh();
+        }catch(error){setMessage('gpsMessage',error.message,'error');}
+      },15000);
     }catch(error){$('driverStatus').textContent='Unable to load';setMessage('gpsMessage',error.message,'error');}
   }
 
