@@ -73,7 +73,7 @@
 
   function openPayment(ride,existing=null){
     paymentRide=ride||null;pendingPaymentId=existing?.id||null;pendingPaymentMethod=existing?.method||null;
-    $('paymentRideSummary').textContent=ride?'Ride fare · '+driveMoney(ride.estimatedFare):'Submit your wallet transaction ID';
+    $('paymentRideSummary').textContent=ride?'Your passenger fare share · '+driveMoney(ride.passengerFare??ride.estimatedFare):'Submit your wallet transaction ID';
     $('paymentMethod').value=existing?.method||'cash';
     $('paymentMethod').disabled=Boolean(existing);
     $('paymentReferenceWrap').hidden=!existing;
@@ -141,7 +141,7 @@
     $('activeRides').innerHTML=active.length?active.map(ride=>{
       const canCancel=ride.requestId&&ride.requestStatus==='requested';
       const cancel=canCancel?miniButton('Cancel','data-cancel',ride.requestId):'';
-      return item((ride.pickupAddress||'Pickup')+' → '+(ride.destinationAddress||'Destination'),driveDate(ride.createdAt)+' · '+driveMoney(ride.estimatedFare),ride.status,cancel+ridePaymentAction(ride));
+      return item((ride.pickupAddress||'Pickup')+' → '+(ride.destinationAddress||'Destination'),driveDate(ride.createdAt)+' · '+driveMoney(ride.passengerFare??ride.estimatedFare),ride.status,cancel+ridePaymentAction(ride));
     }).join(''):'<div class="empty-state">No active trips. Your next journey starts here.</div>';
     $('rideHistory').innerHTML=history.length?history.slice(0,8).map(ride=>item((ride.pickupAddress||'Pickup')+' → '+(ride.destinationAddress||'Destination'),driveDate(ride.createdAt)+' · '+driveMoney(ride.estimatedFare),ride.status,ridePaymentAction(ride))).join(''):'<div class="empty-state">Completed and cancelled trips will appear here.</div>';
 
