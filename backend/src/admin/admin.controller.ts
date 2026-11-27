@@ -4,6 +4,7 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 import { randomUUID } from 'crypto';
+import { IsIn, IsString, MaxLength, MinLength } from 'class-validator';
 import { AuthGuard } from '../auth/auth.guard';
 import { DatabaseService } from '../database/database.service';
 import { ReviewDto, ReviewPaymentDto } from '../drivers/driver.dto';
@@ -14,6 +15,7 @@ type AdminRequest = Request & {
 
 type UserStatusDto = { is_active: boolean };
 type RentalReviewDto = { status: 'approved' | 'rejected' | 'cancelled' | 'completed' };
+class AdminRideActionDto { @IsIn(['cancelled']) status!: 'cancelled'; @IsString() @MinLength(8) @MaxLength(500) reason!: string; }
 
 @Controller('admin')
 @UseGuards(AuthGuard)
@@ -372,6 +374,17 @@ export class AdminController {
     if (ridesError) throw new BadRequestException(ridesError.message);
     const byRequest = new Map((rides || []).map((ride: any) => [ride.request_id, ride]));
     return (requests || []).map((item: any) => ({ ...item, ride: byRequest.get(item.id) || null }));
+  }
+
+  @Patch('rides/:id')
+  async cancelRide(@Req()request:AdminRequest,@Param('id')id:string,@Body()dto:AdminRideActionDto){
+    const db=this.client(request);
+    const {data,error}=await db.rpc('drive_admin_cancel_ride',{p_request_id:id,p_reason:dto.reason.trim()});
+    if(error)throw new BadRequestException(error.message);
+    await this.audit(db,request,'ride.admin_cancelled','ride_request',id,{
+      reason:dto.reason.trim(),rideId:data?.rideId||null,
+    });
+    return data;
   }
 
   @Get('rental-bookings')
