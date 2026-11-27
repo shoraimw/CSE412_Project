@@ -4,7 +4,7 @@
   const activeStates=['requested','matched','driver_arriving','in_progress'];
   const trackableStates=['matched','driver_arriving','in_progress'];
   let payments=[],tripMap=null,driverMarker=null,pickupMarker=null,destinationMarker=null,routeLine=null;
-  let trackedRideId=null,trackingTimer=null,paymentRide=null,pendingPaymentId=null,pendingPaymentMethod=null;
+  let trackedRideId=null,trackingTimer=null,paymentRide=null,pendingPaymentId=null,pendingPaymentMethod=null;\n  let safetySessions=[],safetyWatchId=null,safetyLocationSending=false;
 
   const statusLabel=s=>String(s||'unknown').replaceAll('_',' ');
   const statusClass=s=>['completed','paid','approved','success'].includes(s)?'success':['pending','requested','matched','driver_arriving','in_progress','new'].includes(s)?'warning':['rejected','cancelled','failed'].includes(s)?'danger':'';
@@ -187,7 +187,7 @@
       $('safetyPreferences').innerHTML=
         '<label class="check-row"><input type="checkbox" id="womenSafetyToggle" '+(settings.womenSafetyEnabled?'checked':'')+'> Women Safety Mode</label>'+
         '<label class="check-row"><input type="checkbox" id="verifiedDriverToggle" '+(settings.preferVerifiedDrivers!==false?'checked':'')+'> Prefer verified drivers</label>'+
-        '<div class="divider"></div><strong>Trusted & emergency contacts</strong>'+
+        '<hr class="muted-line"><div id="safetyMonitor" class="stack"><p class="muted small">Checking active Women Safety monitoring…</p></div><strong>Trusted & emergency contacts</strong>'+
         '<p class="muted small">Trusted contacts can receive your private trip link. Emergency contacts are shown after an SOS alert; you must choose to call or text them.</p>'+
         '<div id="safetyContactList" class="list"></div>'+
         '<div class="form-grid">'+
@@ -229,6 +229,55 @@
     setupShareLink();
   }
 
+
+  async function setupSafetyTracking(rides){
+    try{
+      safetySessions=await driveRequest('/safety/trips/active');
+      const remaining=[];
+      for(const session of safetySessions){
+        const related=rides.find(ride=>(session.rideId&&ride.rideId===session.rideId)||(session.rideRequestId&&ride.requestId===session.rideRequestId));
+        if(related?.status==='completed'){
+          await driveRequest('/safety/trips/'+encodeURIComponent(session.id)+'/complete',{method:'POST'}).catch(()=>{});
+        }else remaining.push(session);
+      }
+      safetySessions=remaining;
+      const node=$('safetyMonitor');
+      if(!node)return;
+      node.innerHTML=safetySessions.length?safetySessions.map(session=>
+        '<div class="list-item"><div class="list-item-main"><strong>Women Safety monitoring · '+driveEscape(session.destination)+'</strong><small>Started '+driveEscape(driveDate(session.startedAt))+' · Expected '+driveEscape(driveDate(session.expectedArrivalAt))+'</small></div><span class="pill '+(session.status==='ACTIVE'?'success':'warning')+'">'+driveEscape(session.status)+'</span></div>'+
+        (session.warnings?.length?'<div class="message warning">'+session.warnings.map(w=>driveEscape(w.message||w.type)).join(' · ')+'</div>':'')
+      ).join(''):'<div class="empty-state">No active Women Safety trip monitor.</div>';
+      if(safetySessions.length)startSafetyLocationWatch();
+      else stopSafetyLocationWatch();
+    }catch(error){throw error;}
+  }
+
+  function startSafetyLocationWatch(){
+    if(safetyWatchId!==null)return;
+    if(!navigator.geolocation){$('safetyMonitor').innerHTML+='<p class="message warning">This browser cannot share GPS location. Safety route monitoring is paused.</p>';return;}
+    safetyWatchId=navigator.geolocation.watchPosition(async position=>{
+      if(safetyLocationSending||!safetySessions.length)return;
+      safetyLocationSending=true;
+      try{
+        const point={lat:position.coords.latitude,lng:position.coords.longitude};
+        const results=await Promise.all(safetySessions.map(session=>
+          driveRequest('/safety/trips/'+encodeURIComponent(session.id)+'/location',{method:'POST',body:JSON.stringify(point)}).catch(error=>({error:error.message,id:session.id}))
+        ));
+        const warning=results.find(result=>result?.latestWarnings?.length);
+        if(warning)$('safetyMessage').textContent=warning.latestWarnings.map(x=>x.message).join(' · ');
+      }finally{safetyLocationSending=false;}
+    },error=>{
+      if(safetyWatchId!==null)navigator.geolocation.clearWatch(safetyWatchId);
+      safetyWatchId=null;
+      $('safetyMonitor').innerHTML+='<p class="message warning">GPS monitoring paused: '+driveEscape(error.message||'Location permission is unavailable.')+'</p>';
+    },{enableHighAccuracy:true,maximumAge:10000,timeout:15000});
+  }
+
+  function stopSafetyLocationWatch(){
+    if(safetyWatchId!==null&&navigator.geolocation)navigator.geolocation.clearWatch(safetyWatchId);
+    safetyWatchId=null;
+  }
+
   function setupShareLink(){
     let url=null;try{url=sessionStorage.getItem('drive_pending_share_url');}catch{}
     if(!url)return;
@@ -259,6 +308,6 @@
     if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>send({lat:p.coords.latitude,lng:p.coords.longitude}),()=>send(undefined),{timeout:7000});
     else send(undefined);
   });
-  $('logoutButton')?.addEventListener('click',()=>{driveClearSession();location.href='index.html';});
+  $('logoutButton')?.addEventListener('click',()=>{stopSafetyLocationWatch();driveClearSession();location.href='index.html';});\n  window.addEventListener('pagehide',stopSafetyLocationWatch);
   load();
 })();
