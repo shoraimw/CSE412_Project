@@ -8,3 +8,9 @@ backend/.env
 
 backend/dist-cloudflare/
 .cloudflare/
+
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+.env.local
+.env.*.local

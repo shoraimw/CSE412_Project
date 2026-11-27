@@ -1,103 +1,98 @@
 # DRIVE — Smart Ride & Vehicle Rental Platform
 
-DRIVE is an East West University CSE412 academic project for ride booking, shared journeys, vehicle rental, passenger safety, and tourist planning.
+DRIVE is an East West University CSE412 project for ride booking, shared journeys, vehicle rental, passenger safety and tourist planning.
 
-## Technology
-- Frontend: HTML, CSS and Vanilla JavaScript
-- Backend: Node.js, NestJS and TypeScript
-- Runtime/hosting: Cloudflare Workers + Workers Static Assets
-- Database and authentication: Supabase PostgreSQL, Supabase Auth and Row Level Security
-- Maps/geocoding/routing: OpenStreetMap Nominatim + Leaflet + OSRM (no Google Maps API key)
-- API prefix: `/api`
+## Current architecture
 
-## Cloudflare deployment (current target)
-The repository is configured for Cloudflare. Vercel is not the deployment target.
+- **Frontend:** existing HTML, CSS and Vanilla JavaScript application in `frontend/`
+- **Backend:** NestJS 11 + TypeScript in `backend/`
+- **Database and authentication:** Supabase PostgreSQL, Supabase Auth and Row Level Security
+- **Hosting:** Vercel (static frontend + serverless NestJS API)
+- **Maps and routing:** OpenStreetMap, Leaflet, Nominatim and OSRM
+- **API prefix:** `/api`
 
-- `wrangler.jsonc` is the source of truth.
-- Worker entrypoint: `backend/src/worker.ts`.
-- Frontend static directory: `frontend/`.
-- The Worker routes `/api/*` to NestJS and delegates all other paths to `env.ASSETS.fetch(request)`.
-- Required encrypted Worker secrets: `SUPABASE_URL`, `SUPABASE_ANON_KEY` (Supabase publishable/anon key only; never service-role).
-- Local dev: copy `.dev.vars.example` to `.dev.vars`, fill the Supabase values, run `npm install`, then `npm run dev`.
-- Validate bundle: `npm run build`.
-- Deploy production only from the protected `main` branch after Preview verification: `npm run deploy`.
+The current frontend/backend structure is intentionally retained for the first Vercel release. Replacing it with a new framework before validating the existing application would add migration risk and delay the first working release. Backend services are already TypeScript. A frontend TypeScript migration can be considered module by module after the release baseline is stable.
 
-### Cloudflare Preview
-Feature branch: `feature/complete-system-integration`
+## Vercel deployment
 
-The feature branch is deployed through Wrangler Preview and must not overwrite the production Worker. Preview URL aliases and unique deployment URLs are shown in Cloudflare Workers & Pages → cse412-project → Deployments.
+The repository root is the Vercel project root.
 
-## Supabase setup
-The connected Supabase project is active and its migration history has been verified through `20261113192334`. This repository tracks the later feature migrations, but the original bootstrap migrations (`drive_initial_schema`, auth/RLS baseline and initial role setup) were applied before they were committed as SQL files. Therefore, this migration folder alone is not yet a complete fresh-database bootstrap. Do not run it against a new project until a reviewed baseline schema export has been added; do not replay migrations manually against the connected production project.
+- Root Directory: `./`
+- Framework Preset: `Other`
+- Build Command: defined in `vercel.json`
+- Output Directory: `frontend`
+- API Function: `api/[...path].js`
+- Function bundle: `backend/dist/**`
+- Primary production branch: `main`
 
-Use Supabase Dashboard → Authentication → URL Configuration to set the production and Preview Site URLs and allowed redirect URLs. Email confirmation settings affect whether signup returns a session immediately.
+See [docs/VERCEL_DEPLOYMENT.md](docs/VERCEL_DEPLOYMENT.md) for setup and smoke-test instructions.
+
+Vercel deploys from GitHub. A push to `main` can trigger a production deployment, so changes must pass validation before they are pushed.
+
+## Environment variables
+
+Configure these in Vercel Project Settings → Environment Variables:
+
+| Variable | Purpose |
+|---|---|
+| `SUPABASE_URL` | Supabase project URL |
+| `SUPABASE_ANON_KEY` | Supabase publishable key (or legacy anon key) |
+
+Use the same variable names for Preview and Production, but prefer a separate Supabase development project for Preview when available. Never put a service-role key in frontend code or public environment variables.
+
+The checked-in `backend/.env.example` contains placeholders only.
+
+## Database bootstrap status — important
+
+The connected Supabase project was inspected on 2026-11-28. Its `public` schema contains no DRIVE application tables, and its Supabase migration history is empty.
+
+The repository contains incremental feature migrations, but the original bootstrap schema is not committed. Those later migrations assume that core tables, enum types, helper functions and policies already exist.
+
+**Do not replay the existing incremental migrations against the empty database yet.** A reviewed baseline migration must be created and validated first. See [docs/DATABASE_BOOTSTRAP_AUDIT.md](docs/DATABASE_BOOTSTRAP_AUDIT.md).
+
+## Functional scope
+
+The project requirements define 12 functional requirement groups:
+
+1. Authentication & Security
+2. User Management
+3. Vehicle Rental
+4. Smart Ride Booking
+5. Smart Ride Match & Cost Sharing
+6. Real-Time Ride Tracking
+7. Smart Fare Prediction
+8. AI Route Optimization
+9. Multi-Currency Payment
+10. Women Safety Mode
+11. Smart Emergency & Safe Trip System
+12. Tourist Mode
+
+They also define five non-functional requirements: Performance, Usability, Scalability, Security and Portability, plus domain requirements for roles, verified drivers, non-overlapping rentals, non-conflicting driver assignments, fare correctness, payments and safety.
+
+See [docs/REQUIREMENTS_TRACEABILITY.md](docs/REQUIREMENTS_TRACEABILITY.md). Existing code is not considered production-ready until the corresponding database, integration and acceptance tests pass.
+
+## Known integration boundaries
+
+- **Payments:** the current code supports payment intents and manual bKash/Nagad reference review. No automatic merchant gateway or verified payment webhook is configured.
+- **Emergency assistance:** SOS records and in-app admin alerts are supported in the existing implementation. No police dispatch or guaranteed SMS/WhatsApp delivery is configured.
+- **Location tracking:** browser-based foreground GPS is not equivalent to native background GPS. Test on real mobile browsers.
+- **Maps:** public OpenStreetMap/OSRM endpoints are best-effort and do not provide guaranteed live traffic. Review provider usage policies before commercial traffic.
+- **AI claims:** deterministic fare formulas and route-provider alternatives must not be described as trained ML/AI models.
+- **Scale:** no user or concurrency capacity should be claimed until staged load tests have been executed and measured.
+
+## Git and release workflow
+
+- `main` is the active development and production branch, as requested by the project owner.
+- Previous implementation is preserved in Git history and the `archive/pre-v2-main-20261128` snapshot branch.
+- Do not force-push or reset `main`.
+- Keep commits small and descriptive.
+- Run validation before each push because Vercel may deploy `main` automatically.
+- Do not apply destructive production database changes without explicit approval.
 
 ## Local development
-1. Use Node.js 22+.
-2. Copy `.dev.vars.example` to `.dev.vars`.
-3. Set `SUPABASE_URL` and `SUPABASE_ANON_KEY` in `.dev.vars`.
-4. Run `npm install`.
-5. Run `npm run dev` and open the Wrangler URL.
 
-## Presentation Guide
-
-Open the live walkthrough at `/presentation.html` for the Passenger, Driver, Vehicle Owner and Admin role links, five-minute demo sequence and live API/destination/currency status checks.
-
-## Requirement traceability
-
-See [docs/REQUIREMENTS_TRACEABILITY.md](docs/REQUIREMENTS_TRACEABILITY.md) for the 12 functional and five non-functional requirements, current implementation status, verification evidence and honest integration boundaries. The document is the release checklist; do not treat the feature list below as proof of production readiness.
-
-## Implemented modules
-- Supabase Auth registration, password login, refresh, email OTP and profile management
-- Passenger, driver, vehicle owner and admin role-based workflows
-- Vehicle catalogue, vehicle-owner listings, verification and rental booking
-- Map-based ride requests, OpenStreetMap OSRM road-route estimates, server-calculated fares, nearest-first driver discovery, online driver GPS presence, 20 km nearby-only dispatch, Supabase Realtime/in-app/browser ride alerts with polling fallback, online catch-up alerts, atomic first-accept matching, seat-aware shared rides and foreground live GPS tracking through Supabase Realtime with polling fallback
-- Automatic BDT fare estimation from the server-calculated road route, vehicle rate and OSRM standard route duration. The fare formula is deterministic and transparent. No ML model or training pipeline is used. Multi-currency conversion quotes remain available.
-- Women Safety Mode with enforced verified-driver matching, trusted/emergency contacts, monitored safety trips, private trip sharing and SOS records
-- Tourist destination catalogue, saved multi-stop plans and OSRM road-stop optimization for Car/Bike journeys (with clearly labelled fallback estimates)
-- Ride and rental payment intents, cash settlement review, bKash/Nagad transaction-reference submission and administrator verification; currency conversion remains an indicative quote
-- In-app notifications and admin review endpoints
-- Health endpoint
-
-## Important service limitations
-This is an academic project and Preview deployment. Do not describe the following as production integrations:
-- **Payments:** no automatic bKash, Nagad or card gateway/webhook is connected. bKash/Nagad transaction IDs can be submitted and manually verified by an administrator against the merchant account; cash can be confirmed only after physical receipt. A pending intent is not proof that money was collected.
-- **SOS delivery:** SOS is persisted and admin in-app notifications are generated; no police/emergency-service, SMS, WhatsApp or guaranteed external contact dispatch is configured.
-- **Driver dispatch:** verified drivers must explicitly go online and allow browser GPS. Their fresh locations appear to nearby passengers; only matching, online, approved drivers within 20 km receive persisted ride alerts. The Driver workspace subscribes to Supabase Realtime and falls back to 7-second polling. If a driver goes online after a request was created, a deduplicated catch-up alert is generated. Browser notifications appear while the workspace is open if permission is granted. The first eligible driver to claim wins atomically. No native background GPS or push notification is configured.
-- **Maps:** the visual map and geocoding use OpenStreetMap services. OSRM supplies standard road routes and estimated durations without an API key. Live traffic data is not included. The public OSRM demo is best-effort and subject to its usage policy; for sustained or commercial traffic, host your own routing service or use a provider with an appropriate plan.
-- **Notifications:** database triggers create in-app alerts for eligible drivers and passengers. Browser notifications require the driver workspace to remain open and notification permission; background Web Push, SMS and email delivery are not configured.
-- **Scale:** no load-test evidence establishes a user/concurrency capacity. Run staged tests and monitor database/Worker limits before making capacity claims.
-
-## Security and release checklist
-- Public registration creates Passenger accounts only.
-- Driver/vehicle-owner access requires application and verification workflows.
-- Authenticated API calls validate Supabase access tokens and use user-scoped Supabase clients.
-- RLS is enabled on application tables; review Supabase Security Advisor findings before production.
-- Do not expose service-role keys in browser code, Worker build logs, Git or this repository.
-- Configure Supabase Auth Site URL/redirect allow-list for the actual domains.
-- Configure Cloudflare production branch control to `main`; keep feature Preview separate.
-- Verify CSS/JS/static asset delivery, registration, login, profile, ride request/claim, rental, safety/SOS, notifications and admin workflows on Preview.
-- Test cross-user data isolation with at least two separate test accounts.
-- Run security and load tests, backups, monitoring and recovery checks before real-world use.
-
-## API overview
-- `POST /api/auth/register`, `POST /api/auth/login`
-- `GET/PATCH /api/users/me`
-- `GET /api/rental/vehicles`, `POST /api/rental/bookings`
-- `GET/POST /api/rides`, driver claim and ride tracking endpoints
-- `/api/fare/*`, `/api/routes/*`, `/api/drivers/nearby`, `POST /api/drivers/location`, `/api/payments/*`
-- `/api/safety/*`, `/api/tourist/*`, `/api/notifications/*`, `/api/admin/*`
-- `GET /api/health`
+Local development is optional. The owner does not need to install Node.js or Docker for the GitHub/Vercel cloud workflow. CI and Vercel perform builds in their cloud environments.
 
 ## Team
+
 East West University · CSE412 · Fall 2026
-
-
-## Shared rides and safety administration
-- Drivers claim requests through a row-locked database function. A shared car/CNG ride receives a fixed demo seat capacity; the original passenger is inserted as the first occupant.
-- Passengers can discover only matched shared rides with remaining seats. Joining is handled by a row-locked database function that checks capacity and recalculates each passenger's fare share atomically.
-- Administrators can review vehicle-owner applications and acknowledge/resolve recorded SOS alerts. SOS recording does not contact emergency services.
-
-
-## First administrator
-Follow [docs/ADMIN_BOOTSTRAP.md](docs/ADMIN_BOOTSTRAP.md) to provision the first trusted admin account safely through the Supabase SQL Editor.
