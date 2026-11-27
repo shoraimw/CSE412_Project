@@ -124,7 +124,7 @@
   async function load(){
     try{
       const user=await driveRequest('/users/me');
-      if(user.role!=='passenger'){location.href=driveRoleHome(user);return;}
+      if(user.role!=='passenger'){location.href=driveRoleHome(user.role);return;}
       $('welcomeText').textContent='Welcome, '+(user.full_name||user.name||'there')+'. Your journeys, all in one place.';
     }catch(error){$('welcomeText').textContent=error.message;}
 
