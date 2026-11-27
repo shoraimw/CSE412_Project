@@ -2,7 +2,7 @@
 
 ## Goal
 
-Remove the old mixed-style frontend pages from the active website and provide one consistent, professional ride-hailing experience. The design follows familiar map-first ride-booking patterns while using original DRIVE branding, wording and layout. It does not copy Uber logos, artwork, text or proprietary screen assets.
+Remove the old mixed-style frontend pages from the active website and provide one consistent DRIVE multi-service experience. The map-first ride-booking screen is one entry point only; Rentals, shared rides/cost sharing, Owner workflows, Women Safety, emergency/safe-trip functions and Tourist Mode remain part of the product. Familiar map-based booking conventions are interaction references only. Keep original DRIVE branding, wording and layout; do not copy Uber logos, artwork, text or proprietary screen assets. Follow PRODUCT_SCOPE_GUARDRAILS.md before any redesign or feature change.
 
 ## Source preservation
 
