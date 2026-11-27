@@ -112,6 +112,11 @@ export class VerificationService {
       rejection_reason:input.status==='rejected'?input.rejectionReason.trim():null,
     }).eq('id',id).eq('verification_status','pending').select('*').maybeSingle();
     if(error||!data) throw new BadRequestException(error?.message||'Pending document not found or already reviewed.');
+    const {error:auditError}=await this.db(token).from('admin_audit_logs').insert({
+      admin_id:adminId,action:type+'.document.'+input.status,entity_type:type+'_document',entity_id:id,
+      details:{documentType:data.document_type,ownerId:data[ownerField],rejectionReason:input.status==='rejected'?input.rejectionReason.trim():null},
+    });
+    if(auditError)console.error('[DRIVE KYC audit]',auditError.message);
     return {message:'Verification document '+input.status+'.',document:data,ownerId:data[ownerField]};
   }
 }
