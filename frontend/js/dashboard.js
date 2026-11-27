@@ -15,6 +15,7 @@
   function paymentFor(ride){return payments.find(p=>p.ride_id===ride.rideId)||null;}
   function ridePaymentAction(ride){
     if(!ride.rideId||ride.status!=='completed')return '';
+    if(ride.actualFare===null||ride.actualFare===undefined)return '<span class="pill warning">Final fare pending</span>';
     const payment=paymentFor(ride);
     if(payment?.status==='paid')return '<span class="pill success">Paid</span>';
     if(payment?.status==='pending'){
