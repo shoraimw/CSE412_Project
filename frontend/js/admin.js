@@ -76,16 +76,36 @@
   }
   async function performAction(btn){
     const id=btn.dataset.id, action=btn.dataset.action, config=configs[activeTab];
-    if(action==='toggle'){
-      const confirmed=confirm('Toggle this user account active status?');if(!confirmed)return;
-    }
     let body={};
     if(activeTab==='users'){
       const rows=await driveRequest('/admin/users');const user=rows.find(r=>r.id===id);body={is_active:!user?.is_active};
-    }else if(activeTab==='safety')body={status:action};
-    else if(activeTab==='payments')body={status:action};
-    else body={status:action};
-    if(action==='rejected'&&!confirm('Reject this application?'))return;
+      if(!confirm((body.is_active?'Reactivate':'Suspend')+' this user account?'))return;
+    }else if(activeTab==='safety'){
+      body={status:action};
+      if(action==='false_alarm'&&!confirm('Mark this alert as a false alarm?'))return;
+    }else if(activeTab==='payments'){
+      body={status:action};
+      if(action==='paid'&&!confirm('Confirm that this payment has been verified?'))return;
+    }else if(activeTab==='driverDocs'||activeTab==='ownerDocs'){
+      body={status:action};
+      if(action==='rejected'){
+        const reason=prompt('Reason for rejecting this document:');
+        if(!reason?.trim())return;
+        body.rejectionReason=reason.trim();
+      }else if(!confirm('Approve this verification document?'))return;
+    }else if(activeTab==='supportCases'){
+      body={status:action,adminNote:prompt('Internal admin note (optional):')||undefined};
+      if(action==='rejected'&&!confirm('Reject this support case?'))return;
+    }else if(['drivers','owners','vehicles'].includes(activeTab)){
+      body={status:action};
+      if(action==='rejected')body.rejection_reason=prompt('Reason for rejection (optional):')||undefined;
+      if(!confirm((action==='approved'?'Approve':'Reject')+' this record?'))return;
+    }else if(activeTab==='rentals'){
+      body={status:action};
+      if(action==='rejected'&&!confirm('Reject this rental booking?'))return;
+    }else{
+      body={status:action};
+    }
     btn.disabled=true;
     try{
       await driveRequest(config.action+id+(activeTab==='users'?'/status':''),{method:'PATCH',body:JSON.stringify(body)});
