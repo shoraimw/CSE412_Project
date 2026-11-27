@@ -207,7 +207,9 @@
           $('safetyMessage').textContent='Enter a contact name and a valid phone number.';$('safetyMessage').className='message error';return;
         }
         const contact={name,phone,relation};
-        if($('contactKind').value==='trusted')trustedContacts.push(contact);else emergencyContacts.push(contact);
+        const targetContacts=$('contactKind').value==='trusted'?trustedContacts:emergencyContacts;
+        if(targetContacts.length>=10){$('safetyMessage').textContent='You can save up to 10 contacts of each type.';$('safetyMessage').className='message error';return;}
+        targetContacts.push(contact);
         $('contactName').value='';$('contactPhone').value='';$('contactRelation').value='';
         $('safetyMessage').textContent='Contact added to the form. Save preferences & contacts to keep it.';$('safetyMessage').className='message';
         renderContactList();
