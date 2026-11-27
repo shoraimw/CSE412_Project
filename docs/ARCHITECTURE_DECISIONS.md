@@ -4,9 +4,11 @@ Audit date: 2026-11-28
 Repository: `shoraimw/CSE412_Project`  
 Active branch: `main`
 
-## ADR-001 — Retain the existing application structure
+## ADR-001 — Rebuild the active frontend; retain the API and database foundation
 
-Keep the existing static HTML/CSS/Vanilla JavaScript frontend and NestJS 11 + TypeScript backend for the current release. The repository already contains role-specific pages and modular API services. A framework rewrite is deferred until the deployed release is stable.
+The active frontend is a clean HTML/CSS/Vanilla JavaScript rebuild with a map-first ride-booking experience and original DRIVE branding. The old landing, passenger, driver, owner, admin, rental and utility screens were replaced; obsolete pages and scripts were removed from the active frontend. The previous complete repository state is preserved in branch `archive/pre-fresh-uber-inspired-rebuild-20261128`.
+
+The NestJS 11 + TypeScript API and Supabase schema/migrations remain in place as the service/data foundation so the new interface can use the existing authenticated workflows. Therefore this change is a fresh UI rebuild, not a full backend rewrite.
 
 ## ADR-002 — Cloudflare Pages + Workers is the active production host
 

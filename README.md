@@ -15,6 +15,18 @@ DRIVE is an East West University CSE412 project for ride booking, shared journey
 
 The production site is `https://drive-ewu.pages.dev`. The active Pages production branch is `main`.
 
+## Fresh UI rebuild — 2026-11-28
+
+The active frontend has been rebuilt with a clean, map-first, black-and-white DRIVE interface inspired by familiar ride-hailing interaction patterns. It uses original DRIVE branding and original page layouts; it does not reuse Uber logos, artwork, text, or proprietary screen assets.
+
+- Old landing, dashboard, partner, admin and utility pages were replaced.
+- Legacy driver-apply, owner-apply, presentation and old safety-tourist pages were removed from the active frontend.
+- Old frontend scripts and the unused stylesheet were removed from the active deployment.
+- The previous repository state is preserved in branch `archive/pre-fresh-uber-inspired-rebuild-20261128`.
+- The NestJS API and Supabase schema/migrations are retained as the service and data foundation. This is a fresh frontend rebuild, not a claim that the backend has been rewritten from zero.
+
+See [docs/UI_REBUILD.md](docs/UI_REBUILD.md) for the route map and verification scope.
+
 ## Deployment and stale-build protection
 
 The stale website issue was traced to Cloudflare Pages `path_includes`: it previously watched only selected frontend and Pages Function folders. Backend, database and deployment-only commits were skipped, leaving an older successful deployment as the canonical site.
