@@ -1,64 +1,22 @@
-const $=id=>document.getElementById(id);
-if(!localStorage.getItem(DRIVE_TOKEN_KEY))location.replace('login.html');
-let loading=false;
-async function load(){
-  if(loading)return;
-  loading=true;
-  try{
-    const result=await driveRequest('/notifications');
-    $('noticeStatus').textContent=result.unreadCount+' unread notification(s).';
-    const list=$('noticeList');
-    list.replaceChildren();
-    if(!result.items.length){
-      list.textContent='You have no notifications yet.';
-      return;
-    }
-    result.items.forEach(n=>{
-      const card=document.createElement('article');
-      card.className='notice-card'+(n.read_at?'':' unread');
-      const title=document.createElement('strong');
-      title.textContent=n.title;
-      const body=document.createElement('p');
-      body.textContent=n.body;
-      const meta=document.createElement('small');
-      meta.textContent=n.type+' · '+new Date(n.created_at).toLocaleString();
-      card.append(title,body,meta);
-      if(!n.read_at){
-        const button=document.createElement('button');
-        button.textContent='Mark as read';
-        button.addEventListener('click',async()=>{
-          button.disabled=true;
-          try{
-            await driveRequest('/notifications/'+encodeURIComponent(n.id)+'/read',{method:'PATCH'});
-            await load();
-          }catch(error){
-            button.disabled=false;
-            $('noticeStatus').textContent=error.message;
-          }
-        });
-        card.append(button);
-      }
-      list.append(card);
-    });
-  }catch(error){
-    $('noticeStatus').textContent=error.message;
-  }finally{
-    loading=false;
+(() => {
+  if(!driveRequireAuth('notifications.html'))return;
+  const $=id=>document.getElementById(id);
+  async function load(){
+    try{
+      const result=await driveRequest('/notifications');
+      const rows=result.items||[];
+      $('notificationList').innerHTML=rows.length?rows.map(n=>'<article class="list-item"><div class="list-item-main"><strong>'+driveEscape(n.title)+'</strong><small>'+driveEscape(n.body)+' · '+driveDate(n.created_at)+'</small></div><div class="row-actions">'+(!n.read_at?'<span class="pill warning">New</span><button class="button-mini" data-read="'+driveEscape(n.id)+'">Mark read</button>':'<span class="pill">Read</span>')+'</div></article>').join(''):'<div class="empty-state">You are all caught up. New activity will appear here.</div>';
+      $('notificationList').querySelectorAll('[data-read]').forEach(button=>button.addEventListener('click',async()=>{
+        button.disabled=true;
+        try{await driveRequest('/notifications/'+button.dataset.read+'/read',{method:'PATCH'});load();}
+        catch(error){driveToast(error.message);button.disabled=false;}
+      }));
+    }catch(error){$('notificationList').innerHTML='<div class="empty-state">'+driveEscape(error.message)+'</div>';}
   }
-}
-$('markAll').addEventListener('click',async()=>{
-  const button=$('markAll');
-  button.disabled=true;
-  try{
-    await driveRequest('/notifications/read-all',{method:'PATCH'});
-    await load();
-  }catch(error){
-    $('noticeStatus').textContent=error.message;
-  }finally{
-    button.disabled=false;
-  }
-});
-load();
-setInterval(load,10000);
-window.addEventListener('focus',load);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)load();});
+  $('markAllRead').addEventListener('click',async()=>{
+    try{await driveRequest('/notifications/read-all',{method:'PATCH'});driveToast('All notifications marked as read.');load();}
+    catch(error){driveToast(error.message);}
+  });
+  $('logoutButton').addEventListener('click',()=>{driveClearSession();location.href='index.html';});
+  load();
+})();
