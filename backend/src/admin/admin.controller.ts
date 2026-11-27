@@ -3,6 +3,7 @@ import {
   NotFoundException, Param, Patch, Req, UseGuards
 } from '@nestjs/common';
 import { Request } from 'express';
+import { randomUUID } from 'crypto';
 import { AuthGuard } from '../auth/auth.guard';
 import { DatabaseService } from '../database/database.service';
 import { ReviewDto, ReviewPaymentDto } from '../drivers/driver.dto';
@@ -265,24 +266,52 @@ export class AdminController {
     const db = this.client(request);
     const { data: payment, error: readError } = await db
       .from('payments')
-      .select('id,method,status,provider_reference')
+      .select('id,method,status,provider_reference,gateway_name,gateway_status,gateway_validation_id,receipt_number,gateway_payload')
       .eq('id', id)
       .maybeSingle();
     if (readError || !payment) throw new NotFoundException(readError?.message || 'Payment not found.');
     if (payment.status !== 'pending') throw new BadRequestException('Only pending payments can be reviewed.');
-    if (dto.status === 'paid' && payment.method !== 'cash' && !(['bkash','nagad'].includes(String(payment.method).toLowerCase()) && Boolean(payment.provider_reference))) {
-      throw new ForbiddenException('An online wallet payment can only be verified after the passenger submits a transaction ID. No automatic gateway settlement is connected.');
+    if (dto.status === 'paid') {
+      const manualWalletReady=['bkash','nagad'].includes(String(payment.method).toLowerCase())&&Boolean(payment.provider_reference);
+      const cashReady=payment.method==='cash';
+      const verifiedRiskHold=payment.method==='card'&&payment.gateway_name==='sslcommerz'
+        &&payment.gateway_status==='risk_hold'&&Boolean(payment.gateway_validation_id);
+      if(!cashReady&&!manualWalletReady&&!verifiedRiskHold){
+        throw new ForbiddenException(
+          payment.method==='card'
+            ?'This card payment cannot be manually approved unless SSLCOMMERZ validated it and placed it on risk hold.'
+            :'A wallet payment can only be approved after the passenger submits its transaction reference.'
+        );
+      }
+      if(verifiedRiskHold&&(!dto.adminNote||dto.adminNote.trim().length<8)){
+        throw new BadRequestException('Add an administrator review note after checking the gateway and customer verification before releasing a risk-held payment.');
+      }
     }
-    if (dto.status === 'refunded') throw new BadRequestException('Only a previously paid payment can be refunded.');
+    if (dto.status === 'refunded') throw new BadRequestException('Refunds must be processed in the merchant portal before recording a refund in DRIVE.');
+    const now=new Date().toISOString();
+    const gatewayPayload={...(payment.gateway_payload||{}),adminReview:{
+      note:dto.adminNote?.trim()||null,reviewedBy:request.user.id,reviewedAt:now,
+    }};
+    const patch:any={status:dto.status,updated_at:now,gateway_payload:gatewayPayload};
+    if(dto.status==='paid'){
+      patch.paid_at=now;
+      patch.receipt_number=payment.receipt_number||'DRIVE-'+now.slice(0,10).replace(/-/g,'')+'-'+randomUUID().replace(/-/g,'').slice(0,8).toUpperCase();
+      if(payment.gateway_status==='risk_hold')patch.gateway_status='ADMIN_APPROVED_RISK_HOLD';
+    }else if(payment.gateway_name==='sslcommerz'){
+      patch.gateway_status='ADMIN_MARKED_FAILED';
+    }
     const { data, error } = await db
       .from('payments')
-      .update({ status: dto.status })
+      .update(patch)
       .eq('id', id)
       .eq('status', 'pending')
       .select('*')
       .maybeSingle();
     if (error || !data) throw new BadRequestException(error?.message || 'Payment status could not be updated.');
-    await this.audit(db, request, 'payment.' + dto.status, 'payment', id, { status: dto.status, method: payment.method, transactionReferenceSubmitted: Boolean(payment.provider_reference) });
+    await this.audit(db, request, 'payment.' + dto.status, 'payment', id, {
+      status:dto.status,method:payment.method,transactionReferenceSubmitted:Boolean(payment.provider_reference),
+      gatewayStatus:payment.gateway_status,adminNote:dto.adminNote?.trim()||null,
+    });
     return data;
   }
 
