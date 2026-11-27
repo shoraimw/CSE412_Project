@@ -17,7 +17,7 @@ The production site is `https://drive-ewu.pages.dev`. The active Pages productio
 
 ## Fresh UI rebuild — 2026-11-28
 
-The active frontend has been rebuilt with a clean, map-first, black-and-white DRIVE interface inspired by familiar ride-hailing interaction patterns. It uses original DRIVE branding and original page layouts; it does not reuse Uber logos, artwork, text, or proprietary screen assets.
+The active frontend uses a map-first ride-booking screen and consistent, original DRIVE branding. Familiar ride-hailing conventions are only interaction references; they do not define DRIVE's product scope. DRIVE remains a combined ride-sharing and car/bike rental platform, with shared cost, owner workflows, Women Safety, emergency/safe-trip and Tourist Mode requirements. The rebuild must not remove or bury those modules and does not reuse Uber branding, artwork, text or proprietary screen assets.
 
 - Old landing, dashboard, partner, admin and utility pages were replaced.
 - Legacy driver-apply, owner-apply, presentation and old safety-tourist pages were removed from the active frontend.
@@ -25,7 +25,7 @@ The active frontend has been rebuilt with a clean, map-first, black-and-white DR
 - The previous repository state is preserved in branch `archive/pre-fresh-uber-inspired-rebuild-20261128`.
 - The NestJS API and Supabase schema/migrations are retained as the service and data foundation. This is a fresh frontend rebuild, not a claim that the backend has been rewritten from zero.
 
-See [docs/UI_REBUILD.md](docs/UI_REBUILD.md) for the route map and verification scope.
+See [docs/UI_REBUILD.md](docs/UI_REBUILD.md) for the route map and verification scope, and [docs/PRODUCT_SCOPE_GUARDRAILS.md](docs/PRODUCT_SCOPE_GUARDRAILS.md) for the binding product-scope and FR/NFR guardrails.
 
 ## Deployment and stale-build protection
 
