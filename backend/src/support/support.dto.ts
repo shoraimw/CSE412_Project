@@ -1,4 +1,4 @@
-import { IsIn, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
 
 export class CreateReviewDto {
   @IsUUID() rideId!: string;
@@ -18,10 +18,10 @@ export class UpdateSupportCaseDto {
   @IsOptional() @IsString() @MaxLength(2000) adminNote?: string;
 }
 export class UpdateFareRuleDto {
-  @IsOptional() @Min(0) base_fare?: number;
-  @IsOptional() @Min(0) per_km?: number;
-  @IsOptional() @Min(0) per_minute?: number;
-  @IsOptional() @Min(1) @Max(3) peak_hour_multiplier?: number;
-  @IsOptional() @Min(1) @Max(3) demand_multiplier_cap?: number;
-  @IsOptional() is_active?: boolean;
+  @IsOptional() @IsNumber() @Min(0) base_fare?: number;
+  @IsOptional() @IsNumber() @Min(0) per_km?: number;
+  @IsOptional() @IsNumber() @Min(0) per_minute?: number;
+  @IsOptional() @IsNumber() @Min(1) @Max(3) peak_hour_multiplier?: number;
+  @IsOptional() @IsNumber() @Min(1) @Max(3) demand_multiplier_cap?: number;
+  @IsOptional() @IsBoolean() is_active?: boolean;
 }
