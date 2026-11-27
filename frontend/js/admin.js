@@ -10,7 +10,7 @@
     safety:{url:'/admin/safety-alerts',title:'Safety alerts',cols:['Type','User','Message','Created','Status'],map:r=>[r.alert_type,r.profiles?.full_name||r.user_id,r.message||'—',driveDate(r.created_at),r.status],action:'/admin/safety-alerts/',actions:['acknowledged','resolved','false_alarm']},
     payments:{url:'/admin/payments',title:'Pending and risk-held payments',cols:['Payer','Amount','Method','Transaction reference','Gateway status','Created'],map:r=>[r.payer?.full_name||r.user_id,driveMoney(r.amount)+' '+r.currency,r.method,r.provider_reference||r.gateway_transaction_id||'Not submitted',r.gateway_status||'Manual',driveDate(r.created_at)],action:'/admin/payments/',actions:['paid','failed']},
     users:{url:'/admin/users',title:'User accounts',cols:['Name','Phone','Role','Joined','Account'],map:r=>[r.full_name,r.phone||'—',r.role,driveDate(r.created_at),r.is_active?'Active':'Disabled'],action:'/admin/users/',actions:['toggle']},
-    rides:{url:'/admin/rides',title:'Ride requests',cols:['Passenger','Pickup','Destination','Vehicle','Fare','Status'],map:r=>[r.profiles?.full_name||r.passenger_id,r.pickup_label,r.destination_label,r.requested_vehicle,driveMoney(r.estimated_fare),r.ride?.status||r.status]},
+    rides:{url:'/admin/rides',title:'Ride requests',cols:['Passenger','Pickup','Destination','Vehicle','Fare','Status'],map:r=>[r.profiles?.full_name||r.passenger_id,r.pickup_label,r.destination_label,r.requested_vehicle,driveMoney(r.estimated_fare),r.ride?.status||r.status],action:'/admin/rides/',actions:['cancelled']},
     rentals:{url:'/admin/rental-bookings',title:'Rental bookings',cols:['Renter','Vehicle','Period','Total','Status'],map:r=>[r.renter?.full_name||r.renter_id,(r.vehicles?.make||'')+' '+(r.vehicles?.model||''),driveDate(r.start_at)+' – '+driveDate(r.end_at),driveMoney(r.total_amount),r.status],action:'/admin/rental-bookings/',actions:['approved','rejected','cancelled']},
     supportCases:{url:'/admin/support-cases',title:'Customer support cases',cols:['Customer','Category','Subject','Created','Priority','Status'],map:r=>[r.profile?.full_name||r.user_id,r.category,r.subject,driveDate(r.created_at),r.priority,r.status],action:'/admin/support-cases/',actions:['in_review','resolved','rejected']},
     feedback:{url:'/admin/reviews',title:'Passenger feedback',cols:['Passenger','Driver','Rating','Comment','Ride','Submitted'],map:r=>[r.reviewer?.full_name||r.reviewer_id,r.reviewee?.full_name||r.reviewee_id,String(r.rating)+'/5',r.comment||'—',r.ride_id,driveDate(r.created_at)]},
@@ -64,7 +64,8 @@
         const cells=config.map(row).map(v=>'<td>'+driveEscape(v??'—')+'</td>').join('')+(config.preview?'<td>'+(row.previewUrl?'<a href="'+driveEscape(row.previewUrl)+'" target="_blank" rel="noopener">Open private file</a>':'Unavailable')+'</td>':'');
         let actions='';
         if(config.actions){
-          actions='<td><div class="row-actions">'+config.actions.map(a=>button(row.id,a)).join('')+'</div></td>';
+          const availableActions=tab==='rides'&&['completed','cancelled'].includes(row.ride?.status||row.status)?[]:config.actions;
+          actions='<td><div class="row-actions">'+availableActions.map(a=>button(row.id,a)).join('')+'</div></td>';
         } else if(tab==='users') {
           actions='<td>'+button(row.id,'toggle')+'</td>';
         }
