@@ -47,14 +47,14 @@
 
   function paymentFor(booking){return payments.find(p=>p.rental_booking_id===booking.id)||null;}
   function rentalPaymentAction(booking){
-    if(!['approved','active'].includes(booking.status))return '';
     const payment=paymentFor(booking);
-    if(payment?.status==='paid')return '<span class="pill success">Paid</span>';
+    if(payment?.status==='paid')return '<span class="pill success">Paid</span><button class="button-mini" data-rental-result="'+driveEscape(payment.id)+'">Receipt</button>';
     if(payment?.status==='pending'){
       if(['bkash','nagad'].includes(String(payment.method).toLowerCase())&&!payment.provider_reference)
         return '<button class="button-mini dark" data-rental-reference="'+driveEscape(payment.id)+'">Add transaction ID</button>';
-      return '<span class="pill warning">Payment pending</span>';
+      return '<span class="pill warning">'+(payment.gateway_status==='risk_hold'?'Gateway review':'Payment pending')+'</span><button class="button-mini" data-rental-result="'+driveEscape(payment.id)+'">Status</button>';
     }
+    if(booking.status!=='approved')return '';
     return '<button class="button-mini dark" data-rental-pay="'+driveEscape(booking.id)+'">Pay rental</button>';
   }
 
@@ -71,6 +71,9 @@
       const payment=payments.find(x=>x.id===button.dataset.rentalReference);
       const booking=bookings.find(x=>x.id===payment?.rental_booking_id);
       openRentalPayment(booking,payment);
+    }));
+    $('myBookings').querySelectorAll('[data-rental-result]').forEach(button=>button.addEventListener('click',()=>{
+      location.href='payment-result.html?payment='+encodeURIComponent(button.dataset.rentalResult);
     }));
   }
 
@@ -89,34 +92,52 @@
     $('rentalPaymentSummary').textContent=booking?'Rental total · '+driveMoney(booking.total_amount):'Submit the wallet transaction ID';
     $('rentalPaymentMethod').value=existing?.method||'cash';
     $('rentalPaymentMethod').disabled=Boolean(existing);
+    $('rentalPaymentCurrency').value='BDT';$('rentalPaymentCurrency').disabled=Boolean(existing);
     $('rentalPaymentReferenceWrap').hidden=!existing;
     $('rentalPaymentReference').required=Boolean(existing);
     $('rentalPaymentReference').value='';
-    $('rentalPaymentMessage').textContent=existing?'Enter the transaction ID for this pending wallet payment. No real money is collected.':'Choose cash, bKash or Nagad. The demo does not process real payments.';
+    $('rentalPaymentMessage').textContent=existing?'Enter the transaction ID for this pending wallet payment.':'Cash and wallet transfers require confirmation. Online card payments open the SSLCOMMERZ secure checkout.';
     $('rentalPaymentSubmit').textContent=existing?'Submit transaction ID':'Continue';
+    syncRentalPaymentOptions();
     $('rentalPaymentDialog').showModal();
   }
 
-  $('rentalPaymentMethod').addEventListener('change',()=>{
-    const wallet=['bkash','nagad'].includes($('rentalPaymentMethod').value);
+  function syncRentalPaymentOptions(){
+    const method=$('rentalPaymentMethod').value;
+    const wallet=['bkash','nagad'].includes(method),card=method==='card';
     $('rentalPaymentReferenceWrap').hidden=!wallet;
-    $('rentalPaymentReference').required=false;
-  });
+    $('rentalPaymentReference').required=wallet;
+    $('rentalPaymentCurrencyWrap').hidden=!card;
+    $('rentalPaymentCurrency').required=card;
+    if(wallet)$('rentalPaymentMessage').textContent='Enter the bKash/Nagad transaction reference after transferring. An administrator must verify it.';
+    if(card)$('rentalPaymentMessage').textContent='You will be redirected to SSLCOMMERZ secure checkout. Payment is confirmed only after server-side validation.';
+    if(method==='cash')$('rentalPaymentMessage').textContent='Cash is recorded as pending until the owner or administrator confirms receipt.';
+  }
+
+  $('rentalPaymentMethod').addEventListener('change',syncRentalPaymentOptions);
   $('rentalPaymentForm').addEventListener('submit',async event=>{
     event.preventDefault();const button=$('rentalPaymentSubmit');button.disabled=true;
     try{
       if(!pendingPaymentId){
         if(!paymentBooking?.id)throw new Error('Rental booking is not available for payment.');
         const method=$('rentalPaymentMethod').value;
+        const currency=method==='card'?$('rentalPaymentCurrency').value:'BDT';
         const result=await driveRequest('/payments/intent',{method:'POST',body:JSON.stringify({
-          rentalBookingId:paymentBooking.id,method,currency:'BDT'
+          rentalBookingId:paymentBooking.id,method,currency
         })});
         pendingPaymentId=result.payment?.id;pendingPaymentMethod=method;
         if(!pendingPaymentId)throw new Error('Rental payment intent was not created.');
+        if(method==='card'){
+          if(!result.checkoutUrl)throw new Error('SSLCOMMERZ did not return a secure checkout URL.');
+          const checkout=new URL(result.checkoutUrl);
+          if(checkout.protocol!=='https:'||!['sandbox.sslcommerz.com','securepay.sslcommerz.com'].includes(checkout.hostname))
+            throw new Error('The gateway returned an untrusted checkout destination. Please contact DRIVE support.');
+          location.assign(checkout.toString());return;
+        }
         if(['bkash','nagad'].includes(method)){
           $('rentalPaymentMethod').disabled=true;
           $('rentalPaymentReferenceWrap').hidden=false;$('rentalPaymentReference').required=true;
-          $('rentalPaymentMessage').textContent=result.message+' Enter the demo transaction ID. No money has been collected.';
+          $('rentalPaymentMessage').textContent=result.message+' Enter the transaction ID. No money has been collected by DRIVE.';
           $('rentalPaymentSubmit').textContent='Submit transaction ID';return;
         }
         $('rentalPaymentMessage').textContent=result.message||'Cash payment recorded as pending.';
