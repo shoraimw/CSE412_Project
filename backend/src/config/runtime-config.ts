@@ -7,6 +7,7 @@ export interface DriveRuntimeConfig {
   sslcommerzStoreId:string;
   sslcommerzStorePassword:string;
   sslcommerzMode:'sandbox'|'live';
+  drivePaymentWebhookSecret:string;
   nodeEnv:string;
 }
 let runtimeConfig:DriveRuntimeConfig|undefined;
@@ -21,6 +22,7 @@ export function getDriveRuntimeConfig():DriveRuntimeConfig{
     sslcommerzStoreId:process.env.SSLCOMMERZ_STORE_ID||'',
     sslcommerzStorePassword:process.env.SSLCOMMERZ_STORE_PASSWORD||'',
     sslcommerzMode:process.env.SSLCOMMERZ_MODE==='live'?'live':'sandbox',
+    drivePaymentWebhookSecret:process.env.DRIVE_PAYMENT_WEBHOOK_SECRET||'',
     nodeEnv:process.env.NODE_ENV||'development',
   };
 }
