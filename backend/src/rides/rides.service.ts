@@ -207,12 +207,35 @@ export class RidesService{
   }
   const {data,error}=await db.rpc('drive_nearby_ride_requests',{p_radius_km:20});
   if(error)throw new ServiceUnavailableException(error.message);
-  return data||[];
+  const {data:rejected,error:rejectedError}=await db.from('ride_request_rejections')
+    .select('request_id').eq('driver_id',userId);
+  if(rejectedError)throw new ServiceUnavailableException(rejectedError.message);
+  const rejectedIds=new Set((rejected||[]).map((row:any)=>row.request_id));
+  return (data||[]).filter((request:any)=>!rejectedIds.has(request.id));
+ }
+ async rejectRequest(userId:string,token:string,role:Role,requestId:string){
+  if(role!=='driver')throw new ForbiddenException('Only drivers can pass on ride requests.');
+  const db=this.db(token);
+  const available=await this.openRequests(userId,token,role);
+  if(!available.some((request:any)=>request.id===requestId)){
+    throw new BadRequestException('This request is no longer available to you.');
+  }
+  const {data,error}=await db.from('ride_request_rejections')
+    .insert({request_id:requestId,driver_id:userId}).select('id').single();
+  if(error){
+    if(error.code==='23505')return {message:'You have already passed on this request.'};
+    throw new BadRequestException(error.message);
+  }
+  return {message:'Request passed. It remains available to other eligible drivers.',rejectionId:data.id};
  }
  async cancelRequest(userId:string,token:string,requestId:string,role:Role){if(role!=='passenger')throw new ForbiddenException('Only the passenger who created this request can cancel it.');const {data,error}=await this.db(token).from('ride_requests').update({status:'cancelled'}).eq('id',requestId).eq('passenger_id',userId).eq('status','requested').select('id,status').maybeSingle();if(error)throw new BadRequestException(error.message);if(!data)throw new BadRequestException('This ride can no longer be cancelled. It may already have been accepted or cancelled.');return {requestId:data.id,status:data.status,message:'Ride request cancelled.'};}
  async claimRequest(userId:string,token:string,role:Role,requestId:string){
   if(role!=='driver')throw new ForbiddenException('Only drivers can accept ride requests.');
   const db=this.db(token);
+  const {data:rejection,error:rejectionError}=await db.from('ride_request_rejections')
+    .select('id').eq('request_id',requestId).eq('driver_id',userId).maybeSingle();
+  if(rejectionError)throw new ServiceUnavailableException(rejectionError.message);
+  if(rejection)throw new ForbiddenException('You already passed on this request.');
   const {data,error}=await db.rpc('drive_claim_request',{p_request_id:requestId});
   if(error)throw new BadRequestException(error.message);
   const rideId=data as string;
