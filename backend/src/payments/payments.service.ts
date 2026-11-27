@@ -73,6 +73,14 @@ export class PaymentsService {
       baseAmount=Number(data.total_amount);rentalBookingId=data.id;
     }
     if(!Number.isFinite(baseAmount)||baseAmount<1)throw new BadRequestException('The payable amount is invalid.');
+    const targetColumn=rideId?'ride_id':'rental_booking_id';
+    const targetId=rideId||rentalBookingId;
+    const {data:existingPayment,error:existingPaymentError}=await db.from('payments')
+      .select('id,status').eq('user_id',userId).eq(targetColumn,targetId)
+      .in('status',['pending','paid']).order('created_at',{ascending:false}).limit(1).maybeSingle();
+    if(existingPaymentError)throw new ServiceUnavailableException(existingPaymentError.message);
+    if(existingPayment?.status==='paid')throw new BadRequestException('This ride or rental has already been paid.');
+    if(existingPayment?.status==='pending')throw new BadRequestException('A payment is already pending for this booking. Open payment history to review its status.');
 
     if(dto.method==='card'){
       const config=getDriveRuntimeConfig();
@@ -98,7 +106,7 @@ export class PaymentsService {
         gateway_name:'sslcommerz',gateway_transaction_id:tranId,gateway_currency:dto.currency,gateway_status:'CREATING_SESSION',
         provider_reference:tranId,
       }).select('*').single();
-      if(error||!payment)throw new BadRequestException(error?.message||'Payment intent could not be created.');
+      if(error||!payment)throw new BadRequestException(error?.code==='23505'?'A payment is already pending for this booking.':(error?.message||'Payment intent could not be created.'));
       try{
         const session=await this.createSslcommerzSession({
           paymentId:payment.id,userId,email,customerName:profile.full_name||'DRIVE Customer',
@@ -130,7 +138,7 @@ export class PaymentsService {
       amount:baseAmount,currency:'BDT',method,status:'pending',
       base_amount_bdt:baseAmount,exchange_rate:1,rate_fetched_at:new Date().toISOString(),
     }).select('*').single();
-    if(error||!data)throw new BadRequestException(error?.message||'Payment intent could not be created.');
+    if(error||!data)throw new BadRequestException(error?.code==='23505'?'A payment is already pending for this booking.':(error?.message||'Payment intent could not be created.'));
     return {
       payment:data,originalAmountBDT:baseAmount,convertedAmount:baseAmount,currency:'BDT',
       exchangeRate:1,paymentCollected:false,gatewayConfigured:method==='cash',
@@ -222,6 +230,11 @@ export class PaymentsService {
     }
     if(String(validation.tran_id||'')!==tranId||String(validation.val_id||'')!==valId){
       throw new BadRequestException('Gateway validation references do not match the payment intent.');
+    }
+    if(String(validation.value_a||'')!==String(payment.id)
+      ||String(validation.value_b||'')!==String(payment.userId)
+      ||String(validation.value_c||'')!=='DRIVE'){
+      throw new BadRequestException('Gateway customer or payment reference metadata does not match this DRIVE transaction.');
     }
     const currency=String(validation.currency_type||validation.currency||'').toUpperCase();
     const currencyAmount=Number(validation.currency_amount??validation.amount);
