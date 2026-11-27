@@ -1,7 +1,7 @@
 (() => {
   const token=new URLSearchParams(location.search).get('token');
   const info=document.getElementById('sharedTripInfo');
-  let map=null,marker=null,pathLine=null,timer=null;
+  let map=null,marker=null,pathLine=null,timer=null,failed=false;
   if(!token){info.textContent='This shared-trip link is missing its access token.';return;}
   function initMap(){
     if(map||!window.L)return;
@@ -9,6 +9,7 @@
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
   }
   async function refresh(){
+    if(failed)return;
     try{
       const data=await driveRequest('/safety/shared/'+encodeURIComponent(token));
       const locations=Array.isArray(data.recentLocations)?data.recentLocations:[];
@@ -24,18 +25,18 @@
         if(pathLine){map.removeLayer(pathLine);pathLine=null;}
         const valid=locations.filter(p=>Number.isFinite(Number(p.lat))&&Number.isFinite(Number(p.lng)));
         if(valid.length>1)pathLine=L.polyline(valid.map(p=>[Number(p.lat),Number(p.lng)]),{color:'#111',weight:4,opacity:.8}).addTo(map);
-        if(current&&Number.isFinite(Number(current.lat))&&Number.isFinite(Number(current.lng))){
+        if(current&&Number.isFinite(Number(current.lat))&&Number.isFinite(Number(current.lng)))
           marker=L.marker([Number(current.lat),Number(current.lng)]).addTo(map).bindPopup('Latest shared location').openPopup();
-        }
         const points=valid.length?valid:(current?[current]:[]);
-        if(points.length){map.fitBounds(L.latLngBounds(points.map(p=>[Number(p.lat),Number(p.lng)])),{padding:[30,30],maxZoom:15});}
+        if(points.length)map.fitBounds(L.latLngBounds(points.map(p=>[Number(p.lat),Number(p.lng)])),{padding:[30,30],maxZoom:15});
         setTimeout(()=>map.invalidateSize(),100);
       }
     }catch(error){
-      info.textContent=error.message||'This shared-trip link is invalid or has expired.';
+      failed=true;info.textContent=error.message||'This shared-trip link is invalid or has expired.';
       if(timer){clearInterval(timer);timer=null;}
     }
   }
   refresh();
   timer=setInterval(refresh,15000);
+  if(failed&&timer){clearInterval(timer);timer=null;}
 })();
