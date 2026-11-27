@@ -29,7 +29,18 @@ export class SupportService {
 
   async createCase(userId:string,token:string,input:any){
     if(input.rideId&&input.rentalBookingId)throw new BadRequestException('Link a case to either a ride or a rental booking, not both.');
-    const {data,error}=await this.db(token).from('support_cases').insert({
+    const db=this.db(token);
+    if(input.rideId){
+      const {data:membership,error:membershipError}=await db.from('ride_passengers')
+        .select('ride_id').eq('ride_id',input.rideId).eq('passenger_id',userId).maybeSingle();
+      if(membershipError||!membership)throw new ForbiddenException('You can only link a support case to a ride you joined.');
+    }
+    if(input.rentalBookingId){
+      const {data:booking,error:bookingError}=await db.from('rental_bookings')
+        .select('id').eq('id',input.rentalBookingId).eq('renter_id',userId).maybeSingle();
+      if(bookingError||!booking)throw new ForbiddenException('You can only link a support case to your own rental booking.');
+    }
+    const {data,error}=await db.from('support_cases').insert({
       user_id:userId,ride_id:input.rideId||null,rental_booking_id:input.rentalBookingId||null,
       category:input.category,subject:input.subject.trim(),description:input.description.trim(),
     }).select('*').single();
