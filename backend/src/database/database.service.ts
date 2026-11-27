@@ -15,6 +15,7 @@ export class DatabaseService {
       keyConfigured: Boolean(this.key),
       serviceRoleConfigured: Boolean(this.config.supabaseServiceRoleKey),
       sslcommerzConfigured: Boolean(this.config.sslcommerzStoreId && this.config.sslcommerzStorePassword),
+      paymentWebhookSecretConfigured: Boolean(this.config.drivePaymentWebhookSecret),
     };
   }
 
