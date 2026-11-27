@@ -292,6 +292,18 @@ export class PaymentsService {
     return data||[];
   }
 
+  async paymentStatus(userId:string,token:string,paymentId:string){
+    const {data,error}=await this.db(token).from('payments')
+      .select('id,status,method,currency,amount,base_amount_bdt,gateway_name,gateway_status,gateway_amount_bdt,receipt_number,paid_at,created_at,ride_id,rental_booking_id')
+      .eq('id',paymentId).eq('user_id',userId).maybeSingle();
+    if(error||!data)throw new NotFoundException('Payment record not found.');
+    return {
+      ...data,
+      effectiveStatus:data.gateway_status==='risk_hold'?'risk_hold':data.status,
+      settlementAmountBDT:data.gateway_amount_bdt==null?null:Number(data.gateway_amount_bdt),
+    };
+  }
+
   async receipt(userId:string,token:string,paymentId:string){
     const {data,error}=await this.db(token).from('payments').select('*').eq('id',paymentId).eq('user_id',userId).maybeSingle();
     if(error||!data)throw new NotFoundException('Payment record not found.');
