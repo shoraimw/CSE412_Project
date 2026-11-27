@@ -8,6 +8,16 @@ import { LoginDto, EmailOtpDto, VerifyEmailOtpDto, PhoneOtpDto, VerifyPhoneOtpDt
 export class AuthService {
   constructor(@Inject(DatabaseService) private readonly db: DatabaseService) {}
 
+  publicConfig() {
+    return this.db.publicRealtimeConfig();
+  }
+
+  async oauthSession(accessToken:string,refreshToken:string) {
+    const {data,error}=await this.db.publicClient().auth.getUser(accessToken);
+    if(error||!data.user)throw new UnauthorizedException('Google sign-in session could not be verified.');
+    return this.sessionPayload({access_token:accessToken,refresh_token:refreshToken,expires_in:3600},data.user);
+  }
+
   async register(dto: RegisterDto) {
     const { data, error } = await this.db.publicClient().auth.signUp({
       email: dto.email.trim().toLowerCase(),
