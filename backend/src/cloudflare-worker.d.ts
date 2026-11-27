@@ -7,6 +7,7 @@ interface Env {
   SSLCOMMERZ_STORE_ID?:string;
   SSLCOMMERZ_STORE_PASSWORD?:string;
   SSLCOMMERZ_MODE?:'sandbox'|'live';
+  DRIVE_PAYMENT_WEBHOOK_SECRET?:string;
   ASSETS:Fetcher;
 }
 declare module 'cloudflare:node' {
