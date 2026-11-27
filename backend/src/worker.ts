@@ -35,6 +35,7 @@ async function createHandler(bindings: Env) {
     sslcommerzStoreId: bindings.SSLCOMMERZ_STORE_ID || '',
     sslcommerzStorePassword: bindings.SSLCOMMERZ_STORE_PASSWORD || '',
     sslcommerzMode: bindings.SSLCOMMERZ_MODE === 'live' ? 'live' : 'sandbox',
+    drivePaymentWebhookSecret: bindings.DRIVE_PAYMENT_WEBHOOK_SECRET || '',
     nodeEnv: 'production',
   });
 
