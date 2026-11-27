@@ -5,7 +5,7 @@
   const trackableStates=['matched','driver_arriving','in_progress'];
   let payments=[],tripMap=null,driverMarker=null,pickupMarker=null,destinationMarker=null,routeLine=null;
   let trackedRideId=null,trackingTimer=null,paymentRide=null,pendingPaymentId=null,pendingPaymentMethod=null;
-  let safetySessions=[],safetyWatchId=null,safetyLocationSending=false;
+  let safetySessions=[],safetyWatchId=null,safetyLocationSending=false,safetyHeartbeatTimer=null,lastSafetyPosition=null;
 
   const statusLabel=s=>String(s||'unknown').replaceAll('_',' ');
   const statusClass=s=>['completed','paid','approved','success'].includes(s)?'success':['pending','requested','matched','driver_arriving','in_progress','new'].includes(s)?'warning':['rejected','cancelled','failed'].includes(s)?'danger':'';
@@ -257,30 +257,37 @@
     }catch(error){throw error;}
   }
 
+  async function pushSafetyLocation(){
+    if(safetyLocationSending||!safetySessions.length||!lastSafetyPosition)return;
+    safetyLocationSending=true;
+    try{
+      const results=await Promise.all(safetySessions.map(session=>
+        driveRequest('/safety/trips/'+encodeURIComponent(session.id)+'/location',{method:'POST',body:JSON.stringify(lastSafetyPosition)}).catch(error=>({error:error.message,id:session.id}))
+      ));
+      const warning=results.find(result=>result?.latestWarnings?.length);
+      if(warning)$('safetyMessage').textContent=warning.latestWarnings.map(x=>x.message).join(' · ');
+    }finally{safetyLocationSending=false;}
+  }
+
   function startSafetyLocationWatch(){
     if(safetyWatchId!==null)return;
     if(!navigator.geolocation){$('safetyMonitor').innerHTML+='<p class="message warning">This browser cannot share GPS location. Safety route monitoring is paused.</p>';return;}
-    safetyWatchId=navigator.geolocation.watchPosition(async position=>{
-      if(safetyLocationSending||!safetySessions.length)return;
-      safetyLocationSending=true;
-      try{
-        const point={lat:position.coords.latitude,lng:position.coords.longitude};
-        const results=await Promise.all(safetySessions.map(session=>
-          driveRequest('/safety/trips/'+encodeURIComponent(session.id)+'/location',{method:'POST',body:JSON.stringify(point)}).catch(error=>({error:error.message,id:session.id}))
-        ));
-        const warning=results.find(result=>result?.latestWarnings?.length);
-        if(warning)$('safetyMessage').textContent=warning.latestWarnings.map(x=>x.message).join(' · ');
-      }finally{safetyLocationSending=false;}
+    safetyWatchId=navigator.geolocation.watchPosition(position=>{
+      lastSafetyPosition={lat:position.coords.latitude,lng:position.coords.longitude};
+      pushSafetyLocation();
     },error=>{
       if(safetyWatchId!==null)navigator.geolocation.clearWatch(safetyWatchId);
       safetyWatchId=null;
+      if(safetyHeartbeatTimer){clearInterval(safetyHeartbeatTimer);safetyHeartbeatTimer=null;}
       $('safetyMonitor').innerHTML+='<p class="message warning">GPS monitoring paused: '+driveEscape(error.message||'Location permission is unavailable.')+'</p>';
     },{enableHighAccuracy:true,maximumAge:10000,timeout:15000});
+    safetyHeartbeatTimer=setInterval(()=>{if(!document.hidden)pushSafetyLocation();},15000);
   }
 
   function stopSafetyLocationWatch(){
     if(safetyWatchId!==null&&navigator.geolocation)navigator.geolocation.clearWatch(safetyWatchId);
-    safetyWatchId=null;
+    if(safetyHeartbeatTimer){clearInterval(safetyHeartbeatTimer);safetyHeartbeatTimer=null;}
+    safetyWatchId=null;lastSafetyPosition=null;
   }
 
   function setupShareLink(){
