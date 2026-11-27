@@ -46,3 +46,8 @@ The baseline SQL and its version must be checked into `supabase/migrations/` in 
 ## Safety
 
 Do not reset the Supabase project, drop user tables, delete auth users, or replay incremental migrations against production without reviewing the expected state.
+
+
+## User/account bootstrap state
+
+At the 2026-11-28 audit, `auth.users` and `public.profiles` both contained zero rows. This is an empty academic project environment, not a seeded production tenant. The first team member must register and confirm email before the trusted Admin role can be assigned. No credentials or user records have been created by this maintenance pass.
