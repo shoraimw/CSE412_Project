@@ -96,22 +96,26 @@ The current chat UI refreshes messages every 2.5 seconds. The database table is 
 
 Emergency contact SMS is not sent automatically. The user must tap the Call or Text link and confirm the action in their phone app.
 
-### Driver pre-trip cancellation
+### Driver cancellation
 
-- [ ] Driver accepts a request and cancels before the trip starts.
-- [ ] Verify a reason is required.
-- [ ] Verify the Passenger and Administrator are notified.
-- [ ] Verify the cancellation appears in the activity timeline.
+- [ ] Driver accepts a request and cancels before pickup.
+- [ ] Driver starts a trip and ends it mid-journey with a reason.
+- [ ] Verify a reason is required in both cases.
+- [ ] Verify every Passenger on a shared ride and the Administrator are notified.
+- [ ] Verify the cancellation appears in the activity timeline with the previous ride status.
 - [ ] Verify the Driver can go online for another request.
-
-Drivers cannot use this accidental-accept cancellation after the journey has started.
 
 ## 7. Destination reached and customer review
 
+- [ ] Keep the Driver page open and share GPS during an active trip.
+- [ ] Move the test device within 75 metres of the saved destination and keep it there for at least 15 seconds.
+- [ ] If the browser reports speed, keep it at or below 15 km/h during the dwell window.
+- [ ] Verify the server automatically completes the ride after the two-sample geofence check.
+- [ ] Verify manual Complete trip remains available as a fallback when GPS is unavailable.
 - [ ] Driver completes the trip.
 - [ ] Verify the Passenger receives a persisted Destination reached notification.
 - [ ] Verify the Driver sees the completion popup.
-- [ ] Verify the original short sound plays when browser audio permissions allow it.
+- [ ] Verify both Passenger and Driver receive their own completion popup and the original short sound plays when browser audio permissions allow it.
 - [ ] Close the Passenger arrival popup and verify the star-review dialog opens.
 - [ ] Select 1–5 stars and submit a comment.
 - [ ] Verify duplicate reviews for the same ride are rejected.

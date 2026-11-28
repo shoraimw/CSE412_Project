@@ -19,6 +19,6 @@ type AuthReq=Request&{user:{id:string;accessToken:string;role:'passenger'|'drive
 @Get(':id')get(@Req()r:AuthReq,@Param('id')id:string){return this.rides.get(r.user.id,r.user.accessToken,id);}
 @Patch(':id/status')status(@Req()r:AuthReq,@Param('id')id:string,@Body()d:RideStatusDto){return this.rides.updateStatus(r.user.id,r.user.accessToken,id,d.status,r.user.role);}
 @Post(':id/finalize-fare')finalizeFare(@Req()r:AuthReq,@Param('id')id:string){return this.rides.finalizeFare(r.user.id,r.user.accessToken,id,r.user.role);}
-@Post(':id/location')location(@Req()r:AuthReq,@Param('id')id:string,@Body()d:RideLocationDto){return this.rides.updateLocation(r.user.id,r.user.accessToken,id,d);}
+@Post(':id/location')location(@Req()r:AuthReq,@Param('id')id:string,@Body()d:RideLocationDto){return this.rides.updateLocation(r.user.id,r.user.accessToken,id,d,r.user.role);}
 @Get(':id/track')track(@Req()r:AuthReq,@Param('id')id:string){return this.rides.tracking(r.user.id,r.user.accessToken,id);}
 }

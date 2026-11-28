@@ -3,6 +3,7 @@
   const $=id=>document.getElementById(id);
   const activeStates=['matched','driver_arriving','in_progress'];
   let watchId=null,lastPosition=null,available=false,assignedTrips=[],pendingCancellationRequests=[],locationSending=false,firstGpsFix=true;
+  const knownRideStatuses=new Map();
   const setMessage=(id,text,kind='')=>{const el=$(id);if(el){el.textContent=text;el.className='message '+kind;}};
   const stateClass=s=>['completed','approved'].includes(s)?'success':['pending','requested','matched','driver_arriving','in_progress'].includes(s)?'warning':['rejected','cancelled'].includes(s)?'danger':'';
   const activeTrips=()=>assignedTrips.filter(ride=>activeStates.includes(ride.status));
@@ -176,7 +177,13 @@
       driveRequest('/rides').catch(()=>[]),
       driveRequest('/rides/cancellation-requests').catch(()=>[])
     ]);
-    assignedTrips=Array.isArray(trips)?trips:[];
+    const nextTrips=Array.isArray(trips)?trips:[];
+    for(const ride of nextTrips){
+      const previous=knownRideStatuses.get(ride.id);
+      if(previous==='in_progress'&&ride.status==='completed')window.driveArrivalNotice?.(ride.id,'driver');
+      knownRideStatuses.set(ride.id,ride.status);
+    }
+    assignedTrips=nextTrips;
     pendingCancellationRequests=Array.isArray(cancellations)?cancellations:[];
     const completedTrips=assignedTrips.filter(ride=>ride.status==='completed');
     const finalizedFares=completedTrips.filter(ride=>ride.actualFare!==null&&ride.actualFare!==undefined);
