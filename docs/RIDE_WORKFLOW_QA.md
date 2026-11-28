@@ -18,6 +18,7 @@ This checklist covers the current ride lifecycle implementation. Run it with sep
 - [ ] Typing a pickup or drop-off address shows debounced location suggestions.
 - [ ] Selecting a suggestion stores its coordinates; submitting does not re-geocode the selected result unnecessarily.
 - [ ] Tourist Mode can select a preferred currency.
+- [ ] Tourist Mode can select English or Bangla; signed-in users' language preference persists after reload.
 - [ ] Fare estimates display the selected currency and BDT base amount.
 - [ ] Cash, bKash and Nagad settlement remain BDT-only.
 - [ ] Foreign-currency card checkout remains disabled until SSLCOMMERZ merchant credentials are configured.
@@ -35,6 +36,7 @@ The current chat UI refreshes messages every 2.5 seconds. The database table is 
 ## 4. Passenger cancellation and emergency
 
 - [ ] Passenger, Driver or Vehicle Owner who is a passenger on the ride can request cancellation with a reason.
+- [ ] Before requesting cancellation, the Passenger sees that the current academic-build cancellation fee is BDT 0.
 - [ ] Driver accounts can use customer cancellation only for rides they booked and joined as a passenger; the database verifies ride-passenger membership.
 - [ ] The assigned Driver sees a pending cancellation request and can approve or decline it.
 - [ ] Approval cancels the ride and notifies all ride passengers.
@@ -65,6 +67,8 @@ Emergency contact SMS is not sent automatically. The user must tap the Call or T
 - [ ] Close the Passenger arrival popup and verify the star-review dialog opens.
 - [ ] Select 1–5 stars and submit a comment.
 - [ ] Verify duplicate reviews for the same ride are rejected.
+- [ ] Passenger can submit a linked support/complaint case and view its status after Admin review.
+- [ ] A confirmed payment shows a receipt number and the receipt page can be printed or saved as PDF.
 
 ## 7. Admin review
 
