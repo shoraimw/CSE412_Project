@@ -378,6 +378,37 @@ export class RidesService{
   const ride=await this.get(userId,token,id);
   const allowed:Record<string,string[]>={matched:['driver_arriving','cancelled'],driver_arriving:['in_progress','cancelled'],in_progress:['completed'],completed:[],cancelled:[]};
   if(!allowed[ride.status]?.includes(status))throw new BadRequestException('Invalid ride status transition.');
+
+  // If a fresh GPS fix exists, do not let a Driver manually mark a distant
+  // ride as completed. Manual completion remains a fallback when GPS is
+  // unavailable or the last fix is stale.
+  if(status==='completed'){
+    const request=ride.request||{};
+    const destinationLat=Number(request.destination_lat);
+    const destinationLng=Number(request.destination_lng);
+    const hasDestination=Number.isFinite(destinationLat)&&Number.isFinite(destinationLng)
+      &&destinationLat>=-90&&destinationLat<=90&&destinationLng>=-180&&destinationLng<=180;
+    if(hasDestination){
+      const {data:location,error:locationError}=await this.db(token).from('trip_locations')
+        .select('latitude,longitude,recorded_at')
+        .eq('ride_id',id)
+        .maybeSingle();
+      if(locationError)throw new ServiceUnavailableException('Could not verify the latest trip GPS fix.');
+      if(location){
+        const ageMs=Date.now()-new Date(location.recorded_at).getTime();
+        if(Number.isFinite(ageMs)&&ageMs>=0&&ageMs<=30000){
+          const distanceToDestination=haversine(
+            {lat:Number(location.latitude),lng:Number(location.longitude)},
+            {lat:destinationLat,lng:destinationLng},
+          );
+          if(Number.isFinite(distanceToDestination)&&distanceToDestination>0.15){
+            throw new BadRequestException('The latest GPS fix is still more than 150 metres from the destination. Keep sharing GPS until arrival; manual completion is available only when GPS is unavailable or stale.');
+          }
+        }
+      }
+    }
+  }
+
   const patch:any={status,updated_at:new Date().toISOString()};
   if(status==='driver_arriving')patch.accepted_at=new Date().toISOString();
   if(status==='in_progress')patch.started_at=new Date().toISOString();
@@ -394,7 +425,6 @@ export class RidesService{
   }
   return {...ride,...data};
  }
-
  async finalizeFare(userId:string,token:string,id:string,role:Role){
   if(role!=='driver')throw new ForbiddenException('Only the assigned driver can finalize a ride fare.');
   const ride=await this.get(userId,token,id);
