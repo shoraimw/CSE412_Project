@@ -6,6 +6,7 @@
   let payments=[],tripMap=null,driverMarker=null,pickupMarker=null,destinationMarker=null,routeLine=null;
   let trackedRideId=null,trackingTimer=null,paymentRide=null,pendingPaymentId=null,pendingPaymentMethod=null;
   let safetySessions=[],safetyWatchId=null,safetyLocationSending=false,safetyHeartbeatTimer=null,lastSafetyPosition=null;
+  const knownRideStatuses=new Map();let firstRideLoad=true;
 
   const statusLabel=s=>String(s||'unknown').replaceAll('_',' ');
   const statusClass=s=>['completed','paid','approved','success'].includes(s)?'success':['pending','requested','matched','driver_arriving','in_progress','new'].includes(s)?'warning':['rejected','cancelled','failed'].includes(s)?'danger':'';
@@ -160,6 +161,15 @@
     try{myReviews=await driveRequest('/reviews/me');if(!Array.isArray(myReviews))myReviews=[];}catch{}
     try{supportCases=await driveRequest('/support/cases');if(!Array.isArray(supportCases))supportCases=[];}catch{}
 
+    for(const ride of rides){
+      const id=ride.rideId||ride.id,previous=knownRideStatuses.get(id);
+      if(!firstRideLoad&&previous&&previous!=='completed'&&ride.status==='completed')window.driveArrivalNotice?.(id);
+      knownRideStatuses.set(id,ride.status);
+    }
+    for(const note of (notifications.items||[])){
+      if(note.type==='ride_completed'&&note.entity_id)window.driveArrivalNotice?.(note.entity_id);
+    }
+    firstRideLoad=false;
     const active=rides.filter(r=>activeStates.includes(r.status));
     const history=rides.filter(r=>!activeStates.includes(r.status));
     $('tripCount').textContent=rides.length;$('activeCount').textContent=active.length;
@@ -168,8 +178,37 @@
     $('activeRides').innerHTML=active.length?active.map(ride=>{
       const canCancel=ride.requestId&&ride.requestStatus==='requested';
       const cancel=canCancel?miniButton('Cancel','data-cancel',ride.requestId):'';
-      return item((ride.pickupAddress||'Pickup')+' → '+(ride.destinationAddress||'Destination'),driveDate(ride.createdAt)+' · '+driveMoney(ride.passengerFare??ride.estimatedFare),ride.status,cancel+ridePaymentAction(ride));
+      const rideId=ride.rideId||ride.id;
+      const canChat=rideId&&trackableStates.includes(ride.status);
+      const chat=canChat?miniButton('Chat','data-chat-ride',rideId):'';
+      const requestCancel=canChat?miniButton('Request cancellation','data-cancel-journey',rideId):'';
+      const emergency=canChat?miniButton('Emergency cancel','data-emergency-cancel',rideId):'';
+      return item((ride.pickupAddress||'Pickup')+' → '+(ride.destinationAddress||'Destination'),driveDate(ride.createdAt)+' · '+driveMoney(ride.passengerFare??ride.estimatedFare),ride.status,cancel+chat+requestCancel+emergency+ridePaymentAction(ride));
     }).join(''):'<div class="empty-state">No active trips. Your next journey starts here.</div>';
+    $('activeRides').querySelectorAll('[data-chat-ride]').forEach(button=>button.addEventListener('click',()=>window.DriveRideChat?.open(button.dataset.chatRide)));
+    $('activeRides').querySelectorAll('[data-cancel-journey]').forEach(button=>button.addEventListener('click',async()=>{
+      const reason=prompt('Why do you need to cancel this journey? Please provide at least 8 characters.');
+      if(!reason)return;
+      button.disabled=true;
+      try{
+        const result=await driveRequest('/rides/'+encodeURIComponent(button.dataset.cancelJourney)+'/cancellation-request',{method:'POST',body:JSON.stringify({reason})});
+        driveToast(result.message||'Cancellation request sent to your driver.');await load();
+      }catch(error){driveToast(error.message);button.disabled=false;}
+    }));
+    $('activeRides').querySelectorAll('[data-emergency-cancel]').forEach(button=>button.addEventListener('click',async()=>{
+      if(!confirm('Emergency cancellation will immediately end the ride and notify the driver and DRIVE administrators. Continue?'))return;
+      const reason=prompt('Tell us why you feel unsafe. This reason will be recorded for the safety team.','I feel unsafe and need to end this trip immediately.');
+      if(!reason)return;
+      button.disabled=true;
+      const send=async location=>{
+        try{
+          const result=await driveRequest('/rides/'+encodeURIComponent(button.dataset.emergencyCancel)+'/cancellation-request',{method:'POST',body:JSON.stringify({reason,emergency:true,location})});
+          driveToast(result.message||'Emergency cancellation recorded.');await load();
+        }catch(error){driveToast(error.message);button.disabled=false;}
+      };
+      if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>send({lat:p.coords.latitude,lng:p.coords.longitude}),()=>send(undefined),{timeout:7000});
+      else send(undefined);
+    }));
     $('rideHistory').innerHTML=history.length?history.slice(0,8).map(ride=>{
       const finalFare=ride.actualFare??ride.ride?.actual_fare;
       const amount=finalFare!==null&&finalFare!==undefined?driveMoney(finalFare)+' final':driveMoney(ride.estimatedFare)+' estimated';
@@ -409,4 +448,6 @@
   $('logoutButton')?.addEventListener('click',()=>{stopSafetyLocationWatch();driveClearSession();location.href='index.html';});
   window.addEventListener('pagehide',stopSafetyLocationWatch);
   load();
+  let ridePollBusy=false;
+  setInterval(async()=>{if(document.hidden||ridePollBusy)return;ridePollBusy=true;try{await load();}finally{ridePollBusy=false;}},12000);
 })();
