@@ -63,3 +63,12 @@ The Worker currently has secret bindings for `SUPABASE_URL` and `SUPABASE_ANON_K
 ## Preview
 
 The project currently uses a custom preview-branch allow-list. Production changes must be tested on the production branch only after validation. Do not delete historical deployments until the replacement has been verified.
+
+## Preview and production data boundary
+
+- Cloudflare Pages production deploys from `main`; branch previews are created for the configured preview branches.
+- Both Pages production and preview currently use the same `DRIVE_API` service binding to the `cse412-project` Worker and the same Supabase project.
+- Therefore, ride bookings, profiles, payment intents and other writes performed from a Pages preview are stored in the connected project database. Do not use real customer data while testing a preview.
+- A separate preview Worker and isolated Supabase project are required before previews can be treated as a safe staging environment.
+- `.github/workflows/cloudflare-deploy.yml` is the only active production Worker deployment workflow. `.github/workflows/deploy-worker.yml` is retired to prevent duplicate deployments on a `main` push.
+
