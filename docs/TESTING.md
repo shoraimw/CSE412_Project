@@ -4,7 +4,7 @@
 - Backend: the active GitHub Actions workflow runs the root `npm run build`, which installs the backend, type-checks and builds NestJS, runs asset smoke checks, and validates the Cloudflare Worker bundle.
 - Frontend: GitHub Actions runs `node --check` on every JavaScript file under `frontend/js` and checks that no server-only Supabase key reference is shipped to the browser.
 - Supabase: 31 public application tables have RLS enabled. The 2026-11-28 Security Advisor reports 9 authenticated SECURITY DEFINER function warnings and one private-schema RLS-without-policy INFO finding; the performance advisor reports 4 unindexed foreign keys and 10 RLS auth-initplan warnings. The health advisor returned no lints. Re-review these findings after schema changes; the private integration-secret table intentionally has no client policies.
-- Deployment: Cloudflare Pages hosts the static frontend and the `cse412-project` Cloudflare Worker serves the NestJS API. Pages Git integration deploys the frontend; Workers Builds creates preview Worker deployments; the production Worker workflow requires `CLOUDFLARE_API_TOKEN`.
+- Deployment: Cloudflare Pages hosts the static frontend and the `cse412-project` Cloudflare Worker serves the NestJS API. Pages Git integration deploys the frontend; Workers Builds creates preview Worker deployments; the production Worker workflow requires `CLOUDFLARE_API_TOKEN`. A Pages preview service binding targets the production API Worker, so use the separate Workers Builds preview for branch API testing until a dedicated preview API service is configured.
 
 ## Current integration readiness — 2026-11-28
 
