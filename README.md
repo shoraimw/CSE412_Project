@@ -31,9 +31,9 @@ See [docs/UI_REBUILD.md](docs/UI_REBUILD.md) for the route map and verification 
 
 The stale website issue was traced to Cloudflare Pages `path_includes`: it previously watched only selected frontend and Pages Function folders. Backend, database and deployment-only commits were skipped, leaving an older successful deployment as the canonical site.
 
-The Pages project now watches all repository paths (`path_includes: ["*"]`). A new production deployment was triggered from commit `8e1c67c25b4e863f294dbf065923d00c69ab4aa2` and completed successfully. The latest verified production Pages deployment is `https://31823588.drive-ewu.pages.dev` (commit `9d7886a3`); the canonical site remains `https://drive-ewu.pages.dev`.
+The Pages project watches all repository paths (`path_includes: ["*"]`) and deploys automatically from `main`. The canonical production site is `https://drive-ewu.pages.dev`; individual deployment URLs and status are available in Cloudflare Pages.
 
-The API Worker is deployed separately from the static Pages frontend. The GitHub Actions workflow `.github/workflows/cloudflare-deploy.yml` rebuilds and deploys the Worker for backend/config changes on `main`. The latest production deployment is version `bdb247b3` (28 Nov 2026, 05:02 UTC); the deployment workflow completed successfully. The workflow uses the repository Actions secret `CLOUDFLARE_API_TOKEN` with Workers Scripts:Edit permission.
+The API Worker is deployed separately from the static Pages frontend. The GitHub Actions workflow `.github/workflows/cloudflare-deploy.yml` rebuilds and deploys the Worker for backend/config changes on `main`. The latest verified production deployment is version `81534f40` (28 Nov 2026, 05:13 UTC); the deployment workflow completed successfully. The workflow uses the repository Actions secret `CLOUDFLARE_API_TOKEN` with Workers Scripts:Edit permission.
 
 - Pages build output: `frontend/`
 - Worker entrypoint: `backend/src/worker.ts`
@@ -75,7 +75,7 @@ See [docs/REQUIREMENTS_TRACEABILITY.md](docs/REQUIREMENTS_TRACEABILITY.md) and [
 
 ## Important service boundaries
 
-- **Payments:** SSLCommerz hosted checkout and webhook validation are implemented, but live activation requires `SSLCOMMERZ_STORE_ID` and `SSLCOMMERZ_STORE_PASSWORD` Worker secrets. bKash/Nagad transaction references are manually reviewed; cash remains pending until receipt is confirmed.
+- **Payments:** SSLCommerz hosted checkout and webhook validation are implemented, but live activation requires `SSLCOMMERZ_STORE_ID` and `SSLCOMMERZ_STORE_PASSWORD` Worker secrets. Confirmed payments have a printable receipt; bKash/Nagad transaction references are manually reviewed; cash remains pending until receipt is confirmed. The academic-build cancellation fee is BDT 0 and is disclosed before a passenger cancellation request.
 - **Emergency assistance:** SOS is stored and administrators receive in-app alerts. No police dispatch or guaranteed SMS/WhatsApp delivery is configured.
 - **Location:** browser foreground GPS is not native background tracking. Test on real phones.
 - **Maps:** public OpenStreetMap/OSRM services provide standard road estimates, not guaranteed live traffic or commercial SLAs.
