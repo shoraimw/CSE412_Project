@@ -212,7 +212,7 @@
       return item((ride.pickupAddress||'Pickup')+' → '+(ride.destinationAddress||'Destination'),driveDate(ride.createdAt)+' · '+driveMoney(ride.passengerFare??ride.estimatedFare),ride.status,cancel+chat+requestCancel+emergency+ridePaymentAction(ride));
     }).join(''):'<div class="empty-state">No active trips. Your next journey starts here.</div>';
     $('activeRides').querySelectorAll('[data-cancel-journey]').forEach(button=>button.addEventListener('click',async()=>{
-      const reason=prompt('Why do you need to cancel this journey? Please provide at least 8 characters.');
+      const reason=prompt('Why do you need to cancel this journey? Please provide at least 8 characters. No cancellation fee is charged in the current academic build; the assigned driver must approve this request.');
       if(!reason)return;
       button.disabled=true;
       try{
@@ -222,7 +222,7 @@
     }));
     $('activeRides').querySelectorAll('[data-emergency-cancel]').forEach(button=>button.addEventListener('click',async()=>{
       if(!confirm('Emergency cancellation will immediately end the ride and notify the driver and DRIVE administrators. Continue?'))return;
-      const reason=prompt('Tell us why you feel unsafe. This reason will be recorded for the safety team.','I feel unsafe and need to end this trip immediately.');
+      const reason=prompt('Tell us why you feel unsafe. This reason will be recorded for the safety team. No cancellation fee is charged in the current academic build.','I feel unsafe and need to end this trip immediately.');
       if(!reason)return;
       button.disabled=true;
       const send=async location=>{
