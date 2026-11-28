@@ -259,7 +259,7 @@
       button.disabled=true;
       try{
         await driveRequest('/rides/'+encodeURIComponent(button.dataset.status)+'/status',{method:'PATCH',body:JSON.stringify({status:button.dataset.next})});
-        if(button.dataset.next==='completed')window.driveArrivalNotice?.(button.dataset.status);
+        if(button.dataset.next==='completed')window.driveArrivalNotice?.(button.dataset.status,'driver');
         await refresh();
         if(activeTrips().length){available=false;if(watchId===null)startLocationWatch(false);setPresence('On trip','Trip in progress',true);}
         else if(watchId!==null)await stopLocationWatch();

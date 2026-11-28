@@ -17,16 +17,18 @@
       setTimeout(()=>context.close().catch(()=>{}),900);
     }catch{}
   }
-  window.driveArrivalNotice=function(rideId){
+  window.driveArrivalNotice=function(rideId,audience='passenger'){
     if(!rideId)return;
-    const key='drive_arrival_notice_'+rideId;
+    const role=audience==='driver'?'driver':'passenger';
+    const key='drive_arrival_notice_'+role+'_'+rideId;
     try{if(localStorage.getItem(key))return;localStorage.setItem(key,'1');}catch{}
     let dialog=document.getElementById('driveArrivalDialog');
     if(!dialog){
       dialog=document.createElement('dialog');dialog.id='driveArrivalDialog';dialog.className='drive-arrival-dialog';
       document.body.appendChild(dialog);
     }
-    dialog.innerHTML='<div class="arrival-check">✓</div><p class="eyebrow">DRIVE · TRIP COMPLETE</p><h2>Destination reached!</h2><p>Your journey has been completed successfully. Thank you for riding with DRIVE.</p><button type="button" class="button button-dark" id="arrivalClose">Got it</button>';
+    const message=role==='driver'?'You have marked this trip as complete. Thank you for driving with DRIVE.':'Your journey has been completed successfully. Thank you for riding with DRIVE.';
+    dialog.innerHTML='<div class="arrival-check">✓</div><p class="eyebrow">DRIVE · TRIP COMPLETE</p><h2>Destination reached!</h2><p>'+message+'</p><button type="button" class="button button-dark" id="arrivalClose">Got it</button>';
     if(typeof dialog.showModal==='function')dialog.showModal();
     else dialog.setAttribute('open','');
     dialog.querySelector('#arrivalClose').addEventListener('click',()=>{dialog.close?.();window.dispatchEvent(new CustomEvent('drive:arrival-dismissed',{detail:{rideId}}));});
