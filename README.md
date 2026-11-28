@@ -33,7 +33,7 @@ The stale website issue was traced to Cloudflare Pages `path_includes`: it previ
 
 The Pages project watches all repository paths (`path_includes: ["*"]`) and deploys automatically from `main`. The canonical production site is `https://drive-ewu.pages.dev`; individual deployment URLs and status are available in Cloudflare Pages.
 
-The API Worker is deployed separately from the static Pages frontend. The GitHub Actions workflow `.github/workflows/cloudflare-deploy.yml` rebuilds and deploys the Worker for backend/config changes on `main`. The latest verified production deployment is version `81534f40` (28 Nov 2026, 05:13 UTC); the deployment workflow completed successfully. The workflow uses the repository Actions secret `CLOUDFLARE_API_TOKEN` with Workers Scripts:Edit permission.
+The API Worker is deployed separately from the static Pages frontend. The GitHub Actions workflow `.github/workflows/cloudflare-deploy.yml` rebuilds and deploys the Worker for backend/config changes on `main`. The production Worker deployment workflow is enabled and has completed successfully for the merged application release. The active Worker version can be checked in Cloudflare Workers → `cse412-project` → Deployments. The workflow uses the repository Actions secret `CLOUDFLARE_API_TOKEN` with Workers Scripts:Edit permission.
 
 - Pages build output: `frontend/`
 - Worker entrypoint: `backend/src/worker.ts`
