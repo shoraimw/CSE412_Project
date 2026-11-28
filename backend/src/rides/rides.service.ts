@@ -339,7 +339,7 @@ export class RidesService{
   return data;
  }
  async requestCancellation(userId:string,token:string,id:string,role:Role,reason:string,emergency=false,location?:{lat:number;lng:number}){
-  if(!['passenger','driver','vehicle_owner'].includes(role))throw new ForbiddenException('Customer account required.');
+  if(!['passenger','vehicle_owner'].includes(role))throw new ForbiddenException('Only passenger accounts can request cancellation. Drivers must use the driver cancellation action.');
   const clean=reason.trim();
   if(clean.length<8||clean.length>500)throw new BadRequestException('Please provide a cancellation reason between 8 and 500 characters.');
   const {data,error}=await this.db(token).rpc('drive_request_ride_cancellation',{
@@ -350,7 +350,7 @@ export class RidesService{
   return data;
  }
  async driverCancelRide(userId:string,token:string,id:string,role:Role,reason:string){
-  if(role!=='driver')throw new ForbiddenException('Only the assigned driver can cancel an accepted ride.');
+  if(role!=='driver')throw new ForbiddenException('Only the assigned driver can end an active ride.');
   const clean=reason.trim();
   if(clean.length<8||clean.length>500)throw new BadRequestException('Please provide a cancellation reason between 8 and 500 characters.');
   const {data,error}=await this.db(token).rpc('drive_driver_cancel_ride',{p_ride_id:id,p_reason:clean});
