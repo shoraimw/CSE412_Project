@@ -217,7 +217,9 @@
       const statusAction=next?'<button class="button-mini dark" data-status="'+driveEscape(ride.id)+'" data-next="'+next+'">'+label+'</button>':status==='completed'&&finalFare==null?'<button class="button-mini dark" data-finalize="'+driveEscape(ride.id)+'">Retry final fare</button>':'';
       const canChat=activeStates.includes(status);
       const chatAction=canChat?'<button class="button-mini" data-chat-ride="'+driveEscape(ride.id)+'">Chat</button>':'';
-      const cancelAction=['matched','driver_arriving'].includes(status)?'<button class="button-mini danger" data-driver-cancel="'+driveEscape(ride.id)+'">Cancel accepted ride</button>':'';
+      const canDriverCancel=['matched','driver_arriving','in_progress'].includes(status);
+      const cancelLabel=status==='in_progress'?'End trip with reason':'Cancel accepted ride';
+      const cancelAction=canDriverCancel?'<button class="button-mini danger" data-driver-cancel="'+driveEscape(ride.id)+'">'+cancelLabel+'</button>':'';
       const pending=pendingCancellationRequests.find(item=>item.ride_id===ride.id);
       const cancellationNotice=pending?'<div class="message warning">Passenger cancellation request: '+driveEscape(pending.reason)+'<div class="row-actions"><button class="button-mini dark" data-cancel-response="'+driveEscape(pending.id)+'" data-approve="true">Approve</button><button class="button-mini danger" data-cancel-response="'+driveEscape(pending.id)+'" data-approve="false">Decline</button></div></div>':'';
       const fareState=status==='completed'&&finalFare==null?'<span class="pill warning">Final fare pending</span>':'';
@@ -234,9 +236,11 @@
       }catch(error){driveToast(error.message);button.disabled=false;}
     }));
     $('assignedTrips').querySelectorAll('[data-driver-cancel]').forEach(button=>button.addEventListener('click',async()=>{
-      const reason=prompt('Why are you cancelling this accepted ride? Please provide at least 8 characters.');
+      const ride=assignedTrips.find(item=>item.id===button.dataset.driverCancel);
+      const inProgress=ride?.status==='in_progress';
+      const reason=prompt(inProgress?'Why are you ending this active trip? Please provide at least 8 characters.':'Why are you cancelling this accepted ride? Please provide at least 8 characters.');
       if(!reason)return;
-      if(!confirm('Cancel this ride before departure? The customer and DRIVE administrators will be notified.'))return;
+      if(!confirm(inProgress?'End this active trip now? The customer and DRIVE administrators will be notified and your reason will be recorded.':'Cancel this ride before departure? The customer and DRIVE administrators will be notified.'))return;
       button.disabled=true;
       try{
         const result=await driveRequest('/rides/'+encodeURIComponent(button.dataset.driverCancel)+'/cancel',{method:'POST',body:JSON.stringify({reason})});
