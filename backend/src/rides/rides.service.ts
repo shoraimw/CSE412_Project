@@ -339,7 +339,7 @@ export class RidesService{
   return data;
  }
  async requestCancellation(userId:string,token:string,id:string,role:Role,reason:string,emergency=false,location?:{lat:number;lng:number}){
-  if(!['passenger','vehicle_owner'].includes(role))throw new ForbiddenException('Only passenger or vehicle-owner accounts can request cancellation.');
+  if(!['passenger','driver','vehicle_owner'].includes(role))throw new ForbiddenException('Only a passenger, driver or vehicle owner who joined this ride can request cancellation.');
   const clean=reason.trim();
   if(clean.length<8||clean.length>500)throw new BadRequestException('Please provide a cancellation reason between 8 and 500 characters.');
   const {data,error}=await this.db(token).rpc('drive_request_ride_cancellation',{
