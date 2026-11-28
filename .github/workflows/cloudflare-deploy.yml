@@ -1,4 +1,5 @@
 name: Deploy DRIVE API Worker
+# Deployment trigger refreshed after CLOUDFLARE_API_TOKEN setup.
 
 on:
   push:
