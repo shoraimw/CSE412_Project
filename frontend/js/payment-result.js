@@ -39,6 +39,7 @@
       ];
       $('receiptDetails').innerHTML=rows.map(([label,value])=>'<div class="list-item"><div class="list-item-main"><strong>'+driveEscape(label)+'</strong><small>'+driveEscape(value)+'</small></div></div>').join('');
       $('receiptCard').hidden=false;
+      $('printReceipt').hidden=false;
     }catch(error){$('paymentStatusError').textContent='Payment is confirmed, but the receipt could not be loaded: '+error.message;}
   }
 
@@ -59,6 +60,7 @@
       $('paymentStatusTitle').textContent='Could not retrieve payment status';
     }finally{$('refreshPaymentStatus').disabled=false;}
   }
+  $('printReceipt')?.addEventListener('click',()=>window.print());
   $('refreshPaymentStatus').addEventListener('click',refresh);
   refresh();
 })();
