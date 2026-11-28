@@ -2,7 +2,7 @@
   if(!driveRequireAuth('driver.html'))return;
   const $=id=>document.getElementById(id);
   const activeStates=['matched','driver_arriving','in_progress'];
-  let watchId=null,lastPosition=null,available=false,assignedTrips=[],pendingCancellationRequests=[],locationSending=false,firstGpsFix=true,lastTripLocationSentAt=0;
+  let watchId=null,lastPosition=null,available=false,onlineIntent=false,assignedTrips=[],pendingCancellationRequests=[],locationSending=false,firstGpsFix=true,lastTripLocationSentAt=0,retryTimer=null;
   const knownRideStatuses=new Map();
   const setMessage=(id,text,kind='')=>{const el=$(id);if(el){el.textContent=text;el.className='message '+kind;}};
   const stateClass=s=>['completed','approved'].includes(s)?'success':['pending','requested','matched','driver_arriving','in_progress'].includes(s)?'warning':['rejected','cancelled'].includes(s)?'danger':'';
@@ -28,12 +28,15 @@
       await refresh();
       if(activeTrips().length)startLocationWatch(false);
       setInterval(async()=>{
-        if(document.hidden)return;
         try{
-          if(watchId!==null&&lastPosition){const onTrip=activeTrips().length>0;await updateDriverLocation(available&&!onTrip);if(onTrip)await updateActiveRideLocations();}
+          if(watchId!==null&&lastPosition){
+            const onTrip=activeTrips().length>0;
+            await updateDriverLocation(onlineIntent&&!onTrip);
+            if(onTrip)await updateActiveRideLocations();
+          }
           await refresh();
         }catch(error){setMessage('gpsMessage',error.message,'error');}
-      },15000);
+      },10000);
     }catch(error){$('driverStatus').textContent='Unable to load';setMessage('gpsMessage',error.message,'error');}
   }
 
@@ -134,14 +137,16 @@
 
   function startLocationWatch(makeAvailable){
     if(!navigator.geolocation){setMessage('gpsMessage','This browser does not support GPS location.','error');return;}
-    available=Boolean(makeAvailable)&&activeTrips().length===0;
+    onlineIntent=Boolean(makeAvailable)&&activeTrips().length===0;
+    available=onlineIntent;
     if(watchId!==null)return;
+    if(retryTimer){clearTimeout(retryTimer);retryTimer=null;}
     firstGpsFix=true;
     setMessage('gpsMessage','Requesting GPS permission…');
     watchId=navigator.geolocation.watchPosition(async position=>{
       lastPosition=position;
       const onTrip=activeTrips().length>0;
-      if(onTrip)available=false;
+      if(onTrip){available=false;onlineIntent=false;}
       try{
         await updateDriverLocation(available&&!onTrip);
         if(onTrip){
@@ -159,15 +164,29 @@
       if(firstGpsFix){firstGpsFix=false;refresh().catch(()=>{});}
     },error=>{
       if(watchId!==null)navigator.geolocation.clearWatch(watchId);
-      watchId=null;available=false;
-      setMessage('gpsMessage',error.message||'Location permission is required.','error');
-      if(activeTrips().length)setPresence('Location unavailable','Retry GPS',false);
-      else setPresence('Offline','Go online',false);
-    },{enableHighAccuracy:true,maximumAge:5000,timeout:15000});
+      watchId=null;
+      const onTrip=activeTrips().length>0;
+      if(onTrip){
+        available=false;onlineIntent=false;
+        setPresence('Location unavailable','Retry GPS',false);
+        setMessage('gpsMessage','GPS signal interrupted. Retrying automatically…','warning');
+      }else if(onlineIntent){
+        available=true;
+        setPresence('Reconnecting GPS','Stay online',true);
+        setMessage('gpsMessage','GPS signal interrupted. DRIVE is retrying your location automatically. Keep this tab open.','warning');
+      }else{
+        available=false;setPresence('Offline','Go online',false);
+        setMessage('gpsMessage',error.message||'Location permission is required.','error');
+      }
+      if(onlineIntent||onTrip){
+        retryTimer=setTimeout(()=>{retryTimer=null;startLocationWatch(onlineIntent);},8000);
+      }
+    },{enableHighAccuracy:false,maximumAge:10000,timeout:30000});
   }
 
   async function stopLocationWatch(){
-    available=false;
+    available=false;onlineIntent=false;
+    if(retryTimer){clearTimeout(retryTimer);retryTimer=null;}
     if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null;}
     if(lastPosition){try{await updateDriverLocation(false);}catch(error){setMessage('gpsMessage',error.message,'error');}}
     setPresence('Offline','Go online',false);
@@ -175,11 +194,12 @@
   }
 
   async function refresh(){
-    const [requests,trips,cancellations]=await Promise.all([
-      driveRequest('/rides/open-requests').catch(()=>[]),
-      driveRequest('/rides').catch(()=>[]),
-      driveRequest('/rides/cancellation-requests').catch(()=>[])
+    const [requestResult,trips,cancellations]=await Promise.all([
+      driveRequest('/rides/open-requests').then(data=>({data:Array.isArray(data)?data:[]})).catch(error=>({error})),
+      driveRequest('/rides'),
+      driveRequest('/rides/cancellation-requests')
     ]);
+    const requests=requestResult.data||[];
     const nextTrips=Array.isArray(trips)?trips:[];
     for(const ride of nextTrips){
       const previous=knownRideStatuses.get(ride.id);
@@ -194,10 +214,12 @@
     $('openCount').textContent=requests.length;$('driverTripCount').textContent=assignedTrips.length;
     $('completedTripCount').textContent=completedTrips.length;
     $('driverFareTotal').textContent=driveMoney(grossFare);
-    $('openRequests').innerHTML=requests.length?requests.map(ride=>{
+    $('openRequests').innerHTML=requestResult.error
+      ?'<div class="message error">Could not load ride requests: '+driveEscape(requestResult.error.message)+' — tap Refresh to try again.</div>'
+      :requests.length?requests.map(ride=>{
       const requestId=ride.requestId||ride.id;
-      return '<div class="list-item"><div class="list-item-main"><strong>'+driveEscape(ride.pickupAddress||ride.pickup_label||'Pickup')+' → '+driveEscape(ride.destinationAddress||ride.destination_label||'Destination')+'</strong><small>'+driveEscape(ride.vehicleType||ride.requested_vehicle)+' · '+driveMoney(ride.estimatedFare||ride.estimated_fare)+' · '+driveDate(ride.createdAt||ride.created_at)+'</small></div><div class="row-actions"><button class="button-mini dark" data-claim="'+driveEscape(requestId)+'">Accept</button><button class="button-mini" data-pass="'+driveEscape(requestId)+'">Pass</button></div></div>';
-    }).join(''):'<div class="empty-state">No nearby requests right now. Go online and keep this page open to receive requests.</div>';
+      return '<div class="list-item"><div class="list-item-main"><strong>'+driveEscape(ride.pickupAddress||ride.pickup_label||'Pickup')+' → '+driveEscape(ride.destinationAddress||ride.destination_label||'Destination')+'</strong><small>'+driveEscape(ride.vehicleType||ride.requested_vehicle)+' · '+driveMoney(ride.estimatedFare||ride.estimated_fare)+' · '+driveDate(ride.createdAt||ride.created_at)+'</small></div><div class="row-actions"><button class="button-mini dark" data-claim="'+driveEscape(requestId)+'">Accept ride</button><button class="button-mini" data-pass="'+driveEscape(requestId)+'">Pass</button></div></div>';
+    }).join(''):'<div class="empty-state">No matching requests right now. Stay online; this list refreshes automatically. The Accept ride button will appear when a matching request arrives.</div>';
     $('openRequests').querySelectorAll('[data-pass]').forEach(button=>button.addEventListener('click',async()=>{
       button.disabled=true;
       try{
@@ -292,7 +314,7 @@
 
   $('onlineToggle')?.addEventListener('click',()=>{
     if(activeTrips().length){if(watchId===null)startLocationWatch(false);return;}
-    if(available){stopLocationWatch();return;}
+    if(onlineIntent){stopLocationWatch();return;}
     startLocationWatch(true);
   });
   $('refreshRequests')?.addEventListener('click',()=>refresh().catch(error=>driveToast(error.message)));
