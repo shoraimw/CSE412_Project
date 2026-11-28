@@ -92,6 +92,22 @@ else{
   if(!claimMathFix.includes('least(1.0, greatest(0.0,'))failures.push('Secure claim distance must clamp the haversine expression.');
 }
 
+// Starting a trip must not fail on duplicate notification keys or GPS history grants.
+const startTripFixPath=path.join(root,'supabase','migrations','20261129120000_drive_fix_start_trip_notifications_and_gps_history_grants.sql');
+if(!existsSync(startTripFixPath))failures.push('Missing Start Trip notification/GPS-history migration.');
+else{
+  const startTripFix=readFileSync(startTripFixPath,'utf8').toLowerCase();
+  for(const token of [
+    'grant select, insert on table public.trip_location_history to authenticated',
+    'create or replace function public.drive_notify_ride_passenger()',
+    'on conflict (user_id,type,entity_id) where entity_id is not null',
+    'read_at=null',
+    'created_at=now()'
+  ]){
+    if(!startTripFix.includes(token.toLowerCase()))failures.push('Start Trip migration is missing '+token+'.');
+  }
+}
+
 
 
 // Keep ride cancellation on the audited role-checked RPC path.

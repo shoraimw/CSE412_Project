@@ -36,6 +36,9 @@ This checklist covers the current ride lifecycle implementation. Run it with sep
 - [ ] Chat closes when the ride is completed or cancelled.
 - [ ] Driver GPS is stored while approaching pickup and during an active trip.
 - [ ] Passenger tracking shows the assigned driver's latest location and destination.
+- [ ] An authenticated assigned Driver can INSERT and SELECT trip_location_history under the existing participant/assigned-driver RLS policies.
+- [ ] Starting a trip from driver_arriving to in_progress does not fail when a ride_status notification already exists for the same ride.
+- [ ] A status update refreshes the existing ride notification idempotently instead of violating notifications_user_type_entity_uidx.
 
 The current chat UI refreshes messages every 2.5 seconds. The database table is available for Realtime integration, but the current browser workflow uses polling.
 
