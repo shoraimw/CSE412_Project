@@ -41,6 +41,22 @@ else{
 if(existsSync(path.join(root,'vercel.json')))failures.push('Legacy Vercel deployment config must be removed.');
 if(existsSync(path.join(root,'api','[...path].js')))failures.push('Legacy Vercel API catch-all must be removed.');
 
+// Ride booking must still show useful estimates when public routing or fare APIs are unavailable.
+const homeRidePath=path.join(frontend,'js','home.js');
+const driveCssPath=path.join(frontend,'css','drive.css');
+if(!existsSync(homeRidePath))failures.push('Missing customer ride booking script.');
+else{
+  const homeRide=readFileSync(homeRidePath,'utf8');
+  for(const token of ['FALLBACK_FARE_RATES','approximateRoute','haversineKm','fallbackFare','/fare/estimate']){
+    if(!homeRide.includes(token))failures.push('Customer ride fare workflow is missing '+token+'.');
+  }
+  if(!homeRide.includes("source:'fallback'"))failures.push('Customer ride fare workflow must mark fallback estimates as approximate.');
+}
+if(!existsSync(driveCssPath)||!readFileSync(driveCssPath,'utf8').includes('.route-summary[hidden]{display:none!important}')){
+  failures.push('Hidden route summary must not display placeholder dashes before route calculation.');
+}
+
+
 
 // Keep ride cancellation on the audited role-checked RPC path.
 const ridesServicePath=path.join(root,'backend','src','rides','rides.service.ts');
