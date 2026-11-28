@@ -3,9 +3,14 @@
   const pickupInput=$('pickup'),destinationInput=$('destination'),message=$('rideMessage');
   const dhaka=[23.8103,90.4125];
   let map=null,pickupMarker=null,destinationMarker=null,routeLine=null;
-  let pickup=null,destination=null,target='pickup',routeDistanceKm=null,routeDurationMin=null,routeCoordinates=[];
+  let pickup=null,destination=null,target='pickup',routeDistanceKm=null,routeDurationMin=null,routeCoordinates=[],routeIsApproximate=false,routeRequestVersion=0;
+  const FALLBACK_FARE_RATES={
+    bike:{base:30,perKm:12,speedKmh:25},
+    cng:{base:40,perKm:18,speedKmh:20},
+    car:{base:60,perKm:25,speedKmh:20}
+  };
   const CURRENCIES=['BDT','USD','EUR','GBP','INR','SGD','MYR','AED','SAR','AUD','CAD','CNY','JPY','THB','NPR','PKR'];
-  let selectedCurrency='BDT',exchangeRates={BDT:1},fareQuotes={},nearbyRefreshInFlight=false;
+  let selectedCurrency='BDT',exchangeRates={BDT:1},fareQuotes={},fareQuoteSources={},fareRequestVersion=0,nearbyRefreshInFlight=false;
   const autocompleteState={
     pickup:{results:[],timer:null,controller:null,active:-1},
     destination:{results:[],timer:null,controller:null,active:-1}
@@ -18,12 +23,38 @@
     return new Intl.NumberFormat('en-US',{style:'currency',currency:selectedCurrency,maximumFractionDigits:2}).format(amount*rate)+' · '+bdtMoney(amount);
   };
   const setMessage=(text,kind='')=>{message.textContent=text;message.className='form-message '+kind;};
+  function fareLabel(type){
+    const amount=Number(fareQuotes[type]);
+    if(!Number.isFinite(amount)||amount<=0)return '—';
+    const approximate=routeIsApproximate||fareQuoteSources[type]==='fallback';
+    return (approximate?'≈ ':'')+money(amount);
+  }
   function updateFareLabels(){
     for(const type of ['car','bike','cng']){
-      if($(type+'Fare'))$(type+'Fare').textContent=fareQuotes[type]===undefined?'—':money(fareQuotes[type]);
+      if($(type+'Fare'))$(type+'Fare').textContent=fareQuotes[type]===undefined?'—':fareLabel(type);
     }
     const selected=document.querySelector('input[name="vehicleType"]:checked')?.value;
-    if(selected&&fareQuotes[selected]!==undefined&&$('selectedFare'))$('selectedFare').textContent=money(fareQuotes[selected]);
+    if($('selectedFare'))$('selectedFare').textContent=selected&&fareQuotes[selected]!==undefined?fareLabel(selected):'—';
+  }
+  function clearFareQuotes(){
+    fareQuotes={};fareQuoteSources={};fareRequestVersion++;updateFareLabels();
+  }
+  function haversineKm(from,to){
+    const radians=value=>value*Math.PI/180;
+    const dLat=radians(to.lat-from.lat),dLng=radians(to.lng-from.lng);
+    const a=Math.sin(dLat/2)**2+Math.cos(radians(from.lat))*Math.cos(radians(to.lat))*Math.sin(dLng/2)**2;
+    return 6371*2*Math.atan2(Math.sqrt(a),Math.sqrt(Math.max(0,1-a)));
+  }
+  function approximateRoute(from,to){
+    const straightLineKm=haversineKm(from,to);
+    if(!Number.isFinite(straightLineKm)||straightLineKm<=0)throw new Error('Choose two different valid locations to calculate a fare.');
+    const distanceKm=Math.max(0.2,straightLineKm*1.25);
+    return {distanceKm,durationMinutes:Math.max(1,Math.round(distanceKm/18*60))};
+  }
+  function fallbackFare(type){
+    const rates=FALLBACK_FARE_RATES[type];
+    if(!rates||!Number.isFinite(routeDistanceKm)||routeDistanceKm<=0)return null;
+    return Math.max(1,Math.round(rates.base+routeDistanceKm*rates.perKm));
   }
   async function setCurrency(code,persist=false){
     if(!CURRENCIES.includes(code)||!Number.isFinite(Number(exchangeRates[code]))||Number(exchangeRates[code])<=0)return;
@@ -80,7 +111,7 @@
     if(map&&routeLine){map.removeLayer(routeLine);routeLine=null;}
   }
   function setPoint(kind,lat,lng,label){
-    routeCoordinates=[];routeDistanceKm=null;routeDurationMin=null;
+    routeCoordinates=[];routeDistanceKm=null;routeDurationMin=null;routeIsApproximate=false;routeRequestVersion++;clearFareQuotes();
     $('routeSummary').hidden=true;
     const point={lat:Number(lat),lng:Number(lng),label:label||'Selected map location'};
     hideSuggestions(kind);
@@ -147,12 +178,12 @@
       if(kind==='pickup'&&pickup?.label!==value){
         pickup=null;if(pickupMarker){map?.removeLayer(pickupMarker);pickupMarker=null;}
         if(routeLine){map?.removeLayer(routeLine);routeLine=null;}
-        routeCoordinates=[];routeDistanceKm=null;routeDurationMin=null;$('routeSummary').hidden=true;clearNearbyDrivers();
+        routeCoordinates=[];routeDistanceKm=null;routeDurationMin=null;routeIsApproximate=false;routeRequestVersion++;clearFareQuotes();$('routeSummary').hidden=true;clearNearbyDrivers();
       }
       if(kind==='destination'&&destination?.label!==value){
         destination=null;if(destinationMarker){map?.removeLayer(destinationMarker);destinationMarker=null;}
         if(routeLine){map?.removeLayer(routeLine);routeLine=null;}
-        routeCoordinates=[];routeDistanceKm=null;routeDurationMin=null;$('routeSummary').hidden=true;
+        routeCoordinates=[];routeDistanceKm=null;routeDurationMin=null;routeIsApproximate=false;routeRequestVersion++;clearFareQuotes();$('routeSummary').hidden=true;
       }
       if(state.timer)clearTimeout(state.timer);
       if(state.controller)state.controller.abort();
@@ -240,44 +271,94 @@
   }
   async function previewRoute(){
     if(!pickup||!destination)return;
+    const currentRoute=++routeRequestVersion;
+    routeCoordinates=[];routeDistanceKm=null;routeDurationMin=null;routeIsApproximate=false;clearFareQuotes();
+    $('routeSummary').hidden=true;
     try{
+      let route=null,routeError=null;
       const url='https://router.project-osrm.org/route/v1/driving/'+pickup.lng+','+pickup.lat+';'+destination.lng+','+destination.lat+'?overview=full&geometries=geojson';
-      const response=await fetch(url,{signal:AbortSignal.timeout(10000)});
-      if(!response.ok)throw new Error('Route preview is temporarily unavailable.');
-      const data=await response.json();
-      if(!data.routes?.length)throw new Error('No road route found for these locations.');
-      const route=data.routes[0];
-      routeDistanceKm=route.distance/1000;
-      routeDurationMin=Math.max(1,Math.round(route.duration/60));
-      const raw=Array.isArray(route.geometry?.coordinates)?route.geometry.coordinates:[];
-      routeCoordinates=raw.length>100
-        ?Array.from({length:100},(_,i)=>raw[Math.round(i*(raw.length-1)/99)]).map(([lng,lat])=>({lat,lng}))
-        :raw.map(([lng,lat])=>({lat,lng}));
-      if(map&&window.L){
-        if(routeLine)map.removeLayer(routeLine);
-        routeLine=L.geoJSON(route.geometry,{style:{color:'#111',weight:5,opacity:.82}}).addTo(map);
-        map.fitBounds(routeLine.getBounds(),{padding:[35,35]});
+      try{
+        const response=await fetch(url,{signal:AbortSignal.timeout(10000)});
+        if(!response.ok)throw new Error('Road route service returned HTTP '+response.status+'.');
+        const data=await response.json();
+        if(!data.routes?.length)throw new Error('No road route was returned for these locations.');
+        route=data.routes[0];
+      }catch(error){routeError=error;}
+      if(currentRoute!==routeRequestVersion)return;
+      if(route){
+        routeDistanceKm=Number(route.distance)/1000;
+        routeDurationMin=Math.max(1,Math.round(Number(route.duration)/60));
+        const raw=Array.isArray(route.geometry?.coordinates)?route.geometry.coordinates:[];
+        routeCoordinates=raw.length>100
+          ?Array.from({length:100},(_,i)=>raw[Math.round(i*(raw.length-1)/99)]).map(([lng,lat])=>({lat,lng}))
+          :raw.map(([lng,lat])=>({lat,lng}));
+        if(!Number.isFinite(routeDistanceKm)||routeDistanceKm<=0)throw new Error('The route service returned an invalid distance.');
+        if(map&&window.L){
+          if(routeLine)map.removeLayer(routeLine);
+          routeLine=L.geoJSON(route.geometry,{style:{color:'#111',weight:5,opacity:.82}}).addTo(map);
+          map.fitBounds(routeLine.getBounds(),{padding:[35,35]});
+        }
+      }else{
+        const approximate=approximateRoute(pickup,destination);
+        routeDistanceKm=approximate.distanceKm;
+        routeDurationMin=approximate.durationMinutes;
+        routeIsApproximate=true;
+        routeCoordinates=[];
+        if(map&&window.L){
+          if(routeLine)map.removeLayer(routeLine);
+          routeLine=L.polyline([[pickup.lat,pickup.lng],[destination.lat,destination.lng]],{color:'#777',weight:4,opacity:.75,dashArray:'6 8'}).addTo(map);
+          map.fitBounds(L.latLngBounds([[pickup.lat,pickup.lng],[destination.lat,destination.lng]]),{padding:[35,35]});
+        }
+        console.warn('DRIVE road routing unavailable; using an approximate straight-line-based estimate:',routeError?.message||'Unknown route error');
       }
+      if(currentRoute!==routeRequestVersion)return;
       $('routeSummary').hidden=false;
-      $('routeDistance').textContent=routeDistanceKm.toFixed(1)+' km';
-      $('routeDuration').textContent=routeDurationMin+' min';
+      $('routeDistance').textContent=(routeIsApproximate?'≈ ':'')+routeDistanceKm.toFixed(1)+' km';
+      $('routeDuration').textContent=(routeIsApproximate?'≈ ':'')+routeDurationMin+' min';
       await refreshFares();
-      setMessage('Route ready. Review the estimated fare and request your ride.');
     }catch(error){
-      routeCoordinates=[];
-      setMessage(error.message||'Route preview is unavailable. The server will still calculate the route when you request a ride.','error');
+      if(currentRoute!==routeRequestVersion)return;
+      routeCoordinates=[];routeDistanceKm=null;routeDurationMin=null;routeIsApproximate=false;clearFareQuotes();
+      $('routeSummary').hidden=true;
+      setMessage(error.message||'Route preview is unavailable. Check the selected locations and try again.','error');
     }
   }
   async function refreshFares(){
-    if(!routeDistanceKm)return;
-    for(const type of ['car','bike','cng']){
+    if(!Number.isFinite(routeDistanceKm)||routeDistanceKm<=0)return {fallbackCount:0};
+    const currentFareRequest=++fareRequestVersion;
+    const types=['car','bike','cng'];
+    const results=await Promise.all(types.map(async type=>{
       try{
         const quote=await driveRequest('/fare/estimate',{method:'POST',body:JSON.stringify({distanceKm:routeDistanceKm,vehicleType:type,durationMinutes:routeDurationMin})});
-        fareQuotes[type]=Number(quote.estimatedFare);
-        if($(type+'Fare'))$(type+'Fare').textContent=money(fareQuotes[type]);
-        if(document.querySelector('input[name="vehicleType"]:checked')?.value===type)$('selectedFare').textContent=money(fareQuotes[type]);
-      }catch{delete fareQuotes[type];$(type+'Fare').textContent='—';}
+        const amount=Number(quote?.estimatedFare);
+        if(!Number.isFinite(amount)||amount<=0)throw new Error('Fare API returned an invalid estimate.');
+        return {type,amount,source:'server'};
+      }catch(error){
+        console.warn('DRIVE '+type+' fare API failed; using the built-in demo rate:',error.message);
+        return {type,amount:fallbackFare(type),source:'fallback'};
+      }
+    }));
+    if(currentFareRequest!==fareRequestVersion)return {fallbackCount:0,stale:true};
+    for(const result of results){
+      if(Number.isFinite(result.amount)&&result.amount>0){
+        fareQuotes[result.type]=result.amount;
+        fareQuoteSources[result.type]=result.source;
+      }else{
+        delete fareQuotes[result.type];delete fareQuoteSources[result.type];
+      }
     }
+    updateFareLabels();
+    const fallbackCount=results.filter(result=>result.source==='fallback').length;
+    if(routeIsApproximate){
+      setMessage('Live road routing is unavailable. Showing approximate distance and fare estimates; confirm before booking.','warning');
+    }else if(fallbackCount===types.length){
+      setMessage('Fare service is temporarily unavailable. Approximate demo fares are shown using built-in BDT rates.','warning');
+    }else if(fallbackCount>0){
+      setMessage('Some fare quotes are unavailable. The affected options show approximate demo estimates.','warning');
+    }else{
+      setMessage('Route ready. Estimated fares are calculated for Car, Bike and CNG.','success');
+    }
+    return {fallbackCount};
   }
 
   setupAutocomplete('pickup');
@@ -310,7 +391,7 @@
     const oldPickupText=pickupInput.value,oldDestinationText=destinationInput.value;
     pickup=oldDestination;destination=oldPickup;
     pickupInput.value=oldDestinationText;destinationInput.value=oldPickupText;
-    routeCoordinates=[];routeDistanceKm=null;routeDurationMin=null;$('routeSummary').hidden=true;
+    routeCoordinates=[];routeDistanceKm=null;routeDurationMin=null;routeIsApproximate=false;routeRequestVersion++;clearFareQuotes();$('routeSummary').hidden=true;
     if(pickup&&destination){
       if(map&&window.L){
         clearRouteVisuals();
@@ -321,8 +402,8 @@
     }
   });
   $('recenterMap')?.addEventListener('click',()=>map?.setView(dhaka,12));
-  $('pickup')?.addEventListener('change',()=>{pickup=null;routeCoordinates=[];routeDistanceKm=null;routeDurationMin=null;clearRouteVisuals();$('routeSummary').hidden=true;});
-  $('destination')?.addEventListener('change',()=>{destination=null;routeCoordinates=[];routeDistanceKm=null;routeDurationMin=null;clearRouteVisuals();$('routeSummary').hidden=true;});
+  $('pickup')?.addEventListener('change',()=>{pickup=null;routeCoordinates=[];routeDistanceKm=null;routeDurationMin=null;routeIsApproximate=false;routeRequestVersion++;clearFareQuotes();clearRouteVisuals();$('routeSummary').hidden=true;});
+  $('destination')?.addEventListener('change',()=>{destination=null;routeCoordinates=[];routeDistanceKm=null;routeDurationMin=null;routeIsApproximate=false;routeRequestVersion++;clearFareQuotes();clearRouteVisuals();$('routeSummary').hidden=true;});
   document.querySelectorAll('input[name="vehicleType"]').forEach(input=>input.addEventListener('change',refreshFares));
 
   $('rideForm')?.addEventListener('submit',async event=>{
