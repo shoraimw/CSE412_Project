@@ -37,8 +37,9 @@ async function driveRefreshSession() {
   return driveRefreshPromise;
 }
 async function driveRequest(path, options = {}) {
+  const isMultipart = typeof FormData !== 'undefined' && options.body instanceof FormData;
   const makeHeaders = token => ({
-    ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+    ...(options.body && !isMultipart ? { 'Content-Type': 'application/json' } : {}),
     ...(options.headers || {}),
     ...(token ? { Authorization: 'Bearer ' + token } : {})
   });
