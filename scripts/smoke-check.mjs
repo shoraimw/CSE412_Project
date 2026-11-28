@@ -58,6 +58,18 @@ if(!existsSync(customerCancellationMigrationPath)||!readFileSync(customerCancell
 if(!existsSync(customerCancellationMigrationPath)||!readFileSync(customerCancellationMigrationPath,'utf8').includes("'driver'::public.drive_role"))failures.push('Missing database permission for Driver-as-customer cancellation.');
 const rlsOptimizationPath=path.join(root,'supabase','migrations','20261128045610_drive_rls_policy_initplan_optimization.sql');
 if(!existsSync(rlsOptimizationPath)||!readFileSync(rlsOptimizationPath,'utf8').includes('auth.uid()'))failures.push('Missing RLS policy initplan optimization migration.');
+const profileUiPath=path.join(frontend,'profile.html');
+const profileScriptPath=path.join(frontend,'js','profile.js');
+const exploreUiPath=path.join(frontend,'explore.html');
+const exploreScriptPath=path.join(frontend,'js','explore.js');
+const receiptUiPath=path.join(frontend,'payment-result.html');
+const receiptScriptPath=path.join(frontend,'js','payment-result.js');
+if(!existsSync(profileUiPath)||!readFileSync(profileUiPath,'utf8').includes('profileLanguage'))failures.push('Profile must expose the saved language preference.');
+if(!existsSync(profileScriptPath)||!readFileSync(profileScriptPath,'utf8').includes('preferred_language'))failures.push('Profile must persist preferred_language.');
+if(!existsSync(exploreUiPath)||!readFileSync(exploreUiPath,'utf8').includes('exploreLanguage'))failures.push('Tourist Mode must expose English/Bangla language selection.');
+if(!existsSync(exploreScriptPath)||!readFileSync(exploreScriptPath,'utf8').includes("bn:"))failures.push('Tourist Mode must include Bangla interface labels.');
+if(!existsSync(receiptUiPath)||!readFileSync(receiptUiPath,'utf8').includes('printReceipt'))failures.push('Confirmed payment receipt must be printable.');
+if(!existsSync(receiptScriptPath)||!readFileSync(receiptScriptPath,'utf8').includes('window.print()'))failures.push('Printable receipt action must be wired.');
 
 if(existsSync(frontend))walk(frontend);
 let assetCount=0;
