@@ -329,7 +329,7 @@
     const types=['car','bike','cng'];
     const results=await Promise.all(types.map(async type=>{
       try{
-        const quote=await driveRequest('/fare/estimate',{method:'POST',body:JSON.stringify({distanceKm:routeDistanceKm,vehicleType:type,durationMinutes:routeDurationMin})});
+        const quote=await driveRequest('/fare/estimate',{method:'POST',signal:AbortSignal.timeout(8000),body:JSON.stringify({distanceKm:routeDistanceKm,vehicleType:type,durationMinutes:routeDurationMin})});
         const amount=Number(quote?.estimatedFare);
         if(!Number.isFinite(amount)||amount<=0)throw new Error('Fare API returned an invalid estimate.');
         return {type,amount,source:'server'};
