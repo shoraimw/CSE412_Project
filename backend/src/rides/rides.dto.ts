@@ -18,3 +18,16 @@ export class CreateRideDto{
 }
 export class RideLocationDto{@Type(()=>Number)@IsNumber()@Min(-90)@Max(90)lat!:number;@Type(()=>Number)@IsNumber()@Min(-180)@Max(180)lng!:number;@IsOptional()@Type(()=>Number)@IsNumber()@Min(0)@Max(360)heading?:number;@IsOptional()@Type(()=>Number)@IsNumber()@Min(0)@Max(300)speedKph?:number;}
 export class RideStatusDto{@IsIn(['driver_arriving','in_progress','completed','cancelled'])status!:string;}
+
+export class RideMessageDto {
+ @IsString() @MaxLength(2000) body!: string;
+}
+export class RideCancellationDto {
+ @IsString() @MaxLength(500) reason!: string;
+ @IsOptional() @IsBoolean() emergency?: boolean;
+ @IsOptional() @ValidateNested() @Type(()=>RideLocationDto) location?: RideLocationDto;
+}
+export class RideCancellationResponseDto {
+ @IsBoolean() approve!: boolean;
+ @IsOptional() @IsString() @MaxLength(500) note?: string;
+}

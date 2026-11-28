@@ -1,6 +1,6 @@
 import {
   BadRequestException, Body, Controller, ForbiddenException, Get, Inject,
-  NotFoundException, Param, Patch, Req, UseGuards
+  NotFoundException, Param, Patch, Query, Req, UseGuards
 } from '@nestjs/common';
 import { Request } from 'express';
 import { randomUUID } from 'crypto';
@@ -378,6 +378,23 @@ export class AdminController {
     if (ridesError) throw new BadRequestException(ridesError.message);
     const byRequest = new Map((rides || []).map((ride: any) => [ride.request_id, ride]));
     return (requests || []).map((item: any) => ({ ...item, ride: byRequest.get(item.id) || null }));
+  }
+
+  @Get('ride-activity')
+  async rideActivity(
+    @Req() request: AdminRequest,
+    @Query('rideId') rideId?: string,
+    @Query('requestId') requestId?: string,
+  ) {
+    const db=this.client(request);
+    let query=db.from('ride_activity_events')
+      .select('id,request_id,ride_id,actor_id,actor_role,action,from_status,to_status,reason,metadata,created_at,actor:profiles!ride_activity_events_actor_id_fkey(full_name)')
+      .order('created_at',{ascending:false}).limit(200);
+    if(rideId)query=query.eq('ride_id',rideId);
+    if(requestId)query=query.eq('request_id',requestId);
+    const {data,error}=await query;
+    if(error)throw new BadRequestException(error.message);
+    return data||[];
   }
 
   @Patch('rides/:id')

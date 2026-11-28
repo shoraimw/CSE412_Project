@@ -304,7 +304,74 @@ export class RidesService{
   }
   return {rideId,message:'Ride request accepted.'};
  }
- async get(userId:string,token:string,id:string){const {data,error}=await this.db(token).from('rides').select('*,ride_requests(*)').eq('id',id).maybeSingle();if(error||!data)throw new NotFoundException('Ride not found.');const request=data.ride_requests;if(data.driver_id!==userId&&request?.passenger_id!==userId)throw new NotFoundException('Ride not found.');return this.formatDriverRide(data);}
+ async get(userId:string,token:string,id:string){
+  const db=this.db(token);
+  const {data,error}=await db.from('rides').select('*,ride_requests(*)').eq('id',id).maybeSingle();
+  if(error||!data)throw new NotFoundException('Ride not found.');
+  const request=Array.isArray(data.ride_requests)?data.ride_requests[0]:data.ride_requests;
+  let participant=data.driver_id===userId||request?.passenger_id===userId;
+  if(!participant){
+    const {data:membership,error:membershipError}=await db.from('ride_passengers')
+      .select('ride_id').eq('ride_id',id).eq('passenger_id',userId).maybeSingle();
+    if(membershipError)throw new ServiceUnavailableException(membershipError.message);
+    participant=!!membership;
+  }
+  if(!participant)throw new NotFoundException('Ride not found.');
+  return this.formatDriverRide({...data,ride_requests:request});
+ }
+ async messages(userId:string,token:string,id:string){
+  const ride=await this.get(userId,token,id);
+  const {data,error}=await this.db(token).from('ride_messages')
+    .select('id,ride_id,sender_id,body,created_at,profiles:profiles!ride_messages_sender_id_fkey(full_name)')
+    .eq('ride_id',id).order('created_at',{ascending:true}).limit(200);
+  if(error)throw new ServiceUnavailableException(error.message);
+  return {rideId:id,status:ride.status,messages:data||[]};
+ }
+ async sendMessage(userId:string,token:string,id:string,body:string){
+  const ride=await this.get(userId,token,id);
+  if(!['matched','driver_arriving','in_progress'].includes(ride.status))throw new BadRequestException('Chat is closed because this ride is no longer active.');
+  const clean=body.trim();
+  if(clean.length<1||clean.length>2000)throw new BadRequestException('Message must contain 1–2000 characters.');
+  const {data,error}=await this.db(token).from('ride_messages').insert({ride_id:id,sender_id:userId,body:clean})
+    .select('id,ride_id,sender_id,body,created_at,profiles:profiles!ride_messages_sender_id_fkey(full_name)').single();
+  if(error||!data)throw new BadRequestException(error?.message||'Message could not be sent.');
+  return data;
+ }
+ async requestCancellation(userId:string,token:string,id:string,role:Role,reason:string,emergency=false,location?:{lat:number;lng:number}){
+  if(!['passenger','driver','vehicle_owner'].includes(role))throw new ForbiddenException('Customer account required.');
+  const clean=reason.trim();
+  if(clean.length<8||clean.length>500)throw new BadRequestException('Please provide a cancellation reason between 8 and 500 characters.');
+  const {data,error}=await this.db(token).rpc('drive_request_ride_cancellation',{
+   p_ride_id:id,p_reason:clean,p_emergency:emergency,
+   p_lat:location?.lat??null,p_lng:location?.lng??null,
+  });
+  if(error||!data)throw new BadRequestException(error?.message||'Cancellation request could not be recorded.');
+  return data;
+ }
+ async driverCancelRide(userId:string,token:string,id:string,role:Role,reason:string){
+  if(role!=='driver')throw new ForbiddenException('Only the assigned driver can cancel an accepted ride.');
+  const clean=reason.trim();
+  if(clean.length<8||clean.length>500)throw new BadRequestException('Please provide a cancellation reason between 8 and 500 characters.');
+  const {data,error}=await this.db(token).rpc('drive_driver_cancel_ride',{p_ride_id:id,p_reason:clean});
+  if(error||!data)throw new BadRequestException(error?.message||'Ride could not be cancelled.');
+  return data;
+ }
+ async cancellationRequests(userId:string,token:string,role:Role){
+  if(role!=='driver')throw new ForbiddenException('Only drivers can review cancellation requests.');
+  const {data,error}=await this.db(token).from('ride_cancellation_requests')
+    .select('id,ride_id,requester_id,requester_role,reason,status,created_at,rides!inner(driver_id,status,request_id)')
+    .eq('status','pending').eq('rides.driver_id',userId).order('created_at',{ascending:false});
+  if(error)throw new ServiceUnavailableException(error.message);
+  return data||[];
+ }
+ async respondCancellation(userId:string,token:string,id:string,role:Role,approve:boolean,note?:string){
+  if(role!=='driver')throw new ForbiddenException('Only the assigned driver can respond to a cancellation request.');
+  const {data,error}=await this.db(token).rpc('drive_respond_ride_cancellation',{
+   p_cancellation_id:id,p_approve:approve,p_note:note?.trim()||null,
+  });
+  if(error||!data)throw new BadRequestException(error?.message||'Cancellation decision could not be saved.');
+  return data;
+ }
  async updateStatus(userId:string,token:string,id:string,status:string,role:Role){
   if(role!=='driver')throw new ForbiddenException('Only the assigned driver can update trip status.');
   const ride=await this.get(userId,token,id);
