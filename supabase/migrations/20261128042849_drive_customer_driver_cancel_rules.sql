@@ -22,7 +22,7 @@ begin
   if v_actor is null then
     raise exception 'Authentication required';
   end if;
-  if v_role not in ('passenger'::public.drive_role,'driver'::public.drive_role,'vehicle_owner'::public.drive_role) then
+  if v_role not in ('passenger'::public.drive_role,'vehicle_owner'::public.drive_role) then
     raise exception 'Customer account required';
   end if;
   if length(trim(coalesce(p_reason,''))) < 8 or length(trim(p_reason)) > 500 then
