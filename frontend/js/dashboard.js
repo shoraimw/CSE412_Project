@@ -180,8 +180,9 @@
       if(!firstRideLoad&&previous&&previous!=='completed'&&ride.status==='completed')window.driveArrivalNotice?.(id);
       knownRideStatuses.set(id,ride.status);
     }
-    for(const note of (notifications.items||[])){
-      if(note.type==='ride_completed'&&note.entity_id)window.driveArrivalNotice?.(note.entity_id);
+    const notificationRows=Array.isArray(notifications)?notifications:(notifications.items||[]);
+    for(const note of notificationRows){
+      if(note.type==='ride_completed'&&!note.read_at&&note.entity_id)window.driveArrivalNotice?.(note.entity_id);
     }
     firstRideLoad=false;
     const active=rides.filter(r=>activeStates.includes(r.status));
