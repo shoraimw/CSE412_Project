@@ -339,7 +339,7 @@ export class RidesService{
   return data;
  }
  async requestCancellation(userId:string,token:string,id:string,role:Role,reason:string,emergency=false,location?:{lat:number;lng:number}){
-  if(!['passenger','driver','vehicle_owner'].includes(role))throw new ForbiddenException('Only customer accounts can request cancellation.');
+  if(!['passenger','vehicle_owner'].includes(role))throw new ForbiddenException('Only passenger or vehicle-owner accounts can request cancellation.');
   const clean=reason.trim();
   if(clean.length<8||clean.length>500)throw new BadRequestException('Please provide a cancellation reason between 8 and 500 characters.');
   const {data,error}=await this.db(token).rpc('drive_request_ride_cancellation',{
@@ -376,7 +376,7 @@ export class RidesService{
  async updateStatus(userId:string,token:string,id:string,status:string,role:Role){
   if(role!=='driver')throw new ForbiddenException('Only the assigned driver can update trip status.');
   const ride=await this.get(userId,token,id);
-  const allowed:Record<string,string[]>={matched:['driver_arriving','cancelled'],driver_arriving:['in_progress','cancelled'],in_progress:['completed'],completed:[],cancelled:[]};
+  const allowed:Record<string,string[]>={matched:['driver_arriving'],driver_arriving:['in_progress'],in_progress:['completed'],completed:[],cancelled:[]};
   if(!allowed[ride.status]?.includes(status))throw new BadRequestException('Invalid ride status transition.');
 
   // If a fresh GPS fix exists, do not let a Driver manually mark a distant
