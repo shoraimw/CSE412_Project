@@ -18,6 +18,7 @@
     rideActivity:{url:'/admin/ride-activity',title:'Ride activity timeline',cols:['Actor','Role','Action','Ride / Request','Status change','Reason','Details','Time'],map:r=>[r.actor?.full_name||r.actor_id||'System',r.actor_role||'system',r.action,r.ride_id||r.request_id||'—',(r.from_status||'—')+' → '+(r.to_status||'—'),r.reason||'—',JSON.stringify(r.metadata||{}),driveDate(r.created_at)]}
   };
   let activeTab='drivers';
+  let placeRows=[];
   const button=(id,action)=>'<button class="button-mini '+(action==='rejected'||action==='false_alarm'||action==='failed'||action==='cancelled'?'danger':'dark')+'" data-id="'+driveEscape(id)+'" data-action="'+driveEscape(action)+'">'+driveEscape(action==='approved'?'Approve':action==='rejected'?'Reject':action==='acknowledged'?'Acknowledge':action==='resolved'?'Resolve':action==='false_alarm'?'False alarm':action==='paid'?'Mark paid':action==='failed'?'Mark failed':action==='cancelled'?'Cancel':action)+'</button>';
   async function overview(){
     const data=await driveRequest('/admin/overview');
@@ -52,8 +53,148 @@
       }));
     }catch(error){$('adminContent').innerHTML='<div class="empty-state">'+driveEscape(error.message)+'</div>';}
   }
+
+  async function showPlaces(){
+    activeTab='places';
+    document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab==='places'));
+    $('adminContent').innerHTML='<div class="empty-state">Loading Explore destinations…</div>';
+    try{
+      placeRows=await driveRequest('/admin/tourist-places');
+      const categories=[...new Set(placeRows.map(row=>String(row.category||'').trim()).filter(Boolean))].sort();
+      $('adminContent').innerHTML=`
+        <div class="toolbar">
+          <div><h3 class="card-title">Explore destination catalogue</h3><p class="muted small">Add, edit, publish, hide or remove destinations shown to every DRIVE customer and driver.</p></div>
+          <button class="button button-dark button-small" id="newExplorePlace">+ Add destination</button>
+        </div>
+        <section class="card" id="explorePlaceEditor" hidden style="margin-bottom:18px">
+          <div class="toolbar"><h3 class="card-title" id="explorePlaceFormTitle">Add a destination</h3><button class="button button-outline button-small" type="button" id="cancelExplorePlace">Close</button></div>
+          <form id="explorePlaceForm" class="form-grid">
+            <input type="hidden" id="placeId">
+            <div class="form-field"><label for="placeName">Place name *</label><input id="placeName" required maxlength="120" placeholder="e.g. Lalbagh Fort"></div>
+            <div class="form-field"><label for="placeCity">City / district *</label><input id="placeCity" required maxlength="80" placeholder="e.g. Dhaka"></div>
+            <div class="form-field"><label for="placeCategory">Category *</label><input id="placeCategory" required maxlength="60" list="explorePlaceCategories" placeholder="History, Nature, Beach…"><datalist id="explorePlaceCategories">${categories.map(value=>'<option value="'+driveEscape(value)+'"></option>').join('')}</datalist></div>
+            <div class="form-field"><label for="placeAddress">Address / area</label><input id="placeAddress" maxlength="240" placeholder="Area, district"></div>
+            <div class="form-field full"><label for="placeDescription">Description *</label><textarea id="placeDescription" maxlength="2400" required placeholder="A short, helpful description for visitors"></textarea></div>
+            <div class="form-field"><label for="placeLatitude">Latitude</label><input id="placeLatitude" type="number" min="-90" max="90" step="any" placeholder="23.7189"></div>
+            <div class="form-field"><label for="placeLongitude">Longitude</label><input id="placeLongitude" type="number" min="-180" max="180" step="any" placeholder="90.3881"></div>
+            <div class="form-field"><label for="placeHours">Estimated visit hours</label><input id="placeHours" type="number" min="0.5" max="24" step="0.5" value="1.5"></div>
+            <div class="form-field"><label for="placeTags">Tags (comma separated)</label><input id="placeTags" placeholder="history, architecture, family"></div>
+            <div class="form-field full"><label for="placeFacilities">Nearby facilities (comma separated)</label><input id="placeFacilities" placeholder="Food, parking, local transport"></div>
+            <div class="form-field full"><label for="placeImageFile">Upload destination image (JPG, PNG or WebP · max 5 MB)</label><input id="placeImageFile" type="file" accept="image/jpeg,image/png,image/webp"></div>
+            <div class="form-field full"><label for="placeImageUrl">Or use an existing image URL</label><input id="placeImageUrl" type="url" maxlength="1200" placeholder="https://…"></div>
+            <div class="form-field"><label for="placeImageAlt">Image alt text</label><input id="placeImageAlt" maxlength="240" placeholder="Describe the image"></div>
+            <div class="form-field"><label for="placeImageCredit">Image credit</label><input id="placeImageCredit" maxlength="240" placeholder="Photographer / licence"></div>
+            <div class="form-field full"><label for="placeImageSource">Image source / licence URL</label><input id="placeImageSource" type="url" maxlength="1200" placeholder="https://commons.wikimedia.org/…"></div>
+            <div class="form-field full"><label class="check-row"><input id="placeIsActive" type="checkbox" checked> Publish this destination to customers and drivers</label></div>
+            <div class="form-field full"><div class="message" id="explorePlaceFormMessage"></div></div>
+            <div class="form-field full"><div class="toolbar"><button class="button button-dark" id="saveExplorePlace" type="submit">Save destination</button><button class="button button-outline" id="resetExplorePlace" type="button">Clear form</button></div></div>
+          </form>
+        </section>
+        <div class="toolbar explore-admin-filters">
+          <input class="control" id="placeSearch" placeholder="Search destinations…" style="max-width:320px">
+          <select class="control" id="placeCategoryFilter" style="max-width:220px"><option value="">All categories</option>${categories.map(value=>'<option value="'+driveEscape(value)+'">'+driveEscape(value)+'</option>').join('')}</select>
+          <span class="muted small" id="placeAdminCount"></span>
+        </div>
+        <div class="explore-admin-grid" id="placeAdminGrid"></div>`;
+      const editor=$('explorePlaceEditor'),form=$('explorePlaceForm');
+      function resetPlaceForm(){
+        form.reset();$('placeId').value='';$('placeHours').value='1.5';$('placeIsActive').checked=true;
+        $('explorePlaceFormTitle').textContent='Add a destination';$('saveExplorePlace').textContent='Save destination';
+        $('explorePlaceFormMessage').textContent='';
+      }
+      function renderPlaceRows(){
+        const needle=$('placeSearch').value.trim().toLowerCase(),category=$('placeCategoryFilter').value;
+        const filtered=placeRows.filter(row=>(!category||row.category===category)&&(!needle||[row.name,row.city,row.category,row.description,row.address].join(' ').toLowerCase().includes(needle)));
+        $('placeAdminCount').textContent=filtered.length+' of '+placeRows.length+' destinations';
+        $('placeAdminGrid').innerHTML=filtered.length?filtered.map(row=>`
+          <article class="explore-admin-card">
+            <div class="explore-admin-thumb">${row.image_url?'<img src="'+driveEscape(row.image_url)+'" alt="'+driveEscape(row.image_alt||row.name)+'" loading="lazy" onerror="this.parentNode.classList.add(\'image-missing\');this.remove()">':'<span>No image uploaded</span>'}</div>
+            <div class="explore-admin-card-body">
+              <div class="toolbar"><span class="pill">${driveEscape(row.category||'Explore')}</span><span class="pill ${row.is_active?'success':'warning'}">${row.is_active?'Published':'Hidden'}</span></div>
+              <h4>${driveEscape(row.name)}</h4><p class="muted small">${driveEscape(row.city)} · ${driveEscape(row.address||'Address not set')}</p>
+              <p class="explore-admin-description">${driveEscape(row.description||'')}</p>
+              ${row.image_credit?'<p class="muted small">Image: '+driveEscape(row.image_credit)+'</p>':''}
+              <div class="row-actions">
+                <button class="button-mini dark" data-place-edit="${driveEscape(row.id)}">Edit</button>
+                <button class="button-mini" data-place-toggle="${driveEscape(row.id)}">${row.is_active?'Hide':'Publish'}</button>
+                <button class="button-mini danger" data-place-remove="${driveEscape(row.id)}">Remove</button>
+              </div>
+            </div>
+          </article>`).join(''):'<div class="empty-state">No destinations match this filter.</div>';
+        $('placeAdminGrid').querySelectorAll('[data-place-edit]').forEach(button=>button.addEventListener('click',()=>{
+          const row=placeRows.find(item=>String(item.id)===button.dataset.placeEdit);if(!row)return;
+          $('placeId').value=row.id;$('placeName').value=row.name||'';$('placeCity').value=row.city||'';
+          $('placeCategory').value=row.category||'';$('placeAddress').value=row.address||'';
+          $('placeDescription').value=row.description||'';$('placeLatitude').value=row.latitude??'';
+          $('placeLongitude').value=row.longitude??'';$('placeHours').value=Number(row.estimated_visit_hours||1.5);
+          $('placeTags').value=(row.tags||[]).join(', ');$('placeFacilities').value=(row.nearby_facilities||[]).join(', ');
+          $('placeImageUrl').value=row.image_url||'';$('placeImageAlt').value=row.image_alt||'';
+          $('placeImageCredit').value=row.image_credit||'';$('placeImageSource').value=row.image_source_url||'';
+          $('placeIsActive').checked=Boolean(row.is_active);$('placeImageFile').value='';
+          $('explorePlaceFormTitle').textContent='Edit destination';$('saveExplorePlace').textContent='Save changes';
+          $('explorePlaceFormMessage').textContent='Leave the image file empty to keep the current image.';
+          editor.hidden=false;editor.scrollIntoView({behavior:'smooth',block:'start'});
+        }));
+        $('placeAdminGrid').querySelectorAll('[data-place-toggle]').forEach(button=>button.addEventListener('click',async()=>{
+          const row=placeRows.find(item=>String(item.id)===button.dataset.placeToggle);if(!row)return;
+          button.disabled=true;
+          try{await driveRequest('/admin/tourist-places/'+encodeURIComponent(row.id),{method:'PATCH',body:JSON.stringify({isActive:!row.is_active})});driveToast(row.is_active?'Destination hidden from Explore.':'Destination published to Explore.');await showPlaces();}
+          catch(error){driveToast(error.message);button.disabled=false;}
+        }));
+        $('placeAdminGrid').querySelectorAll('[data-place-remove]').forEach(button=>button.addEventListener('click',async()=>{
+          const row=placeRows.find(item=>String(item.id)===button.dataset.placeRemove);if(!row)return;
+          if(!confirm('Remove '+row.name+' from the public Explore catalogue? Saved plans will be preserved.'))return;
+          button.disabled=true;
+          try{await driveRequest('/admin/tourist-places/'+encodeURIComponent(row.id),{method:'DELETE'});driveToast('Destination removed from public Explore.');await showPlaces();}
+          catch(error){driveToast(error.message);button.disabled=false;}
+        }));
+      }
+      renderPlaceRows();
+      $('placeSearch').addEventListener('input',renderPlaceRows);
+      $('placeCategoryFilter').addEventListener('change',renderPlaceRows);
+      $('newExplorePlace').addEventListener('click',()=>{resetPlaceForm();editor.hidden=false;editor.scrollIntoView({behavior:'smooth',block:'start'});});
+      $('cancelExplorePlace').addEventListener('click',()=>{editor.hidden=true;resetPlaceForm();});
+      $('resetExplorePlace').addEventListener('click',resetPlaceForm);
+      form.addEventListener('submit',async event=>{
+        event.preventDefault();
+        if(!form.reportValidity())return;
+        const id=$('placeId').value,button=$('saveExplorePlace'),file=$('placeImageFile').files[0];
+        const latitude=$('placeLatitude').value.trim(),longitude=$('placeLongitude').value.trim();
+        if(Boolean(latitude)!==Boolean(longitude)){ $('explorePlaceFormMessage').textContent='Enter both latitude and longitude, or leave both empty.';return; }
+        const payload={
+          name:$('placeName').value.trim(),city:$('placeCity').value.trim(),category:$('placeCategory').value.trim(),
+          address:$('placeAddress').value.trim(),description:$('placeDescription').value.trim(),
+          estimatedVisitHours:Number($('placeHours').value||1.5),
+          tags:$('placeTags').value.split(',').map(value=>value.trim()).filter(Boolean),
+          nearbyFacilities:$('placeFacilities').value.split(',').map(value=>value.trim()).filter(Boolean),
+          imageUrl:$('placeImageUrl').value.trim(),imageAlt:$('placeImageAlt').value.trim(),
+          imageCredit:$('placeImageCredit').value.trim(),imageSourceUrl:$('placeImageSource').value.trim(),
+          isActive:$('placeIsActive').checked
+        };
+        if(latitude){payload.latitude=Number(latitude);payload.longitude=Number(longitude);}
+        button.disabled=true;button.textContent='Saving…';$('explorePlaceFormMessage').textContent='Saving destination details…';
+        try{
+          const saved=await driveRequest(id?'/admin/tourist-places/'+encodeURIComponent(id):'/admin/tourist-places',{
+            method:id?'PATCH':'POST',body:JSON.stringify(payload)
+          });
+          if(file){
+            const upload=new FormData();upload.append('image',file);
+            $('explorePlaceFormMessage').textContent='Uploading destination image…';
+            await driveRequest('/admin/tourist-places/'+encodeURIComponent(saved.id)+'/image',{method:'POST',body:upload});
+          }
+          driveToast(id?'Destination updated.':'Destination added.');
+          await showPlaces();
+        }catch(error){
+          $('explorePlaceFormMessage').textContent=error.message||'Destination could not be saved.';
+          button.disabled=false;button.textContent=id?'Save changes':'Save destination';
+        }
+      });
+    }catch(error){$('adminContent').innerHTML='<div class="empty-state">'+driveEscape(error.message)+'</div>';}
+  }
+
   async function showTab(tab){
     if(tab==='pricing'){await showPricing();return;}
+    if(tab==='places'){await showPlaces();return;}
     activeTab=tab;
     document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
     const config=configs[tab];$('adminContent').innerHTML='<div class="empty-state">Loading '+config.title.toLowerCase()+'…</div>';
