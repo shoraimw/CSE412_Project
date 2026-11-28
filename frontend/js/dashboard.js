@@ -185,7 +185,6 @@
       const emergency=canChat?miniButton('Emergency cancel','data-emergency-cancel',rideId):'';
       return item((ride.pickupAddress||'Pickup')+' → '+(ride.destinationAddress||'Destination'),driveDate(ride.createdAt)+' · '+driveMoney(ride.passengerFare??ride.estimatedFare),ride.status,cancel+chat+requestCancel+emergency+ridePaymentAction(ride));
     }).join(''):'<div class="empty-state">No active trips. Your next journey starts here.</div>';
-    $('activeRides').querySelectorAll('[data-chat-ride]').forEach(button=>button.addEventListener('click',()=>window.DriveRideChat?.open(button.dataset.chatRide)));
     $('activeRides').querySelectorAll('[data-cancel-journey]').forEach(button=>button.addEventListener('click',async()=>{
       const reason=prompt('Why do you need to cancel this journey? Please provide at least 8 characters.');
       if(!reason)return;

@@ -223,7 +223,6 @@
         driveToast('Ride accepted. Your live trip tracking is active.');
       }catch(error){driveToast(error.message);button.disabled=false;}
     }));
-    $('assignedTrips').querySelectorAll('[data-chat-ride]').forEach(button=>button.addEventListener('click',()=>window.DriveRideChat?.open(button.dataset.chatRide)));
     $('assignedTrips').querySelectorAll('[data-driver-cancel]').forEach(button=>button.addEventListener('click',async()=>{
       const reason=prompt('Why are you cancelling this accepted ride? Please provide at least 8 characters.');
       if(!reason)return;
