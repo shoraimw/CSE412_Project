@@ -48,7 +48,7 @@ See [docs/CLOUDFLARE_DEPLOYMENT.md](docs/CLOUDFLARE_DEPLOYMENT.md).
 
 Project: `CSE412_Project`, region `ap-southeast-1`.
 
-The connected project contains 31 DRIVE application tables, all with RLS enabled. The database has 62 applied migrations and the repository tracks all 62 matching SQL files. The baseline and tourist UUID compatibility migrations were recovered from the database migration history; the full applied version list now matches the repository.
+The connected project contains 31 DRIVE application tables, all with RLS enabled. The database has 63 applied migrations and the repository tracks all 63 matching SQL files. The baseline and tourist UUID compatibility migrations were recovered from the database migration history; the full applied version list now matches the repository.
 
 The current database was not reset. A clean-room run against a separate empty Supabase project has not yet been completed. Do not replay the historical tourist UUID migration against this live database; it deletes baseline seed rows before the later catalog migration restores the destination catalog. See [docs/DATABASE_BOOTSTRAP_AUDIT.md](docs/DATABASE_BOOTSTRAP_AUDIT.md).
 
