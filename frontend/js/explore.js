@@ -1,6 +1,40 @@
 (() => {
   const $=id=>document.getElementById(id);
   let places=[];
+  async function loadCurrencyPreference(){
+    const select=$('exploreCurrency');
+    const codes=['BDT','USD','EUR','GBP','INR','SGD','MYR','AED','SAR','AUD','CAD','CNY','JPY','THB','NPR','PKR'];
+    try{
+      const [catalog,rates]=await Promise.all([driveRequest('/payments/currencies'),driveRequest('/payments/rates')]);
+      const available=(catalog.currencies||codes).filter(code=>code==='BDT'||Number(rates.rates?.[code])>0);
+      select.innerHTML=available.map(code=>'<option value="'+driveEscape(code)+'">'+driveEscape(code)+'</option>').join('');
+      let preferred=localStorage.getItem('drive_currency')||'BDT';
+      if(localStorage.getItem(DRIVE_TOKEN_KEY)){
+        try{
+          const profile=await driveRequest('/users/me');
+          if(available.includes(profile.preferred_currency))preferred=profile.preferred_currency;
+        }catch{}
+      }
+      if(!available.includes(preferred))preferred='BDT';
+      select.value=preferred;
+      localStorage.setItem('drive_currency',preferred);
+      $('touristCurrencyNote').textContent='Tourist display currency: '+preferred+'. Exchange rates updated '+new Date(rates.fetchedAt).toLocaleString()+'. Ride fares remain settled in BDT.';
+    }catch{
+      select.innerHTML='<option value="BDT">BDT</option>';
+      select.value='BDT';
+      $('touristCurrencyNote').textContent='Live exchange rates are unavailable. BDT remains available.';
+    }
+  }
+  $('exploreCurrency')?.addEventListener('change',async()=>{
+    const currency=$('exploreCurrency').value;
+    localStorage.setItem('drive_currency',currency);
+    $('touristCurrencyNote').textContent='Tourist display currency set to '+currency+'. Ride fares and settlement remain in BDT.';
+    if(localStorage.getItem(DRIVE_TOKEN_KEY)){
+      try{await driveRequest('/users/me',{method:'PATCH',body:JSON.stringify({preferred_currency:currency})});}
+      catch(error){$('touristCurrencyNote').textContent='Saved for this visit. Account preference could not be updated: '+error.message;}
+    }
+  });
+
   async function loadPlaces(){
     const city=$('exploreCity').value,interest=$('exploreInterest').value;
     const params=new URLSearchParams({city});if(interest)params.set('category',interest);
@@ -33,5 +67,5 @@
     }catch(error){$('planMessage').textContent=error.message;$('planMessage').className='message error';}
     finally{button.disabled=false;}
   });
-  loadPlaces();loadPlans();
+  loadCurrencyPreference();loadPlaces();loadPlans();
 })();
