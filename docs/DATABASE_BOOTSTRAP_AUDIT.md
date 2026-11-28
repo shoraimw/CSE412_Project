@@ -8,13 +8,13 @@ Region: `ap-southeast-1`
 
 - 31 DRIVE application tables exist in the `public` schema.
 - RLS is enabled on all 31 public application tables.
-- Supabase records 60 applied migrations.
-- The repository currently tracks 57 SQL migration files.
+- Supabase records 61 applied migrations.
+- The repository currently tracks 58 SQL migration files.
 - Three applied migrations are not represented by a matching repository file:
   - `20261128010000_drive_baseline_schema`
   - `20261128011000_drive_tourist_place_uuid_compat`
-  - `drive_fare_secret_separation`
-- The tracked `drive_customer_driver_cancel_rules` file has local version `20261128043000`, while Supabase records the applied version as `20261128042849`. Reconcile this before any CLI migration push.
+  - `drive_authorized_driver_midtrip_cancellation`
+- The 58 tracked migration files match their remote version/name records; no local/remote version mismatch was found in the latest audit.
 - Tourist destination seed records, driver/owner applications, driver locations, safety sessions, trip shares and admin audit tables exist.
 - The Supabase project is healthy.
 
@@ -42,7 +42,7 @@ The Security Advisor should be re-run after any further schema change. Supabase 
 
 ## Reproducibility follow-up
 
-The current database is usable, but a clean-room Supabase setup is not yet reproducible from this repository alone. Recover and check in the missing baseline and compatibility migrations, recover the fare-secret separation migration, and reconcile the one local/remote version mismatch before running `supabase db push` or creating a fresh project.
+The current database is usable, but a clean-room Supabase setup is not yet reproducible from this repository alone. Recover and check in the missing baseline, tourist UUID compatibility and authorized driver mid-trip cancellation migrations before running `supabase db push` or creating a fresh project.
 
 Do not reset the database. Before a new Supabase project is used, verify that a fresh isolated database can run the complete migration sequence from an empty state.
 
