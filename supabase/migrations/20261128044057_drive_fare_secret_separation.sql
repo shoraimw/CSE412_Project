@@ -1,0 +1,5 @@
+-- The dedicated fare-finalization secret hash is provisioned securely in the
+-- linked environment. Never commit the secret or its hash to this repository.
+-- For a new environment, set Worker secret DRIVE_FARE_FINALIZATION_SECRET and
+-- insert its SHA-256 digest into private.drive_integration_secrets under
+-- secret_name = 'ride_fare_finalization' using a secure deployment procedure.

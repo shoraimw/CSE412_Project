@@ -124,12 +124,8 @@ as $function$
 $function$;
 
 -- Reuse the existing server-only integration secret hash without exposing its value.
-insert into private.drive_integration_secrets(secret_name,secret_hash)
-select 'ride_fare_finalization',secret_hash
-from private.drive_integration_secrets
-where secret_name='sslcommerz'
-on conflict (secret_name) do update
-set secret_hash=excluded.secret_hash,created_at=now();
+-- The dedicated ride_fare_finalization hash is provisioned out-of-band from
+-- DRIVE_FARE_FINALIZATION_SECRET. Never reuse the payment callback secret.
 
 -- The old three-argument RPC accepted a caller-supplied fare and is no longer callable.
 revoke all on function public.drive_finalize_ride_fare(uuid,numeric,jsonb)

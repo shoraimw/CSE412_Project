@@ -430,8 +430,8 @@ export class RidesService{
     estimatedRouteDistanceKm:estimatedDistance,
     note:useGps?'Final distance uses accepted GPS segments.':'GPS samples were insufficient; the server route estimate was used.',
   };
-  const serverSecret=getDriveRuntimeConfig().drivePaymentWebhookSecret;
-  if(!serverSecret)throw new ServiceUnavailableException('Server-side fare finalization is not configured on the API.');
+  const serverSecret=getDriveRuntimeConfig().driveFareFinalizationSecret;
+  if(!serverSecret)throw new ServiceUnavailableException('Dedicated server-side fare finalization secret is not configured on the API.');
   const {data,error}=await this.database.publicClient().rpc('drive_finalize_ride_fare',{
     p_secret:serverSecret,p_driver_id:userId,p_ride_id:id,
     p_actual_fare:estimate.estimatedFare,p_breakdown:breakdown,
