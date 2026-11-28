@@ -94,7 +94,7 @@ export class VerificationService {
       ?await db.from('profiles').select('id,full_name,phone').in('id',ids)
       :{data:[],error:null};
     if(profileError) throw new ServiceUnavailableException(profileError.message);
-    const profileMap=new Map((profiles||[]).map((p:any)=>[p.id,p]));
+    const profileMap=new Map<string,any>((profiles||[]).map((p:any):[string,any]=>[p.id,p]));
     return Promise.all(rows.map(async(row:any)=>{
       const {data:signed,error:signedError}=await db.storage.from(BUCKET).createSignedUrl(row.storage_path,300);
       return {...row,profile:profileMap.get(row[ownerField])||null,previewUrl:signedError?null:signed?.signedUrl||null};
