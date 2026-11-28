@@ -339,7 +339,7 @@ export class RidesService{
   return data;
  }
  async requestCancellation(userId:string,token:string,id:string,role:Role,reason:string,emergency=false,location?:{lat:number;lng:number}){
-  if(!['passenger','vehicle_owner'].includes(role))throw new ForbiddenException('Only passenger accounts can request cancellation. Drivers must use the driver cancellation action.');
+  if(!['passenger','driver','vehicle_owner'].includes(role))throw new ForbiddenException('Only customer accounts can request cancellation.');
   const clean=reason.trim();
   if(clean.length<8||clean.length>500)throw new BadRequestException('Please provide a cancellation reason between 8 and 500 characters.');
   const {data,error}=await this.db(token).rpc('drive_request_ride_cancellation',{
@@ -441,48 +441,81 @@ export class RidesService{
  }
 
  async updateLocation(userId:string,token:string,id:string,point:RideLocationDto,role:Role){
-  if(role!=='driver')throw new ForbiddenException('Only drivers can update trip GPS.');
+  if(role!=='driver')throw new ForbiddenException('Only driver accounts can share trip GPS.');
   const ride=await this.get(userId,token,id);
   if(ride.driver_id!==userId)throw new ForbiddenException('Only the assigned driver can share live location.');
   if(!['matched','driver_arriving','in_progress'].includes(ride.status))throw new BadRequestException('Driver GPS is available while approaching pickup and during an active trip.');
+
+  const db=this.db(token);
   const recordedAt=new Date().toISOString();
-  const {error:historyError}=await this.db(token).from('trip_location_history').insert({
+  const {error:historyError}=await db.from('trip_location_history').insert({
     ride_id:id,driver_id:userId,latitude:point.lat,longitude:point.lng,recorded_at:recordedAt,
   });
   if(historyError)throw new BadRequestException(historyError.message);
-  const {data,error}=await this.db(token).from('trip_locations').upsert({
+
+  const {data,error}=await db.from('trip_locations').upsert({
     ride_id:id,driver_id:userId,latitude:point.lat,longitude:point.lng,
     heading:point.heading??null,speed_kph:point.speedKph??null,recorded_at:recordedAt,
   },{onConflict:'ride_id'}).select('latitude,longitude,recorded_at').single();
   if(error||!data)throw new BadRequestException(error?.message||'Location update failed.');
 
-  // Auto-complete after two recent GPS samples confirm a 15-second dwell
-  // within 75 metres of the destination. If available, GPS speed must be <=15 km/h.
-  const destination=ride.request?.destination_lat!=null&&ride.request?.destination_lng!=null
-    ?{lat:Number(ride.request.destination_lat),lng:Number(ride.request.destination_lng)}:null;
-  const currentDistance=destination?haversine({lat:point.lat,lng:point.lng},destination):Number.POSITIVE_INFINITY;
-  const slowEnough=point.speedKph==null||point.speedKph<=15;
-  if(ride.status==='in_progress'&&destination&&currentDistance<=0.075&&slowEnough){
-    const dwellCutoff=new Date(Date.now()-15000).toISOString();
-    const staleCutoff=new Date(Date.now()-120000).toISOString();
-    const {data:prior,error:priorError}=await this.db(token).from('trip_location_history')
-      .select('latitude,longitude,recorded_at').eq('ride_id',id)
-      .gte('recorded_at',staleCutoff).lte('recorded_at',dwellCutoff)
-      .order('recorded_at',{ascending:false}).limit(1).maybeSingle();
-    if(priorError)throw new ServiceUnavailableException(priorError.message);
-    const priorDistance=prior?haversine({lat:Number(prior.latitude),lng:Number(prior.longitude)},destination):Number.POSITIVE_INFINITY;
-    if(prior&&priorDistance<=0.075){
-      try{
-        const completion=await this.updateStatus(userId,token,id,'completed',role);
-        return {...data,historyRecorded:true,autoCompleted:true,completion};
-      }catch(error){
-        const latest=await this.get(userId,token,id).catch(()=>null);
-        if(latest?.status==='completed')return {...data,historyRecorded:true,autoCompleted:true,alreadyCompleted:true};
-        throw error;
+  let autoCompleted=false;
+  let autoCompletionError:string|undefined;
+  const destinationLat=Number(ride.request?.destination_lat);
+  const destinationLng=Number(ride.request?.destination_lng);
+  const hasDestination=Number.isFinite(destinationLat)&&Number.isFinite(destinationLng)
+    &&destinationLat>=-90&&destinationLat<=90&&destinationLng>=-180&&destinationLng<=180;
+  const speedIsSafe=point.speedKph===undefined||point.speedKph===null||point.speedKph<=15;
+
+  if(ride.status==='in_progress'&&hasDestination&&speedIsSafe){
+    const cutoff=new Date(Date.now()-60000).toISOString();
+    const {data:recent,error:recentError}=await db.from('trip_location_history')
+      .select('latitude,longitude,recorded_at')
+      .eq('ride_id',id)
+      .gte('recorded_at',cutoff)
+      .order('recorded_at',{ascending:false})
+      .limit(100);
+
+    if(recentError){
+      autoCompletionError=recentError.message;
+    }else{
+      const samples=(recent||[]).slice().reverse();
+      const destination={lat:destinationLat,lng:destinationLng};
+      const end=samples[samples.length-1];
+      const endTime=end?new Date(end.recorded_at).getTime():0;
+      let dwellStart:number|null=null;
+      let previousTime=endTime;
+
+      // Walk backward through the continuous suffix of GPS samples inside
+      // the 75m destination geofence. Require 15s of uninterrupted evidence.
+      for(let i=samples.length-1;i>=0;i--){
+        const sample=samples[i];
+        const timestamp=new Date(sample.recorded_at).getTime();
+        const distance=haversine(
+          {lat:Number(sample.latitude),lng:Number(sample.longitude)},
+          destination,
+        );
+        if(!Number.isFinite(distance)||distance>0.075)break;
+        if(previousTime-timestamp>15000)break;
+        dwellStart=timestamp;
+        previousTime=timestamp;
+      }
+
+      if(dwellStart!==null&&endTime-dwellStart>=15000){
+        try{
+          await this.updateStatus(userId,token,id,'completed',role);
+          autoCompleted=true;
+        }catch(completionError){
+          const latest=await this.get(userId,token,id).catch(()=>null);
+          if(latest?.status==='completed')autoCompleted=true;
+          else autoCompletionError=completionError instanceof Error
+            ?completionError.message:'Automatic arrival completion is pending.';
+        }
       }
     }
   }
-  return {...data,historyRecorded:true,autoCompleted:false};
+
+  return {...data,historyRecorded:true,autoCompleted,autoCompletionError};
  }
  async tracking(userId:string,token:string,id:string){const ride=await this.get(userId,token,id);const {data,error}=await this.db(token).from('trip_locations').select('latitude,longitude,recorded_at,heading,speed_kph').eq('ride_id',id).order('recorded_at',{ascending:false}).limit(1).maybeSingle();if(error)throw new ServiceUnavailableException(error.message);const request=ride.request||{};return {rideId:ride.id,status:ride.status,driverId:ride.driver_id,currentLocation:data?{lat:data.latitude,lng:data.longitude,updatedAt:data.recorded_at,heading:data.heading,speedKph:data.speed_kph}:null,pickup:{lat:request.pickup_lat,lng:request.pickup_lng},destination:{lat:request.destination_lat,lng:request.destination_lng},updatedAt:data?.recorded_at||null};}
  async openShared(token:string,role:Role){if(role!=='passenger')throw new ForbiddenException('Only passengers can join shared rides.');const {data,error}=await this.db(token).rpc('drive_list_shared_rides');if(error)throw new ServiceUnavailableException(error.message);return data||[];}
