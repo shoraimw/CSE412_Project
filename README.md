@@ -96,3 +96,8 @@ See [docs/REQUIREMENTS_TRACEABILITY.md](docs/REQUIREMENTS_TRACEABILITY.md) and [
 ## Team
 
 East West University · CSE412 · Fall 2026
+
+
+## Ride workflow QA
+
+See [DRIVE Ride Workflow — Manual QA Checklist](docs/RIDE_WORKFLOW_QA.md) for the multi-account booking, dispatch, cancellation, safety, chat, tourist-currency, review and admin test plan.
