@@ -1,5 +1,18 @@
 (() => {
   const $=id=>document.getElementById(id);
+  const ratingLabels={1:'Very poor',2:'Poor',3:'Average',4:'Good',5:'Excellent'};
+  function setReviewRating(value){
+    const rating=Math.max(0,Math.min(5,Number(value)||0));
+    $('reviewRating').value=String(rating);
+    $('reviewStars')?.querySelectorAll('[data-rating]').forEach(button=>{
+      const active=Number(button.dataset.rating)<=rating;
+      button.textContent=active?'★':'☆';
+      button.classList.toggle('selected',active);
+      button.setAttribute('aria-checked',String(Number(button.dataset.rating)===rating));
+    });
+    if($('reviewRatingLabel'))$('reviewRatingLabel').textContent=rating?rating+' / 5 · '+ratingLabels[rating]:'Select 1–5 stars';
+  }
+  $('reviewStars')?.querySelectorAll('[data-rating]').forEach(button=>button.addEventListener('click',()=>setReviewRating(button.dataset.rating)));
   if(!driveRequireAuth('dashboard.html'))return;
   const activeStates=['requested','matched','driver_arriving','in_progress'];
   const trackableStates=['matched','driver_arriving','in_progress'];
@@ -218,7 +231,7 @@
     const reviewable=history.filter(ride=>ride.status==='completed'&&ride.rideId&&!reviewedRideIds.has(ride.rideId));
     $('reviewQueue').innerHTML=reviewable.length?reviewable.map(ride=>'<div class="list-item"><div class="list-item-main"><strong>'+driveEscape((ride.pickupAddress||'Pickup')+' → '+(ride.destinationAddress||'Destination'))+'</strong><small>'+driveDate(ride.createdAt)+'</small></div><button class="button-mini dark" data-review="'+driveEscape(ride.rideId)+'">Rate driver</button></div>').join(''):'<div class="empty-state">No completed rides waiting for feedback.</div>';
     $('reviewQueue').querySelectorAll('[data-review]').forEach(button=>button.addEventListener('click',()=>{
-      $('reviewRideId').value=button.dataset.review;$('reviewComment').value='';$('reviewMessage').textContent='';$('reviewDialog').showModal();
+      $('reviewRideId').value=button.dataset.review;$('reviewComment').value='';$('reviewMessage').textContent='';setReviewRating(0);$('reviewDialog').showModal();
     }));
 
     $('sharedRides').innerHTML=sharedRides.length?sharedRides.map(ride=>'<div class="list-item"><div class="list-item-main"><strong>'+driveEscape(ride.pickup_label)+' → '+driveEscape(ride.destination_label)+'</strong><small>'+driveEscape(ride.vehicle_type)+' · '+driveMoney(ride.estimated_fare)+' total · '+Number(ride.seats_available)+' seats left · '+Number(ride.distance_km||0).toFixed(1)+' km</small></div><button class="button-mini dark" data-join-shared="'+driveEscape(ride.ride_id)+'">Join</button></div>').join(''):'<div class="empty-state">No shared rides are accepting passengers right now.</div>';
@@ -397,7 +410,7 @@
   }
 
   $('reviewForm')?.addEventListener('submit',async event=>{
-    event.preventDefault();if(!$('reviewForm').reportValidity())return;
+    event.preventDefault();if(!$('reviewForm').reportValidity())return;if(Number($('reviewRating').value)<1){$('reviewMessage').textContent='Please choose a star rating before submitting.';$('reviewMessage').className='message error';return;}
     const button=$('reviewSubmit');button.disabled=true;
     try{
       await driveRequest('/reviews',{method:'POST',body:JSON.stringify({

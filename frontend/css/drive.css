@@ -35,3 +35,8 @@
 .drive-arrival-dialog p:not(.eyebrow){font-size:13px;line-height:1.6;color:#666;margin:0 0 18px}
 .arrival-check{width:54px;height:54px;margin:0 auto 14px;display:grid;place-items:center;border-radius:50%;background:#111;color:#fff;font-size:28px}
 @media(max-width:480px){.ride-chat-dialog{padding:14px}.chat-composer{grid-template-columns:1fr}.chat-composer button{width:100%}}
+
+.review-stars{display:flex;align-items:center;gap:6px}
+.review-stars button{border:0;background:transparent;color:#b8b8b8;font-size:32px;line-height:1;padding:2px 4px;cursor:pointer;transition:transform .12s ease,color .12s ease}
+.review-stars button:hover{transform:translateY(-2px)}
+.review-stars button.selected{color:#111}

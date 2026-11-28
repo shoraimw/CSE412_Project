@@ -34,7 +34,7 @@
   <form id="reviewForm" class="stack">
     <div class="toolbar"><h2 class="card-title">Rate your driver</h2><button type="button" class="button-mini" id="closeReview">Close</button></div>
     <input type="hidden" id="reviewRideId">
-    <div class="form-field"><label for="reviewRating">Rating</label><select id="reviewRating"><option value="5">5 — Excellent</option><option value="4">4 — Good</option><option value="3">3 — Average</option><option value="2">2 — Poor</option><option value="1">1 — Very poor</option></select></div>
+    <input type="hidden" id="reviewRating" value="0"><div class="form-field"><label>How was your driver?</label><div id="reviewStars" class="review-stars" role="radiogroup" aria-label="Choose a rating from one to five stars"><button type="button" data-rating="1" role="radio" aria-checked="false" aria-label="1 star">☆</button><button type="button" data-rating="2" role="radio" aria-checked="false" aria-label="2 stars">☆</button><button type="button" data-rating="3" role="radio" aria-checked="false" aria-label="3 stars">☆</button><button type="button" data-rating="4" role="radio" aria-checked="false" aria-label="4 stars">☆</button><button type="button" data-rating="5" role="radio" aria-checked="false" aria-label="5 stars">☆</button></div><p id="reviewRatingLabel" class="muted small">Select 1–5 stars</p></div>
     <div class="form-field"><label for="reviewComment">Comment (optional)</label><textarea id="reviewComment" maxlength="1000"></textarea></div>
     <button class="button button-dark" type="submit" id="reviewSubmit">Submit feedback</button><div class="message" id="reviewMessage"></div>
   </form>
