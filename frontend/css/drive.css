@@ -44,7 +44,7 @@
 @media print{
   body{background:#fff!important;color:#111!important}
   .topbar,.page-shell>.toolbar,#paymentStatusError,#paymentStatusBadge,#refreshPaymentStatus,.row-actions{display:none!important}
-  #receiptCard{display:block!important;border:0!important;box-shadow:none!important;margin:0!important;padding:0!important;max-width:none!important}
+  #receiptCard:not([hidden]){display:block!important;border:0!important;box-shadow:none!important;margin:0!important;padding:0!important;max-width:none!important}
   #receiptCard .card-title{font-size:22px}
   #receiptCard .list-item{break-inside:avoid;border-bottom:1px solid #ddd}
 }
