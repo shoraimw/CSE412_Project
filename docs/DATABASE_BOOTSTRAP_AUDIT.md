@@ -18,7 +18,7 @@ The baseline and tourist UUID compatibility migrations were recovered from the a
 
 ## Baseline and historical compatibility
 
-The baseline includes profiles and roles; driver documents; vehicles; ride requests, rides, ride passengers and trip locations; rental bookings; payments; reviews; notifications; trusted contacts and safety preferences; safety alerts; tourist places and plans; helper functions, profile trigger, indexes and initial RLS policies.
+The tracked baseline includes profiles and roles; driver documents; vehicles; ride requests, rides, ride passengers and trip locations; rental bookings; payments; reviews; notifications; trusted contacts and safety preferences; safety alerts; tourist places and plans; helper functions, profile trigger, indexes and initial RLS policies. The tourist-place UUID compatibility and authorized driver mid-trip cancellation migrations are also tracked.
 
 The historical tourist compatibility migration changes `tourist_places.id` from text to UUID and deletes the baseline seed rows before the later feature migrations repopulate the catalog. It is already applied in this project. Do not manually replay it against this database.
 
