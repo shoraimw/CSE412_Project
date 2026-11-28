@@ -1,8 +1,7 @@
 begin;
 
--- Driver accounts can request cancellation as customers only when they are
--- members of the ride_passengers set. Assigned drivers use the separate
--- drive_driver_cancel_ride RPC.
+-- Driver accounts may act as customers only when they are actual passengers
+-- on the ride. The ride_passengers ownership check remains mandatory.
 do $migration$
 declare
   v_definition text;
@@ -18,6 +17,8 @@ begin
 end;
 $migration$;
 
+-- Make the dedicated cancellation guard fail closed if the profile role is
+-- absent, rather than allowing SQL NULL semantics to suppress its IF branch.
 create or replace function private.drive_require_cancel_rpc()
 returns trigger
 language plpgsql
