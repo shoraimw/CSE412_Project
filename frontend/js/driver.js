@@ -228,7 +228,15 @@
       if(!reason)return;
       if(!confirm('Cancel this ride before departure? The customer and administrator will be notified.'))return;
       button.disabled=true;
-      try{const result=await driveRequest('/rides/'+encodeURIComponent(button.dataset.driverCancel)+'/cancel',{method:'POST',body:JSON.stringify({reason})});driveToast(result.message||'Ride cancelled.');await refresh();}
+      try{
+        const result=await driveRequest('/rides/'+encodeURIComponent(button.dataset.driverCancel)+'/cancel',{method:'POST',body:JSON.stringify({reason})});
+        available=true;
+        if(watchId===null)startLocationWatch(true);
+        else if(lastPosition)await updateDriverLocation(true);
+        driveToast(result.message||'Ride cancelled. You are available for new requests.');
+        await refresh();
+        setPresence('Online','Go offline',false);
+      }
       catch(error){driveToast(error.message);button.disabled=false;}
     }));
     $('assignedTrips').querySelectorAll('[data-cancel-response]').forEach(button=>button.addEventListener('click',async()=>{
