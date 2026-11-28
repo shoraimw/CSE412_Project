@@ -29,7 +29,7 @@
     dialog.innerHTML='<div class="arrival-check">✓</div><p class="eyebrow">DRIVE · TRIP COMPLETE</p><h2>Destination reached!</h2><p>Your journey has been completed successfully. Thank you for riding with DRIVE.</p><button type="button" class="button button-dark" id="arrivalClose">Got it</button>';
     if(typeof dialog.showModal==='function')dialog.showModal();
     else dialog.setAttribute('open','');
-    dialog.querySelector('#arrivalClose').addEventListener('click',()=>dialog.close?.());
+    dialog.querySelector('#arrivalClose').addEventListener('click',()=>{dialog.close?.();window.dispatchEvent(new CustomEvent('drive:arrival-dismissed',{detail:{rideId}}));});
     playArrivalSound();
   };
 })();

@@ -1,5 +1,6 @@
 (() => {
   const $=id=>document.getElementById(id);
+  window.addEventListener('drive:arrival-dismissed',()=>{const first=$('reviewQueue')?.querySelector('[data-review]');if(first)first.click();});
   const ratingLabels={1:'Very poor',2:'Poor',3:'Average',4:'Good',5:'Excellent'};
   function setReviewRating(value){
     const rating=Math.max(0,Math.min(5,Number(value)||0));
