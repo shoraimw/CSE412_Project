@@ -4,12 +4,9 @@ on:
   push:
     branches:
       - main
-      - feature/drive-end-to-end-completion-20261128
-      - gpt/drive-functional-fixes-20261128
   pull_request:
     branches:
       - main
-      - feature/drive-end-to-end-completion-20261128
   workflow_dispatch:
 
 permissions:
