@@ -49,37 +49,10 @@ export class ReviewsService {
   }
 
   async driverSummary(driverId: string, token: string) {
-    const { data: driver, error: driverError } = await this.db(token).from('profiles')
-      .select('id,full_name,role,is_verified')
-      .eq('id', driverId)
-      .maybeSingle();
-    if (driverError) throw new ServiceUnavailableException(driverError.message);
-    if (!driver || driver.role !== 'driver') throw new NotFoundException('Driver profile not found.');
-
-    const { data, error } = await this.db(token).from('reviews')
-      .select('id,rating,comment,created_at,reviewer:profiles!reviews_reviewer_id_fkey(full_name)')
-      .eq('reviewee_id', driverId)
-      .order('created_at', { ascending: false })
-      .limit(100);
-    if (error) throw new ServiceUnavailableException(error.message);
-    const reviews = data || [];
-    const average = reviews.length
-      ? Number((reviews.reduce((sum: number, item: any) => sum + Number(item.rating), 0) / reviews.length).toFixed(1))
-      : null;
-    return {
-      driverId,
-      driverName: driver.full_name,
-      averageRating: average,
-      totalReviews: reviews.length,
-      stars: average === null ? 0 : Math.round(average),
-      label: average === null ? 'New Driver — No reviews yet' : average.toFixed(1) + '/5',
-      reviews: reviews.map((item: any) => ({
-        id: item.id,
-        rating: Number(item.rating),
-        comment: item.comment,
-        createdAt: item.created_at,
-        reviewerName: item.reviewer?.full_name || 'DRIVE passenger',
-      })),
-    };
+    const { data, error } = await this.db(token).rpc('drive_driver_rating_summary', {
+      p_driver_id: driverId,
+    });
+    if (error || !data) throw new NotFoundException(error?.message || 'Driver profile not found.');
+    return data;
   }
 }
