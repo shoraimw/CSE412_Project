@@ -56,6 +56,42 @@ if(!existsSync(driveCssPath)||!readFileSync(driveCssPath,'utf8').includes('.rout
   failures.push('Hidden route summary must not display placeholder dashes before route calculation.');
 }
 
+// Driver dispatch must be isolated by the vehicle approved on the driver's application.
+const ridesServiceDispatchPath=path.join(root,'backend','src','rides','rides.service.ts');
+const secureClaimMigrationPath=path.join(root,'supabase','migrations','20261128183638_drive_secure_ride_claim_and_vehicle_matching.sql');
+if(!existsSync(ridesServiceDispatchPath))failures.push('Missing driver request dispatch service.');
+else{
+  const ridesDispatch=readFileSync(ridesServiceDispatchPath,'utf8');
+  for(const token of [
+    "const driverVehicle=String(application.requested_vehicle_type||'').trim().toLowerCase();",
+    "String(request.requested_vehicle||'').trim().toLowerCase()===driverVehicle",
+    "drive_nearby_ride_requests"
+  ]){
+    if(!ridesDispatch.includes(token))failures.push('Driver request feed is missing exact approved-vehicle filtering: '+token);
+  }
+}
+if(!existsSync(secureClaimMigrationPath))failures.push('Missing secure atomic ride-claim and vehicle-matching migration.');
+else{
+  const secureClaim=readFileSync(secureClaimMigrationPath,'utf8');
+  for(const token of [
+    'private.drive_claim_request',
+    'security definer',
+    'security invoker',
+    'v_driver_vehicle is distinct from v_request.requested_vehicle',
+    'rides_authorized_insert',
+    'ride_requests_update'
+  ]){
+    if(!secureClaim.toLowerCase().includes(token.toLowerCase()))failures.push('Ride-claim migration is missing '+token+'.');
+  }
+}
+const claimMathFixPath=path.join(root,'supabase','migrations','20261128183834_drive_secure_ride_claim_math_fix.sql');
+if(!existsSync(claimMathFixPath))failures.push('Missing follow-up migration for the secure claim distance expression.');
+else{
+  const claimMathFix=readFileSync(claimMathFixPath,'utf8');
+  if(claimMathFix.includes('pg_catalog.least')||claimMathFix.includes('pg_catalog.greatest'))failures.push('LEAST/GREATEST must remain unqualified PostgreSQL expressions.');
+  if(!claimMathFix.includes('least(1.0, greatest(0.0,'))failures.push('Secure claim distance must clamp the haversine expression.');
+}
+
 
 
 // Keep ride cancellation on the audited role-checked RPC path.

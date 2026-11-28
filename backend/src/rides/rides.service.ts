@@ -242,13 +242,22 @@ export class RidesService{
   if(applicationError||!application||application.status!=='approved'){
     throw new ForbiddenException('Your approved driver application is required to view ride requests.');
   }
+  const driverVehicle=String(application.requested_vehicle_type||'').trim().toLowerCase();
+  if(!['car','bike','cng'].includes(driverVehicle)){
+    throw new ForbiddenException('Your approved driver application does not have a supported vehicle type.');
+  }
   const {data,error}=await db.rpc('drive_nearby_ride_requests',{p_radius_km:20});
   if(error)throw new ServiceUnavailableException(error.message);
   const {data:rejected,error:rejectedError}=await db.from('ride_request_rejections')
     .select('request_id').eq('driver_id',userId);
   if(rejectedError)throw new ServiceUnavailableException(rejectedError.message);
   const rejectedIds=new Set((rejected||[]).map((row:any)=>row.request_id));
-  return (data||[]).filter((request:any)=>!rejectedIds.has(request.id));
+  // Defense in depth: never send another vehicle category to this driver's UI,
+  // even if a database dispatch RPC is accidentally broadened in a later change.
+  return (data||[]).filter((request:any)=>
+    String(request.requested_vehicle||'').trim().toLowerCase()===driverVehicle
+    && !rejectedIds.has(request.id)
+  );
  }
  async rejectRequest(userId:string,token:string,role:Role,requestId:string){
   if(role!=='driver')throw new ForbiddenException('Only drivers can pass on ride requests.');

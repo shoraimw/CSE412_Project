@@ -10,6 +10,12 @@ This checklist covers the current ride lifecycle implementation. Run it with sep
 - [ ] Invalid coordinates, same pickup/destination and missing required fields are rejected.
 - [ ] A driver who is online appears as a nearby marker to customers within the search radius.
 - [ ] The first eligible driver to claim a request wins; a second driver cannot claim the same request.
+- [ ] A Car request appears only to verified, approved, online Car drivers; Bike and CNG drivers never receive it.
+- [ ] A Bike request appears only to verified, approved, online Bike drivers; Car and CNG drivers never receive it.
+- [ ] A CNG request appears only to verified, approved, online CNG drivers; Car and Bike drivers never receive it.
+- [ ] The API feed and the database claim RPC both enforce the driver's exact approved vehicle type.
+- [ ] Accepting a matching request creates one ride and its passenger membership, marks the request matched, and takes the driver offline without an RLS error.
+- [ ] A driver cannot directly mark a request as matched or insert a ride outside the secure claim RPC.
 - [ ] Driver location is not exposed as an exact public coordinate; nearby markers use the privacy-safe RPC.
 - [ ] Driver status progresses through matched → driver_arriving → in_progress → completed.
 
