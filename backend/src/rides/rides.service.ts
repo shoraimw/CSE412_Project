@@ -3,6 +3,7 @@ import {createHash,randomBytes} from 'crypto';
 import {DatabaseService} from '../database/database.service';
 import {FareService} from '../fare/fare.service';
 import {RoutesService} from '../routes/routes.service';
+import {getDriveRuntimeConfig} from '../config/runtime-config';
 import {CreateRideDto,RideLocationDto} from './rides.dto';
 
 type Role='passenger'|'driver'|'vehicle_owner'|'admin';
@@ -429,8 +430,11 @@ export class RidesService{
     estimatedRouteDistanceKm:estimatedDistance,
     note:useGps?'Final distance uses accepted GPS segments.':'GPS samples were insufficient; the server route estimate was used.',
   };
-  const {data,error}=await db.rpc('drive_finalize_ride_fare',{
-    p_ride_id:id,p_actual_fare:estimate.estimatedFare,p_breakdown:breakdown,
+  const serverSecret=getDriveRuntimeConfig().drivePaymentWebhookSecret;
+  if(!serverSecret)throw new ServiceUnavailableException('Server-side fare finalization is not configured on the API.');
+  const {data,error}=await this.database.publicClient().rpc('drive_finalize_ride_fare',{
+    p_secret:serverSecret,p_driver_id:userId,p_ride_id:id,
+    p_actual_fare:estimate.estimatedFare,p_breakdown:breakdown,
   });
   if(error||!data)throw new BadRequestException(error?.message||'Final fare could not be recorded.');
   return data;

@@ -8,7 +8,7 @@
 
 ## Current integration readiness — 2026-11-28
 
-- The `CSE412_Project` Supabase database is reachable and contains 31 public DRIVE tables; all 31 have RLS enabled.
+- The `CSE412_Project` Supabase database is reachable and contains 31 public DRIVE tables; all 31 have RLS enabled. Final fare recording is now server-authorized; the former direct authenticated RPC path is revoked so drivers cannot submit arbitrary fares from the browser.
 - The database currently has **zero Auth users and zero profiles**. Seven tourist-place seed records exist. End-to-end role testing therefore requires separate Passenger, Driver, Vehicle Owner and Admin accounts to be registered and approved first.
 - Follow [ADMIN_BOOTSTRAP.md](ADMIN_BOOTSTRAP.md) to promote the first trusted team account to Admin. Do not add a public admin bootstrap endpoint.
 - Cloudflare Pages production and preview configurations both have a `DRIVE_API` service binding to the `cse412-project` Worker.
