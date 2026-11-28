@@ -40,3 +40,11 @@
 .review-stars button{border:0;background:transparent;color:#b8b8b8;font-size:32px;line-height:1;padding:2px 4px;cursor:pointer;transition:transform .12s ease,color .12s ease}
 .review-stars button:hover{transform:translateY(-2px)}
 .review-stars button.selected{color:#111}
+
+@media print{
+  body{background:#fff!important;color:#111!important}
+  .topbar,.page-shell>.toolbar,#paymentStatusError,#paymentStatusBadge,#refreshPaymentStatus,.row-actions{display:none!important}
+  #receiptCard{display:block!important;border:0!important;box-shadow:none!important;margin:0!important;padding:0!important;max-width:none!important}
+  #receiptCard .card-title{font-size:22px}
+  #receiptCard .list-item{break-inside:avoid;border-bottom:1px solid #ddd}
+}
