@@ -18,9 +18,9 @@ function walk(dir){
 }
 function localAssetExists(page,rawUrl){
   const clean=rawUrl.split('?')[0].split('#')[0];
-  if(!clean||/^(?:[a-z]+:)?\\/\\//i.test(clean)||/^(?:data:|mailto:|tel:|#)/i.test(clean))return true;
+  if(!clean||clean.startsWith('//')||clean.startsWith('#')||/^[a-z][a-z0-9+.-]*:/i.test(clean))return true;
   const candidate=clean.startsWith('/')
-    ?path.join(frontend,clean.replace(/^\\/+/,'' ))
+    ?path.join(frontend,clean.slice(1))
     :path.resolve(path.dirname(page),clean);
   return existsSync(candidate);
 }
@@ -46,8 +46,8 @@ let assetCount=0;
 for(const page of pages){
   const html=readFileSync(page,'utf8');
   const refs=[
-    ...[...html.matchAll(/<script\\b[^>]*\\bsrc=["']([^"']+)["']/gi)].map(m=>m[1]),
-    ...[...html.matchAll(/<link\\b[^>]*\\bhref=["']([^"']+)["']/gi)].map(m=>m[1]),
+    ...[...html.matchAll(/<script\b[^>]*\bsrc=["']([^"']+)["']/gi)].map(m=>m[1]),
+    ...[...html.matchAll(/<link\b[^>]*\bhref=["']([^"']+)["']/gi)].map(m=>m[1]),
   ];
   for(const ref of refs){
     assetCount++;
