@@ -1,1 +1,142 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Explore Bangladesh · DRIVE</title><link rel="stylesheet" href="css/drive.css"></head><body><header class="topbar"><a class="brand" href="index.html">DRIVE<span class="brand-period">.</span></a><nav class="main-nav"><a href="index.html">Ride</a><a href="vehicles.html">Rentals</a><a class="active" href="explore.html">Explore</a><a href="driver.html" id="exploreDriverNav">Drive with us</a><a href="dashboard.html">My trips</a></nav><div class="top-actions"><a class="nav-login" href="login.html?next=explore.html" id="exploreLogin">Log in</a><a class="nav-login" href="dashboard.html" id="exploreAccount" hidden>My account</a></div></header><main class="page-shell"><p class="eyebrow" data-i18n="eyebrow">TOURIST MODE</p><h1 class="page-title" data-i18n="title">Make a day of it.</h1><p class="page-subtitle" data-i18n="subtitle">Discover places and save a simple travel plan.</p><section class="card" style="margin-bottom:18px"><form id="exploreFilters" class="form-grid"><div class="form-field"><label for="exploreCity" data-i18n="city">City</label><select id="exploreCity"><option>Dhaka</option><option>Chattogram</option><option>Cox's Bazar</option><option>Sylhet</option></select></div><div class="form-field"><label for="exploreInterest" data-i18n="interest">Interest</label><select id="exploreInterest"><option value="" data-i18n="allInterests">All interests</option><option value="history" data-i18n="history">History</option><option value="nature" data-i18n="nature">Nature</option><option value="beach" data-i18n="beach">Beach</option><option value="culture" data-i18n="culture">Culture</option></select></div><div class="form-field"><label for="travelDate" data-i18n="travelDate">Travel date</label><input id="travelDate" type="date"></div><div class="form-field"><label for="transport" data-i18n="transport">Transport</label><select id="transport"><option data-i18n="car">Car</option><option data-i18n="bike">Bike</option><option data-i18n="publicTransport">Public Transport</option><option data-i18n="walking">Walking</option></select></div><div class="form-field"><label for="exploreCurrency" data-i18n="touristCurrency">Tourist currency</label><select id="exploreCurrency"><option value="BDT">BDT</option></select></div><div class="form-field"><label for="exploreLanguage" data-i18n="language">Language</label><select id="exploreLanguage"><option value="en">English</option><option value="bn">বাংলা</option></select></div><div class="form-field full"><p id="touristCurrencyNote" class="currency-note">Choose a currency to display estimated travel prices across DRIVE.</p></div><div class="form-field full"><button class="button button-dark" type="submit" data-i18n="findPlaces">Find places</button></div></form></section><div class="toolbar"><h2 class="card-title" data-i18n="placesTitle">Places to explore</h2><span class="muted small" id="placeCount"></span></div><section id="driverPartnerPrompt" class="card" style="margin-bottom:18px"><div class="toolbar"><div><h2 class="card-title">Drive with DRIVE</h2><p class="muted small" id="driverPartnerPromptText">Already use DRIVE as a customer? Apply to become a driver with the same account. You can keep booking rides after approval.</p></div><a class="button button-outline button-small" id="driverPartnerApply" href="driver.html">Apply to drive →</a></div></section><section id="placesGrid" class="vehicle-grid"><div class="empty-state" data-i18n="loadingPlaces">Loading places…</div></section><section class="card" style="margin-top:20px"><div class="toolbar"><h2 class="card-title" data-i18n="savedPlans">Your saved plans</h2><button class="button button-outline button-small" id="savePlan" data-i18n="saveSelected">Save selected places</button></div><div class="message" id="planMessage"></div><div id="savedPlans" class="list"><div class="empty-state" data-i18n="loginToSeePlans">Log in to view saved plans.</div></div></section></main><script src="js/api.js"></script><script src="js/explore.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Explore Bangladesh · DRIVE</title>
+  <link rel="stylesheet" href="css/drive.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="index.html">DRIVE<span class="brand-period">.</span></a>
+    <nav class="main-nav">
+      <a href="index.html">Ride</a>
+      <a href="vehicles.html">Rentals</a>
+      <a class="active" href="explore.html">Explore</a>
+      <a href="driver.html" id="exploreDriverNav">Drive with us</a>
+      <a href="dashboard.html">My trips</a>
+    </nav>
+    <div class="top-actions">
+      <a class="nav-login" href="login.html?next=explore.html" id="exploreLogin">Log in</a>
+      <a class="nav-login" href="dashboard.html" id="exploreAccount" hidden>My account</a>
+    </div>
+  </header>
+
+  <main class="page-shell explore-shell">
+    <p class="eyebrow" data-i18n="eyebrow">EXPLORE BANGLADESH</p>
+    <h1 class="page-title" data-i18n="title">Find somewhere worth going.</h1>
+    <p class="page-subtitle" data-i18n="subtitle">Discover historic landmarks, natural escapes, beaches and local experiences — then request a DRIVE ride to get there.</p>
+
+    <section class="card explore-filter-card">
+      <form id="exploreFilters" class="form-grid">
+        <div class="form-field">
+          <label for="exploreCity" data-i18n="city">City / destination</label>
+          <select id="exploreCity"><option value="All Bangladesh">All Bangladesh</option></select>
+        </div>
+        <div class="form-field">
+          <label for="exploreInterest" data-i18n="interest">Category</label>
+          <select id="exploreInterest"><option value="">All categories</option></select>
+        </div>
+        <div class="form-field">
+          <label for="placeSearch" data-i18n="searchPlaces">Search places</label>
+          <input id="placeSearch" type="search" placeholder="Search a place or area…">
+        </div>
+        <div class="form-field">
+          <label for="travelDate" data-i18n="travelDate">Travel date</label>
+          <input id="travelDate" type="date">
+        </div>
+        <div class="form-field">
+          <label for="transport" data-i18n="transport">Transport preference</label>
+          <select id="transport">
+            <option value="Car" data-i18n="car">Car</option>
+            <option value="Bike" data-i18n="bike">Bike</option>
+            <option value="Public Transport" data-i18n="publicTransport">Public Transport</option>
+            <option value="Walking" data-i18n="walking">Walking</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="exploreCurrency" data-i18n="touristCurrency">Display currency</label>
+          <select id="exploreCurrency"><option value="BDT">BDT</option></select>
+        </div>
+        <div class="form-field">
+          <label for="exploreLanguage" data-i18n="language">Language</label>
+          <select id="exploreLanguage">
+            <option value="en">English</option>
+            <option value="bn">বাংলা</option>
+          </select>
+        </div>
+        <div class="form-field full">
+          <p id="touristCurrencyNote" class="currency-note">Ride fares and payments are settled in BDT.</p>
+          <button class="button button-dark button-block" type="submit" data-i18n="findPlaces">Find places</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="explore-partner-banner" id="driverPartnerPrompt">
+      <div>
+        <p class="eyebrow">DRIVE PARTNER PROGRAM</p>
+        <h2 id="driverPartnerTitle">Explore as a customer. Drive when you're ready.</h2>
+        <p id="driverPartnerPromptText">Already use DRIVE as a customer? Apply to become a driver with the same account. You can keep booking rides after approval.</p>
+      </div>
+      <a class="button button-outline" id="driverPartnerApply" href="driver.html">Apply to drive →</a>
+    </section>
+
+    <div class="toolbar explore-section-heading">
+      <div>
+        <h2 class="card-title" data-i18n="placesTitle">Places to explore</h2>
+        <p class="muted small" id="placeIntro">Browse destinations available across Bangladesh.</p>
+      </div>
+      <span class="muted small" id="placeCount"></span>
+    </div>
+    <section id="placesGrid" class="explore-place-grid">
+      <div class="empty-state">Loading destinations…</div>
+    </section>
+
+    <section class="card explore-saved-plans">
+      <div class="toolbar">
+        <div><h2 class="card-title" data-i18n="savedPlans">Your saved plans</h2><p class="muted small">Select places in one city to build a multi-stop travel plan.</p></div>
+        <button class="button button-outline button-small" id="savePlan" data-i18n="saveSelected">Save selected places</button>
+      </div>
+      <div class="message" id="planMessage"></div>
+      <div id="savedPlans" class="list"><div class="empty-state" data-i18n="loginToSeePlans">Log in to view saved plans.</div></div>
+    </section>
+  </main>
+
+  <dialog id="placeDetailsDialog" class="explore-dialog">
+    <div class="explore-dialog-panel">
+      <button type="button" class="explore-dialog-close" id="closePlaceDetails" aria-label="Close">×</button>
+      <div id="placeDetailsContent"></div>
+    </div>
+  </dialog>
+
+  <dialog id="exploreRideDialog" class="explore-dialog">
+    <div class="explore-dialog-panel explore-ride-panel">
+      <button type="button" class="explore-dialog-close" id="closeExploreRide" aria-label="Close">×</button>
+      <p class="eyebrow">DRIVE BOOKING</p>
+      <h2>Get a ride to this place</h2>
+      <div id="rideDestinationSummary" class="explore-ride-destination"></div>
+      <form id="exploreRideForm" class="stack">
+        <div class="form-field">
+          <label for="ridePickupAddress">Pickup location *</label>
+          <input id="ridePickupAddress" required maxlength="160" placeholder="Enter your pickup address">
+          <button type="button" class="button button-outline button-small explore-location-button" id="useCurrentLocation">Use my current location</button>
+        </div>
+        <div class="form-field">
+          <label for="rideVehicleType">Choose a ride</label>
+          <select id="rideVehicleType">
+            <option value="car">Car</option>
+            <option value="bike">Bike</option>
+            <option value="cng">CNG</option>
+          </select>
+        </div>
+        <p class="muted small">Your request will enter DRIVE's normal nearby-driver matching system. A driver can accept it from their Driver workspace.</p>
+        <div id="exploreRideMessage" class="message" aria-live="polite"></div>
+        <button class="button button-dark button-block" id="submitExploreRide" type="submit">Request ride</button>
+      </form>
+    </div>
+  </dialog>
+
+  <script src="js/api.js"></script>
+  <script src="js/explore.js"></script>
+</body>
+</html>
