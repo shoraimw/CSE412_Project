@@ -29,7 +29,13 @@ async function createHandler(bindings: Env) {
   setDriveRuntimeConfig({
     supabaseUrl: bindings.SUPABASE_URL || '',
     supabaseAnonKey: bindings.SUPABASE_ANON_KEY || '',
+    supabaseServiceRoleKey: bindings.SUPABASE_SERVICE_ROLE_KEY || '',
     corsOrigin: bindings.CORS_ORIGIN || '',
+    appBaseUrl: bindings.DRIVE_PUBLIC_URL || 'https://drive-ewu.pages.dev',
+    sslcommerzStoreId: bindings.SSLCOMMERZ_STORE_ID || '',
+    sslcommerzStorePassword: bindings.SSLCOMMERZ_STORE_PASSWORD || '',
+    sslcommerzMode: bindings.SSLCOMMERZ_MODE === 'live' ? 'live' : 'sandbox',
+    drivePaymentWebhookSecret: bindings.DRIVE_PAYMENT_WEBHOOK_SECRET || '',
     nodeEnv: 'production',
   });
 

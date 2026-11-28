@@ -6,5 +6,18 @@
 <form id="loginForm" class="auth-form"><div class="form-field"><label for="email">Email address</label><input id="email" name="email" type="email" autocomplete="email" required placeholder="you@example.com"></div>
 <div class="form-field"><label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required placeholder="Enter your password"></div>
 <button class="button button-dark button-block" type="submit" id="loginButton">Continue <span>→</span></button><div class="message" id="authMessage" role="status"></div></form>
-<div class="auth-foot">New to DRIVE? <a href="register.html">Create an account</a></div><div class="auth-foot"><a href="index.html">← Back to home</a></div></div></section></main>
-<script src="js/api.js"></script><script src="js/auth.js"></script></body></html>
+<div class="auth-foot"><a href="forgot-password.html">Forgot your password?</a></div>
+<button class="button button-outline button-block" type="button" id="googleSignInButton">Continue with Google</button>
+<div class="auth-foot">New to DRIVE? <a href="register.html">Create an account</a></div>
+<hr class="muted-line">
+<h3 class="card-title">Sign in with phone OTP</h3>
+<form id="phoneOtpRequestForm" class="auth-form">
+  <div class="form-field"><label for="phoneOtpNumber">Phone number in international format</label><input id="phoneOtpNumber" type="tel" autocomplete="tel" placeholder="+8801XXXXXXXXX" pattern="\\+[1-9][0-9]{7,14}" required></div>
+  <button class="button button-outline button-block" type="submit" id="phoneOtpSend">Send SMS code</button>
+</form>
+<form id="phoneOtpVerifyForm" class="auth-form" hidden>
+  <div class="form-field"><label for="phoneOtpCode">6-digit SMS code</label><input id="phoneOtpCode" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" required></div>
+  <button class="button button-dark button-block" type="submit" id="phoneOtpVerify">Verify and sign in</button>
+</form>
+<div class="message" id="phoneOtpMessage" role="status"></div><div class="auth-foot"><a href="index.html">← Back to home</a></div></div></section></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="js/api.js"></script><script src="js/auth.js"></script></body></html>

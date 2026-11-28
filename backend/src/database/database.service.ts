@@ -13,6 +13,9 @@ export class DatabaseService {
       configured: Boolean(this.url && this.key),
       urlConfigured: Boolean(this.url),
       keyConfigured: Boolean(this.key),
+      serviceRoleConfigured: Boolean(this.config.supabaseServiceRoleKey),
+      sslcommerzConfigured: Boolean(this.config.sslcommerzStoreId && this.config.sslcommerzStorePassword),
+      paymentWebhookSecretConfigured: Boolean(this.config.drivePaymentWebhookSecret),
     };
   }
 
@@ -83,6 +86,16 @@ export class DatabaseService {
   publicClient(): SupabaseClient {
     this.assertConfigured();
     return createClient(this.url, this.key, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+  }
+
+  // Server-only elevated client. Never return this client or its key to a browser.
+  serviceClient(): SupabaseClient {
+    if (!this.config.supabaseServiceRoleKey) {
+      throw new ServiceUnavailableException('Supabase service-role key is not configured on the server.');
+    }
+    return createClient(this.url, this.config.supabaseServiceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
   }

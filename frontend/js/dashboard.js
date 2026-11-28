@@ -14,7 +14,8 @@
 
   function paymentFor(ride){return payments.find(p=>p.ride_id===ride.rideId)||null;}
   function ridePaymentAction(ride){
-    if(!ride.rideId||!['in_progress','completed'].includes(ride.status))return '';
+    if(!ride.rideId||ride.status!=='completed')return '';
+    if(ride.actualFare===null||ride.actualFare===undefined)return '<span class="pill warning">Final fare pending</span>';
     const payment=paymentFor(ride);
     if(payment?.status==='paid')return '<span class="pill success">Paid</span>';
     if(payment?.status==='pending'){
@@ -73,21 +74,32 @@
 
   function openPayment(ride,existing=null){
     paymentRide=ride||null;pendingPaymentId=existing?.id||null;pendingPaymentMethod=existing?.method||null;
-    $('paymentRideSummary').textContent=ride?'Your passenger fare share · '+driveMoney(ride.passengerFare??ride.estimatedFare):'Submit your wallet transaction ID';
+    $('paymentRideSummary').textContent=ride?'Your passenger fare share · '+driveMoney(ride.passengerFare??ride.actualFare??ride.estimatedFare):'Submit your wallet transaction ID';
     $('paymentMethod').value=existing?.method||'cash';
     $('paymentMethod').disabled=Boolean(existing);
+    $('paymentCurrency').value='BDT';
+    $('paymentCurrency').disabled=Boolean(existing);
     $('paymentReferenceWrap').hidden=!existing;
     $('paymentReference').required=Boolean(existing);
     $('paymentReference').value='';
-    $('paymentMessage').textContent=existing?'Enter the transaction ID from your bKash or Nagad demo transfer. No real money is collected.':'Choose a method. Wallet payments require a transaction ID for manual admin review.';
+    $('paymentMessage').textContent=existing?'Enter the transaction ID from your bKash or Nagad transfer. No money is collected by DRIVE.':'Cash is confirmed by the driver/admin. bKash/Nagad references require manual review. Online card payments open the SSLCOMMERZ secure checkout.';
     $('paymentSubmit').textContent=existing?'Submit transaction ID':'Continue';
+    syncPaymentOptions();
     $('paymentDialog').showModal();
   }
-  $('paymentMethod').addEventListener('change',()=>{
-    const wallet=['bkash','nagad'].includes($('paymentMethod').value);
+  function syncPaymentOptions(){
+    const method=$('paymentMethod').value;
+    const wallet=['bkash','nagad'].includes(method);
+    const card=method==='card';
     $('paymentReferenceWrap').hidden=!wallet;
-    $('paymentReference').required=false;
-  });
+    $('paymentReference').required=wallet;
+    $('paymentCurrencyWrap').hidden=!card;
+    $('paymentCurrency').required=card;
+    if(wallet)$('paymentMessage').textContent='Enter the bKash/Nagad transaction reference after transferring. An administrator must verify it in the merchant account.';
+    if(card)$('paymentMessage').textContent='You will be redirected to SSLCOMMERZ secure checkout. DRIVE will show Paid only after server-side gateway validation.';
+    if(method==='cash')$('paymentMessage').textContent='Cash is recorded as pending until the driver or administrator confirms receipt.';
+  }
+  $('paymentMethod').addEventListener('change',syncPaymentOptions);
   $('paymentForm').addEventListener('submit',async event=>{
     event.preventDefault();
     const button=$('paymentSubmit');button.disabled=true;
@@ -95,14 +107,25 @@
       if(!pendingPaymentId){
         if(!paymentRide?.rideId)throw new Error('The ride is not available for payment.');
         const method=$('paymentMethod').value;
-        const result=await driveRequest('/payments/intent',{method:'POST',body:JSON.stringify({rideId:paymentRide.rideId,method,currency:'BDT'})});
+        const currency=method==='card'?$('paymentCurrency').value:'BDT';
+        const result=await driveRequest('/payments/intent',{method:'POST',body:JSON.stringify({rideId:paymentRide.rideId,method,currency})});
         pendingPaymentId=result.payment?.id;
         pendingPaymentMethod=method;
         if(!pendingPaymentId)throw new Error('Payment intent was not created.');
+        if(method==='card'){
+          if(!result.checkoutUrl)throw new Error('SSLCOMMERZ did not return a secure checkout URL.');
+          const checkout=new URL(result.checkoutUrl);
+          if(checkout.protocol!=='https:'||!['sandbox.sslcommerz.com','securepay.sslcommerz.com'].includes(checkout.hostname)){
+            throw new Error('The gateway returned an untrusted checkout destination. Please contact DRIVE support.');
+          }
+          $('paymentMessage').textContent='Opening secure SSLCOMMERZ checkout…';
+          location.assign(checkout.toString());
+          return;
+        }
         if(['bkash','nagad'].includes(method)){
           $('paymentMethod').disabled=true;
           $('paymentReferenceWrap').hidden=false;$('paymentReference').required=true;
-          $('paymentMessage').textContent=result.message+' Enter the demo transaction ID below. No money has been collected.';
+          $('paymentMessage').textContent=result.message+' Enter the transaction ID below. No money has been collected by DRIVE.';
           $('paymentSubmit').textContent='Submit transaction ID';
           return;
         }
@@ -132,6 +155,10 @@
     try{rides=await driveRequest('/rides');}catch(error){$('activeRides').innerHTML='<div class="empty-state">'+driveEscape(error.message)+'</div>';}
     try{notifications=await driveRequest('/notifications');}catch{}
     try{payments=await driveRequest('/payments/me');if(!Array.isArray(payments))payments=[];}catch{payments=[];}
+    let sharedRides=[],myReviews=[],supportCases=[];
+    try{sharedRides=await driveRequest('/rides/shared');if(!Array.isArray(sharedRides))sharedRides=[];}catch{}
+    try{myReviews=await driveRequest('/reviews/me');if(!Array.isArray(myReviews))myReviews=[];}catch{}
+    try{supportCases=await driveRequest('/support/cases');if(!Array.isArray(supportCases))supportCases=[];}catch{}
 
     const active=rides.filter(r=>activeStates.includes(r.status));
     const history=rides.filter(r=>!activeStates.includes(r.status));
@@ -143,11 +170,34 @@
       const cancel=canCancel?miniButton('Cancel','data-cancel',ride.requestId):'';
       return item((ride.pickupAddress||'Pickup')+' → '+(ride.destinationAddress||'Destination'),driveDate(ride.createdAt)+' · '+driveMoney(ride.passengerFare??ride.estimatedFare),ride.status,cancel+ridePaymentAction(ride));
     }).join(''):'<div class="empty-state">No active trips. Your next journey starts here.</div>';
-    $('rideHistory').innerHTML=history.length?history.slice(0,8).map(ride=>item((ride.pickupAddress||'Pickup')+' → '+(ride.destinationAddress||'Destination'),driveDate(ride.createdAt)+' · '+driveMoney(ride.estimatedFare),ride.status,ridePaymentAction(ride))).join(''):'<div class="empty-state">Completed and cancelled trips will appear here.</div>';
+    $('rideHistory').innerHTML=history.length?history.slice(0,8).map(ride=>{
+      const finalFare=ride.actualFare??ride.ride?.actual_fare;
+      const amount=finalFare!==null&&finalFare!==undefined?driveMoney(finalFare)+' final':driveMoney(ride.estimatedFare)+' estimated';
+      return item((ride.pickupAddress||'Pickup')+' → '+(ride.destinationAddress||'Destination'),driveDate(ride.createdAt)+' · '+amount,ride.status,ridePaymentAction(ride));
+    }).join(''):'<div class="empty-state">Completed and cancelled trips will appear here.</div>';
+
+    const reviewedRideIds=new Set(myReviews.map(review=>review.ride_id));
+    const reviewable=history.filter(ride=>ride.status==='completed'&&ride.rideId&&!reviewedRideIds.has(ride.rideId));
+    $('reviewQueue').innerHTML=reviewable.length?reviewable.map(ride=>'<div class="list-item"><div class="list-item-main"><strong>'+driveEscape((ride.pickupAddress||'Pickup')+' → '+(ride.destinationAddress||'Destination'))+'</strong><small>'+driveDate(ride.createdAt)+'</small></div><button class="button-mini dark" data-review="'+driveEscape(ride.rideId)+'">Rate driver</button></div>').join(''):'<div class="empty-state">No completed rides waiting for feedback.</div>';
+    $('reviewQueue').querySelectorAll('[data-review]').forEach(button=>button.addEventListener('click',()=>{
+      $('reviewRideId').value=button.dataset.review;$('reviewComment').value='';$('reviewMessage').textContent='';$('reviewDialog').showModal();
+    }));
+
+    $('sharedRides').innerHTML=sharedRides.length?sharedRides.map(ride=>'<div class="list-item"><div class="list-item-main"><strong>'+driveEscape(ride.pickup_label)+' → '+driveEscape(ride.destination_label)+'</strong><small>'+driveEscape(ride.vehicle_type)+' · '+driveMoney(ride.estimated_fare)+' total · '+Number(ride.seats_available)+' seats left · '+Number(ride.distance_km||0).toFixed(1)+' km</small></div><button class="button-mini dark" data-join-shared="'+driveEscape(ride.ride_id)+'">Join</button></div>').join(''):'<div class="empty-state">No shared rides are accepting passengers right now.</div>';
+    $('sharedRides').querySelectorAll('[data-join-shared]').forEach(button=>button.addEventListener('click',async()=>{
+      if(!confirm('Join this shared ride? Your individual fare share will be recalculated when you join.'))return;
+      button.disabled=true;
+      try{const result=await driveRequest('/rides/'+encodeURIComponent(button.dataset.joinShared)+'/share',{method:'POST'});driveToast(result.message||'You joined the shared ride.');await load();}
+      catch(error){driveToast(error.message);button.disabled=false;}
+    }));
+
+    $('supportRide').innerHTML='<option value="">No linked ride</option>'+rides.filter(ride=>ride.rideId).map(ride=>'<option value="'+driveEscape(ride.rideId)+'">'+driveEscape((ride.pickupAddress||'Pickup')+' → '+(ride.destinationAddress||'Destination')+' · '+statusLabel(ride.status))+'</option>').join('');
+    $('supportCases').innerHTML=supportCases.length?supportCases.slice(0,8).map(c=>item(c.subject,driveDate(c.created_at)+' · '+c.category,c.status)).join(''):'<div class="empty-state">No support cases submitted yet.</div>';
 
     $('activeRides').querySelectorAll('[data-cancel]').forEach(button=>button.addEventListener('click',async()=>{
       button.disabled=true;
-      try{await driveRequest('/rides/requests/'+encodeURIComponent(button.dataset.cancel)+'/cancel',{method:'POST'});driveToast('Ride request cancelled.');await load();}
+      if(!confirm('Cancel this unaccepted request? No cancellation fee applies while a driver has not accepted it.')){button.disabled=false;return;}
+      try{await driveRequest('/rides/requests/'+encodeURIComponent(button.dataset.cancel)+'/cancel',{method:'POST'});driveToast('Ride request cancelled. No cancellation fee was charged.');await load();}
       catch(error){driveToast(error.message);button.disabled=false;}
     }));
     document.querySelectorAll('[data-pay]').forEach(button=>button.addEventListener('click',()=>{
@@ -165,11 +215,17 @@
     $('paymentHistory').innerHTML=payments.length?payments.slice(0,8).map(payment=>{
       const refAction=['bkash','nagad'].includes(String(payment.method).toLowerCase())&&payment.status==='pending'&&!payment.provider_reference
         ?miniButton('Add transaction ID','data-reference',payment.id):'';
-      const meta=driveDate(payment.created_at)+(payment.provider_reference?' · ID: '+payment.provider_reference:'');
-      return item(driveMoney(payment.amount)+' · '+payment.method,meta,payment.status,refAction);
+      const meta=driveDate(payment.created_at)+(payment.provider_reference?' · ID: '+payment.provider_reference:'')+(payment.gateway_status==='risk_hold'?' · Gateway risk review':'');
+      const status=payment.gateway_status==='risk_hold'?'risk_hold':payment.status;
+      const receiptAction=payment.status==='paid'?miniButton('View receipt','data-payment-result',payment.id):miniButton('View status','data-payment-result',payment.id);
+      const amountText=payment.currency==='BDT'?driveMoney(payment.amount):Number(payment.amount).toFixed(2)+' '+payment.currency;
+      return item(amountText+' · '+payment.method,meta,status,refAction+receiptAction);
     }).join(''):'<div class="empty-state">No payments yet. Eligible trips can be paid from the trip list.</div>';
     $('paymentHistory').querySelectorAll('[data-reference]').forEach(button=>button.addEventListener('click',()=>{
       const payment=payments.find(p=>p.id===button.dataset.reference);const ride=rides.find(r=>r.rideId===payment?.ride_id);openPayment(ride,payment);
+    }));
+    $('paymentHistory').querySelectorAll('[data-payment-result]').forEach(button=>button.addEventListener('click',()=>{
+      location.href='payment-result.html?payment='+encodeURIComponent(button.dataset.paymentResult);
     }));
 
     try{
@@ -301,6 +357,34 @@
       catch{$('shareLinkMessage').textContent='Copy is unavailable. Open the link and copy the address from your browser.';$('shareLinkMessage').className='message error';}
     };
   }
+
+  $('reviewForm')?.addEventListener('submit',async event=>{
+    event.preventDefault();if(!$('reviewForm').reportValidity())return;
+    const button=$('reviewSubmit');button.disabled=true;
+    try{
+      await driveRequest('/reviews',{method:'POST',body:JSON.stringify({
+        rideId:$('reviewRideId').value,rating:Number($('reviewRating').value),comment:$('reviewComment').value.trim()||undefined
+      })});
+      $('reviewMessage').textContent='Thank you. Your feedback has been saved.';$('reviewMessage').className='message success';
+      $('reviewDialog').close();await load();
+    }catch(error){$('reviewMessage').textContent=error.message;$('reviewMessage').className='message error';}
+    finally{button.disabled=false;}
+  });
+  $('closeReview')?.addEventListener('click',()=>$('reviewDialog').close());
+  $('supportForm')?.addEventListener('submit',async event=>{
+    event.preventDefault();if(!$('supportForm').reportValidity())return;
+    const button=$('supportSubmit');button.disabled=true;
+    try{
+      const rideId=$('supportRide').value;
+      const result=await driveRequest('/support/cases',{method:'POST',body:JSON.stringify({
+        category:$('supportCategory').value,subject:$('supportSubject').value.trim(),
+        description:$('supportDescription').value.trim(),rideId:rideId||undefined
+      })});
+      $('supportMessage').textContent=result.message||'Support case submitted.';$('supportMessage').className='message success';
+      $('supportForm').reset();await load();
+    }catch(error){$('supportMessage').textContent=error.message;$('supportMessage').className='message error';}
+    finally{button.disabled=false;}
+  });
 
   $('sosButton')?.addEventListener('click',async()=>{
     if(!confirm('Send an SOS alert to the DRIVE administrator with your current location?'))return;

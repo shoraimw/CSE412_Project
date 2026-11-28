@@ -3,6 +3,8 @@ import {
   NotFoundException, Param, Patch, Req, UseGuards
 } from '@nestjs/common';
 import { Request } from 'express';
+import { randomUUID } from 'crypto';
+import { IsIn, IsString, MaxLength, MinLength } from 'class-validator';
 import { AuthGuard } from '../auth/auth.guard';
 import { DatabaseService } from '../database/database.service';
 import { ReviewDto, ReviewPaymentDto } from '../drivers/driver.dto';
@@ -13,6 +15,7 @@ type AdminRequest = Request & {
 
 type UserStatusDto = { is_active: boolean };
 type RentalReviewDto = { status: 'approved' | 'rejected' | 'cancelled' | 'completed' };
+class AdminRideActionDto { @IsIn(['cancelled']) status!: 'cancelled'; @IsString() @MinLength(8) @MaxLength(500) reason!: string; }
 
 @Controller('admin')
 @UseGuards(AuthGuard)
@@ -89,6 +92,15 @@ export class AdminController {
     @Body() dto: ReviewDto,
   ) {
     const db = this.client(request);
+    if(dto.status==='approved'){
+      const {data:application,error:applicationError}=await db.from('driver_applications').select('user_id').eq('id',id).maybeSingle();
+      if(applicationError||!application)throw new NotFoundException(applicationError?.message||'Driver application not found.');
+      const {data:documents,error:documentsError}=await db.from('driver_documents').select('document_type,verification_status').eq('driver_id',application.user_id).in('document_type',['license_front','license_back','national_id']);
+      if(documentsError)throw new BadRequestException(documentsError.message);
+      const approved=new Set((documents||[]).filter((d:any)=>d.verification_status==='approved').map((d:any)=>d.document_type));
+      const missing=['license_front','license_back','national_id'].filter(type=>!approved.has(type));
+      if(missing.length)throw new BadRequestException('Approve the required Driver documents first: '+missing.join(', ')+'.');
+    }
     const { data, error } = await db.rpc('drive_admin_review_driver_application', {
       p_application_id: id,
       p_status: dto.status,
@@ -121,6 +133,15 @@ export class AdminController {
     @Body() dto: ReviewDto,
   ) {
     const db = this.client(request);
+    if(dto.status==='approved'){
+      const {data:application,error:applicationError}=await db.from('vehicle_owner_applications').select('user_id').eq('id',id).maybeSingle();
+      if(applicationError||!application)throw new NotFoundException(applicationError?.message||'Vehicle Owner application not found.');
+      const {data:documents,error:documentsError}=await db.from('owner_documents').select('document_type,verification_status').eq('owner_id',application.user_id).is('vehicle_id',null).in('document_type',['national_id','business_license']);
+      if(documentsError)throw new BadRequestException(documentsError.message);
+      const approved=new Set((documents||[]).filter((d:any)=>d.verification_status==='approved').map((d:any)=>d.document_type));
+      const missing=['national_id','business_license'].filter(type=>!approved.has(type));
+      if(missing.length)throw new BadRequestException('Approve the required Vehicle Owner documents first: '+missing.join(', ')+'.');
+    }
     const { data, error } = await db.rpc('drive_admin_review_owner_application', {
       p_application_id: id,
       p_status: dto.status,
@@ -155,7 +176,7 @@ export class AdminController {
     const db = this.client(request);
     const { data: existing, error: readError } = await db
       .from('vehicles')
-      .select('id,verification_status')
+      .select('id,owner_id,verification_status')
       .eq('id', id)
       .maybeSingle();
     if (readError || !existing) throw new NotFoundException(readError?.message || 'Vehicle not found.');
@@ -163,6 +184,13 @@ export class AdminController {
       throw new BadRequestException('Only pending vehicles can be reviewed.');
     }
     const approved = dto.status === 'approved';
+    if(approved){
+      const {data:registration,error:registrationError}=await db.from('owner_documents')
+        .select('id').eq('owner_id',existing.owner_id).eq('vehicle_id',id)
+        .eq('document_type','vehicle_registration').eq('verification_status','approved').limit(1);
+      if(registrationError)throw new BadRequestException(registrationError.message);
+      if(!registration?.length)throw new BadRequestException('Approve the vehicle registration document before approving this vehicle.');
+    }
     const { data, error } = await db
       .from('vehicles')
       .update({
@@ -240,24 +268,56 @@ export class AdminController {
     const db = this.client(request);
     const { data: payment, error: readError } = await db
       .from('payments')
-      .select('id,method,status,provider_reference')
+      .select('id,user_id,method,status,provider_reference,gateway_name,gateway_status,gateway_validation_id,receipt_number,gateway_payload')
       .eq('id', id)
       .maybeSingle();
     if (readError || !payment) throw new NotFoundException(readError?.message || 'Payment not found.');
     if (payment.status !== 'pending') throw new BadRequestException('Only pending payments can be reviewed.');
-    if (dto.status === 'paid' && payment.method !== 'cash' && !(['bkash','nagad'].includes(String(payment.method).toLowerCase()) && Boolean(payment.provider_reference))) {
-      throw new ForbiddenException('An online wallet payment can only be verified after the passenger submits a transaction ID. No automatic gateway settlement is connected.');
+    if (dto.status === 'paid') {
+      const manualWalletReady=['bkash','nagad'].includes(String(payment.method).toLowerCase())&&Boolean(payment.provider_reference);
+      const cashReady=payment.method==='cash';
+      const verifiedRiskHold=payment.method==='card'&&payment.gateway_name==='sslcommerz'
+        &&payment.gateway_status==='risk_hold'&&Boolean(payment.gateway_validation_id);
+      if(!cashReady&&!manualWalletReady&&!verifiedRiskHold){
+        throw new ForbiddenException(
+          payment.method==='card'
+            ?'This card payment cannot be manually approved unless SSLCOMMERZ validated it and placed it on risk hold.'
+            :'A wallet payment can only be approved after the passenger submits its transaction reference.'
+        );
+      }
+      if(verifiedRiskHold&&(!dto.adminNote||dto.adminNote.trim().length<8)){
+        throw new BadRequestException('Add an administrator review note after checking the gateway and customer verification before releasing a risk-held payment.');
+      }
     }
-    if (dto.status === 'refunded') throw new BadRequestException('Only a previously paid payment can be refunded.');
+    if (dto.status === 'refunded') throw new BadRequestException('Refunds must be processed in the merchant portal before recording a refund in DRIVE.');
+    const now=new Date().toISOString();
+    const gatewayPayload={...(payment.gateway_payload||{}),adminReview:{
+      note:dto.adminNote?.trim()||null,reviewedBy:request.user.id,reviewedAt:now,
+    }};
+    const patch:any={status:dto.status,updated_at:now,gateway_payload:gatewayPayload};
+    if(dto.status==='paid'){
+      patch.paid_at=now;
+      patch.receipt_number=payment.receipt_number||'DRIVE-'+now.slice(0,10).replace(/-/g,'')+'-'+randomUUID().replace(/-/g,'').slice(0,8).toUpperCase();
+      if(payment.gateway_status==='risk_hold')patch.gateway_status='ADMIN_APPROVED_RISK_HOLD';
+    }else if(payment.gateway_name==='sslcommerz'){
+      patch.gateway_status='ADMIN_MARKED_FAILED';
+    }
     const { data, error } = await db
       .from('payments')
-      .update({ status: dto.status })
+      .update(patch)
       .eq('id', id)
       .eq('status', 'pending')
       .select('*')
       .maybeSingle();
     if (error || !data) throw new BadRequestException(error?.message || 'Payment status could not be updated.');
-    await this.audit(db, request, 'payment.' + dto.status, 'payment', id, { status: dto.status, method: payment.method, transactionReferenceSubmitted: Boolean(payment.provider_reference) });
+    await this.audit(db, request, 'payment.' + dto.status, 'payment', id, {
+      status:dto.status,method:payment.method,transactionReferenceSubmitted:Boolean(payment.provider_reference),
+      gatewayStatus:payment.gateway_status,adminNote:dto.adminNote?.trim()||null,
+    });
+    const {error:notificationError}=await db.rpc('drive_admin_notify_payment_status',{
+      p_payment_id:id,p_status:dto.status,p_note:dto.adminNote?.trim()||null,
+    });
+    if(notificationError)console.error('[DRIVE payment notification]',notificationError.message);
     return data;
   }
 
@@ -318,6 +378,17 @@ export class AdminController {
     if (ridesError) throw new BadRequestException(ridesError.message);
     const byRequest = new Map((rides || []).map((ride: any) => [ride.request_id, ride]));
     return (requests || []).map((item: any) => ({ ...item, ride: byRequest.get(item.id) || null }));
+  }
+
+  @Patch('rides/:id')
+  async cancelRide(@Req()request:AdminRequest,@Param('id')id:string,@Body()dto:AdminRideActionDto){
+    const db=this.client(request);
+    const {data,error}=await db.rpc('drive_admin_cancel_ride',{p_request_id:id,p_reason:dto.reason.trim()});
+    if(error)throw new BadRequestException(error.message);
+    await this.audit(db,request,'ride.admin_cancelled','ride_request',id,{
+      reason:dto.reason.trim(),rideId:data?.rideId||null,
+    });
+    return data;
   }
 
   @Get('rental-bookings')

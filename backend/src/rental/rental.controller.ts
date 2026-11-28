@@ -34,6 +34,12 @@ export class RentalController{
   if(r.user.role==='vehicle_owner'&&vehicle?.owner_id!==r.user.id)throw new ForbiddenException('You can only manage bookings for your own vehicles.');
   const allowed:Record<string,string[]>={pending:['approved','rejected','cancelled'],approved:['active','cancelled'],active:['completed','cancelled'],rejected:[],completed:[],cancelled:[]};
   if(!allowed[booking.status]?.includes(body.status))throw new BadRequestException('This rental booking cannot move from '+booking.status+' to '+body.status+'.');
+  if(body.status==='active'){
+    const {data:paidPayment,error:paymentError}=await db.from('payments')
+      .select('id').eq('rental_booking_id',id).eq('status','paid').limit(1).maybeSingle();
+    if(paymentError)throw new ServiceUnavailableException(paymentError.message);
+    if(!paidPayment)throw new BadRequestException('Confirm the rental payment before marking the booking active.');
+  }
   const {data,error}=await db.from('rental_bookings')
     .update({status:body.status,updated_at:new Date().toISOString()})
     .eq('id',id).eq('status',booking.status).select('*').maybeSingle();

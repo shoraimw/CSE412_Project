@@ -8,7 +8,7 @@ export class DriverApplicationDto{
  @IsOptional()@IsString()@MaxLength(500)note?:string;
 }
 export class ReviewDto{@IsIn(['approved','rejected'])status!:string;@IsOptional()@IsString()@MaxLength(500)rejection_reason?:string;}
-export class ReviewPaymentDto{@IsIn(['paid','failed','refunded'])status!:string;}
+export class ReviewPaymentDto{@IsIn(['paid','failed','refunded'])status!:string;@IsOptional()@IsString()@MinLength(8)@MaxLength(500)adminNote?:string;}
 export class DriverDocumentDto{@IsIn(['license_front','license_back','national_id','vehicle_registration'])document_type!:string;@IsString()@MaxLength(500)storage_path!:string;}
 
 export class DriverLocationDto {

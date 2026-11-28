@@ -7,9 +7,11 @@ type AuthReq=Request&{user:{id:string;accessToken:string;role:'passenger'|'drive
 @Post()create(@Req()r:AuthReq,@Body()d:CreateRideDto){return this.rides.create(r.user.id,r.user.accessToken,d);}
 @Post('requests/:id/cancel')cancel(@Req()r:AuthReq,@Param('id')id:string){return this.rides.cancelRequest(r.user.id,r.user.accessToken,id,r.user.role);}
 @Post('requests/:id/claim')claim(@Req()r:AuthReq,@Param('id')id:string){return this.rides.claimRequest(r.user.id,r.user.accessToken,r.user.role,id);}
+@Post('requests/:id/reject')reject(@Req()r:AuthReq,@Param('id')id:string){return this.rides.rejectRequest(r.user.id,r.user.accessToken,r.user.role,id);}
 @Post(':id/share')share(@Req()r:AuthReq,@Param('id')id:string){return this.rides.joinShared(r.user.id,r.user.accessToken,id,r.user.role);}
 @Get(':id')get(@Req()r:AuthReq,@Param('id')id:string){return this.rides.get(r.user.id,r.user.accessToken,id);}
 @Patch(':id/status')status(@Req()r:AuthReq,@Param('id')id:string,@Body()d:RideStatusDto){return this.rides.updateStatus(r.user.id,r.user.accessToken,id,d.status,r.user.role);}
+@Post(':id/finalize-fare')finalizeFare(@Req()r:AuthReq,@Param('id')id:string){return this.rides.finalizeFare(r.user.id,r.user.accessToken,id,r.user.role);}
 @Post(':id/location')location(@Req()r:AuthReq,@Param('id')id:string,@Body()d:RideLocationDto){return this.rides.updateLocation(r.user.id,r.user.accessToken,id,d);}
 @Get(':id/track')track(@Req()r:AuthReq,@Param('id')id:string){return this.rides.tracking(r.user.id,r.user.accessToken,id);}
 }

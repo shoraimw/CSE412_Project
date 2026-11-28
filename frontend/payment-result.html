@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#fff">
+  <title>Payment status · DRIVE</title>
+  <link rel="stylesheet" href="css/drive.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="index.html">DRIVE<span class="brand-period">.</span></a>
+    <nav class="main-nav"><a href="index.html">Ride</a><a href="vehicles.html">Rentals</a><a href="dashboard.html">My trips</a></nav>
+    <div class="top-actions"><a class="nav-login" href="profile.html">Profile</a></div>
+  </header>
+  <main class="page-shell" style="max-width:760px">
+    <div class="toolbar">
+      <div><p class="eyebrow">PAYMENT CONFIRMATION</p><h1 class="page-title">Payment status</h1><p class="page-subtitle">DRIVE checks payment status directly against its server records.</p></div>
+      <a class="button button-outline" href="dashboard.html">Back to trips</a>
+    </div>
+    <section class="card">
+      <div id="paymentStatusBadge" class="pill warning">Checking payment…</div>
+      <h2 class="card-title" id="paymentStatusTitle" style="margin-top:16px">Verifying your payment</h2>
+      <p class="muted" id="paymentStatusMessage">Please wait while DRIVE retrieves the latest payment status.</p>
+      <div class="message" id="paymentStatusError"></div>
+      <div class="row-actions" style="margin-top:16px">
+        <button class="button button-dark" id="refreshPaymentStatus" type="button">Refresh status</button>
+        <a class="button button-outline" href="dashboard.html">Return to dashboard</a>
+      </div>
+    </section>
+    <section class="card" id="receiptCard" hidden style="margin-top:16px">
+      <div class="toolbar"><h2 class="card-title">Payment receipt</h2><span class="pill success">Confirmed</span></div>
+      <div id="receiptDetails" class="list"></div>
+      <p class="muted small" style="margin-top:14px">This receipt is generated from the confirmed DRIVE payment record. Keep the receipt number for your records.</p>
+    </section>
+  </main>
+  <script src="js/api.js"></script>
+  <script src="js/payment-result.js"></script>
+</body>
+</html>

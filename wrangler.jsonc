@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "cse412-project",
+  "account_id": "0f20ed886931ae4004982c7112f42636",
   "main": "backend/src/worker.ts",
   "compatibility_date": "2026-11-13",
   "compatibility_flags": [
