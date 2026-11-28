@@ -6,6 +6,12 @@ import { AppModule } from './app.module';
 import { getCorsOptions } from './config/cors';
 import { setDriveRuntimeConfig } from './config/runtime-config';
 
+declare global {
+  interface Env {
+    DRIVE_FARE_FINALIZATION_SECRET?: string;
+  }
+}
+
 let handlerPromise: Promise<ReturnType<typeof httpServerHandler>> | undefined;
 
 function addSecurityHeaders(response: Response): Response {
@@ -36,6 +42,7 @@ async function createHandler(bindings: Env) {
     sslcommerzStorePassword: bindings.SSLCOMMERZ_STORE_PASSWORD || '',
     sslcommerzMode: bindings.SSLCOMMERZ_MODE === 'live' ? 'live' : 'sandbox',
     drivePaymentWebhookSecret: bindings.DRIVE_PAYMENT_WEBHOOK_SECRET || '',
+    driveFareFinalizationSecret: bindings.DRIVE_FARE_FINALIZATION_SECRET || '',
     nodeEnv: 'production',
   });
 

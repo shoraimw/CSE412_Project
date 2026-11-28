@@ -1,11 +1,28 @@
 (() => {
   const $=id=>document.getElementById(id);
+  let pendingReviewAfterArrival=false;
+  window.addEventListener('drive:arrival-dismissed',()=>{pendingReviewAfterArrival=true;const first=$('reviewQueue')?.querySelector('[data-review]');if(first){pendingReviewAfterArrival=false;first.click();}});
+  const ratingLabels={1:'Very poor',2:'Poor',3:'Average',4:'Good',5:'Excellent'};
+  function setReviewRating(value){
+    const rating=Math.max(0,Math.min(5,Number(value)||0));
+    $('reviewRating').value=String(rating);
+    $('reviewStars')?.querySelectorAll('[data-rating]').forEach(button=>{
+      const active=Number(button.dataset.rating)<=rating;
+      button.textContent=active?'★':'☆';
+      button.classList.toggle('selected',active);
+      button.setAttribute('aria-checked',String(Number(button.dataset.rating)===rating));
+    });
+    if($('reviewRatingLabel'))$('reviewRatingLabel').textContent=rating?rating+' / 5 · '+ratingLabels[rating]:'Select 1–5 stars';
+  }
+  $('reviewStars')?.querySelectorAll('[data-rating]').forEach(button=>button.addEventListener('click',()=>setReviewRating(button.dataset.rating)));
   if(!driveRequireAuth('dashboard.html'))return;
   const activeStates=['requested','matched','driver_arriving','in_progress'];
   const trackableStates=['matched','driver_arriving','in_progress'];
   let payments=[],tripMap=null,driverMarker=null,pickupMarker=null,destinationMarker=null,routeLine=null;
   let trackedRideId=null,trackingTimer=null,paymentRide=null,pendingPaymentId=null,pendingPaymentMethod=null;
+  const driverRatings=new Map();
   let safetySessions=[],safetyWatchId=null,safetyLocationSending=false,safetyHeartbeatTimer=null,lastSafetyPosition=null;
+  const knownRideStatuses=new Map();let firstRideLoad=true;
 
   const statusLabel=s=>String(s||'unknown').replaceAll('_',' ');
   const statusClass=s=>['completed','paid','approved','success'].includes(s)?'success':['pending','requested','matched','driver_arriving','in_progress','new'].includes(s)?'warning':['rejected','cancelled','failed'].includes(s)?'danger':'';
@@ -41,9 +58,18 @@
     if(!ride?.rideId||!trackableStates.includes(ride.status))return;
     try{
       const data=await driveRequest('/rides/'+encodeURIComponent(ride.rideId)+'/track');
-      $('trackingStatus').textContent=data.currentLocation
+      let ratingText='';
+      if(ride.driver_id){
+        let rating=driverRatings.get(ride.driver_id);
+        if(!rating){
+          try{rating=await driveRequest('/reviews/driver/'+encodeURIComponent(ride.driver_id));driverRatings.set(ride.driver_id,rating);}catch{}
+        }
+        if(rating)ratingText=rating.averageRating===null?'Driver: '+rating.label:'Driver rating: '+('★'.repeat(rating.stars)+'☆'.repeat(5-rating.stars))+' '+rating.label+' ('+rating.totalReviews+' reviews)';
+      }
+      const trackingText=data.currentLocation
         ?'Driver location updated '+driveDate(data.currentLocation.updatedAt)+'. Trip status: '+statusLabel(data.status)+'.'
         :'Waiting for the driver to share a GPS location. Trip status: '+statusLabel(data.status)+'.';
+      $('trackingStatus').textContent=trackingText+(ratingText?' '+ratingText:'');
       if(!window.L)return;
       initTrackingMap();
       driverMarker=setTrackingMarker(driverMarker,data.currentLocation,'Driver location');
@@ -147,12 +173,12 @@
   async function load(){
     try{
       const user=await driveRequest('/users/me');
-      if(user.role!=='passenger'){location.href=driveRoleHome(user.role);return;}
+      if(user.role==='admin'){location.href=driveRoleHome(user.role);return;}
       $('welcomeText').textContent='Welcome, '+(user.full_name||user.name||'there')+'. Your journeys, all in one place.';
     }catch(error){$('welcomeText').textContent=error.message;}
 
     let rides=[],notifications={items:[],unreadCount:0};
-    try{rides=await driveRequest('/rides');}catch(error){$('activeRides').innerHTML='<div class="empty-state">'+driveEscape(error.message)+'</div>';}
+    try{rides=await driveRequest('/rides/my-bookings');}catch(error){$('activeRides').innerHTML='<div class="empty-state">'+driveEscape(error.message)+'</div>';}
     try{notifications=await driveRequest('/notifications');}catch{}
     try{payments=await driveRequest('/payments/me');if(!Array.isArray(payments))payments=[];}catch{payments=[];}
     let sharedRides=[],myReviews=[],supportCases=[];
@@ -160,6 +186,16 @@
     try{myReviews=await driveRequest('/reviews/me');if(!Array.isArray(myReviews))myReviews=[];}catch{}
     try{supportCases=await driveRequest('/support/cases');if(!Array.isArray(supportCases))supportCases=[];}catch{}
 
+    for(const ride of rides){
+      const id=ride.rideId||ride.id,previous=knownRideStatuses.get(id);
+      if(!firstRideLoad&&previous&&previous!=='completed'&&ride.status==='completed')window.driveArrivalNotice?.(id);
+      knownRideStatuses.set(id,ride.status);
+    }
+    const notificationRows=Array.isArray(notifications)?notifications:(notifications.items||[]);
+    for(const note of notificationRows){
+      if(note.type==='ride_completed'&&!note.read_at&&note.entity_id)window.driveArrivalNotice?.(note.entity_id);
+    }
+    firstRideLoad=false;
     const active=rides.filter(r=>activeStates.includes(r.status));
     const history=rides.filter(r=>!activeStates.includes(r.status));
     $('tripCount').textContent=rides.length;$('activeCount').textContent=active.length;
@@ -168,8 +204,51 @@
     $('activeRides').innerHTML=active.length?active.map(ride=>{
       const canCancel=ride.requestId&&ride.requestStatus==='requested';
       const cancel=canCancel?miniButton('Cancel','data-cancel',ride.requestId):'';
-      return item((ride.pickupAddress||'Pickup')+' → '+(ride.destinationAddress||'Destination'),driveDate(ride.createdAt)+' · '+driveMoney(ride.passengerFare??ride.estimatedFare),ride.status,cancel+ridePaymentAction(ride));
+      const rideId=ride.rideId||ride.id;
+      const canChat=rideId&&trackableStates.includes(ride.status);
+      const chat=canChat?miniButton('Chat','data-chat-ride',rideId):'';
+      const requestCancel=canChat?miniButton('Request cancellation','data-cancel-journey',rideId):'';
+      const emergency=canChat?miniButton('Emergency cancel','data-emergency-cancel',rideId):'';
+      return item((ride.pickupAddress||'Pickup')+' → '+(ride.destinationAddress||'Destination'),driveDate(ride.createdAt)+' · '+driveMoney(ride.passengerFare??ride.estimatedFare),ride.status,cancel+chat+requestCancel+emergency+ridePaymentAction(ride));
     }).join(''):'<div class="empty-state">No active trips. Your next journey starts here.</div>';
+    $('activeRides').querySelectorAll('[data-cancel-journey]').forEach(button=>button.addEventListener('click',async()=>{
+      const reason=prompt('Why do you need to cancel this journey? Please provide at least 8 characters.');
+      if(!reason)return;
+      button.disabled=true;
+      try{
+        const result=await driveRequest('/rides/'+encodeURIComponent(button.dataset.cancelJourney)+'/cancellation-request',{method:'POST',body:JSON.stringify({reason})});
+        driveToast(result.message||'Cancellation request sent to your driver.');await load();
+      }catch(error){driveToast(error.message);button.disabled=false;}
+    }));
+    $('activeRides').querySelectorAll('[data-emergency-cancel]').forEach(button=>button.addEventListener('click',async()=>{
+      if(!confirm('Emergency cancellation will immediately end the ride and notify the driver and DRIVE administrators. Continue?'))return;
+      const reason=prompt('Tell us why you feel unsafe. This reason will be recorded for the safety team.','I feel unsafe and need to end this trip immediately.');
+      if(!reason)return;
+      button.disabled=true;
+      const send=async location=>{
+        try{
+          const rideId=button.dataset.emergencyCancel;
+          const result=await driveRequest('/rides/'+encodeURIComponent(rideId)+'/cancellation-request',{method:'POST',body:JSON.stringify({reason,emergency:true,location})});
+          try{
+            const sos=await driveRequest('/safety/sos',{method:'POST',body:JSON.stringify({message:'Emergency cancellation for ride '+rideId+': '+reason,rideId,location})});
+            const contacts=Array.isArray(sos.emergencyContacts)?sos.emergencyContacts:[];
+            const links=contacts.map(contact=>{
+              const phone=String(contact.phone||'').replace(/[^+0-9]/g,'');
+              const sms='sms:'+phone+'?body='+encodeURIComponent('I need help. My DRIVE emergency cancellation was triggered.');
+              return '<div class="row-actions"><a href="tel:'+phone+'">Call '+driveEscape(contact.name)+'</a><a href="'+sms+'">Text '+driveEscape(contact.name)+'</a></div>';
+            }).join('');
+            $('sosMessage').innerHTML=driveEscape(sos.message||'SOS recorded.')+links;
+            $('sosMessage').className='message success';
+          }catch(sosError){
+            $('sosMessage').textContent='Emergency cancellation was recorded, but emergency contact details could not be loaded: '+sosError.message;
+            $('sosMessage').className='message warning';
+          }
+          driveToast(result.message||'Emergency cancellation recorded.');await load();
+        }catch(error){driveToast(error.message);button.disabled=false;}
+      };
+      if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>send({lat:p.coords.latitude,lng:p.coords.longitude}),()=>send(undefined),{timeout:7000});
+      else send(undefined);
+    }));
     $('rideHistory').innerHTML=history.length?history.slice(0,8).map(ride=>{
       const finalFare=ride.actualFare??ride.ride?.actual_fare;
       const amount=finalFare!==null&&finalFare!==undefined?driveMoney(finalFare)+' final':driveMoney(ride.estimatedFare)+' estimated';
@@ -180,8 +259,12 @@
     const reviewable=history.filter(ride=>ride.status==='completed'&&ride.rideId&&!reviewedRideIds.has(ride.rideId));
     $('reviewQueue').innerHTML=reviewable.length?reviewable.map(ride=>'<div class="list-item"><div class="list-item-main"><strong>'+driveEscape((ride.pickupAddress||'Pickup')+' → '+(ride.destinationAddress||'Destination'))+'</strong><small>'+driveDate(ride.createdAt)+'</small></div><button class="button-mini dark" data-review="'+driveEscape(ride.rideId)+'">Rate driver</button></div>').join(''):'<div class="empty-state">No completed rides waiting for feedback.</div>';
     $('reviewQueue').querySelectorAll('[data-review]').forEach(button=>button.addEventListener('click',()=>{
-      $('reviewRideId').value=button.dataset.review;$('reviewComment').value='';$('reviewMessage').textContent='';$('reviewDialog').showModal();
+      $('reviewRideId').value=button.dataset.review;$('reviewComment').value='';$('reviewMessage').textContent='';setReviewRating(0);$('reviewDialog').showModal();
     }));
+    if(pendingReviewAfterArrival){
+      pendingReviewAfterArrival=false;
+      $('reviewQueue').querySelector('[data-review]')?.click();
+    }
 
     $('sharedRides').innerHTML=sharedRides.length?sharedRides.map(ride=>'<div class="list-item"><div class="list-item-main"><strong>'+driveEscape(ride.pickup_label)+' → '+driveEscape(ride.destination_label)+'</strong><small>'+driveEscape(ride.vehicle_type)+' · '+driveMoney(ride.estimated_fare)+' total · '+Number(ride.seats_available)+' seats left · '+Number(ride.distance_km||0).toFixed(1)+' km</small></div><button class="button-mini dark" data-join-shared="'+driveEscape(ride.ride_id)+'">Join</button></div>').join(''):'<div class="empty-state">No shared rides are accepting passengers right now.</div>';
     $('sharedRides').querySelectorAll('[data-join-shared]').forEach(button=>button.addEventListener('click',async()=>{
@@ -359,7 +442,7 @@
   }
 
   $('reviewForm')?.addEventListener('submit',async event=>{
-    event.preventDefault();if(!$('reviewForm').reportValidity())return;
+    event.preventDefault();if(!$('reviewForm').reportValidity())return;if(Number($('reviewRating').value)<1){$('reviewMessage').textContent='Please choose a star rating before submitting.';$('reviewMessage').className='message error';return;}
     const button=$('reviewSubmit');button.disabled=true;
     try{
       await driveRequest('/reviews',{method:'POST',body:JSON.stringify({
@@ -409,4 +492,6 @@
   $('logoutButton')?.addEventListener('click',()=>{stopSafetyLocationWatch();driveClearSession();location.href='index.html';});
   window.addEventListener('pagehide',stopSafetyLocationWatch);
   load();
+  let ridePollBusy=false;
+  setInterval(async()=>{if(document.hidden||ridePollBusy)return;ridePollBusy=true;try{await load();}finally{ridePollBusy=false;}},12000);
 })();

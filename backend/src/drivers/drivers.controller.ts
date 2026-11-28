@@ -13,7 +13,7 @@ export class DriversController {
 
   @Get('nearby')
   async nearby(@Req()r:AR,@Query()q:NearbyDriversQuery){
-    if(r.user.role!=='passenger')throw new ForbiddenException('Only passengers can discover nearby drivers.');
+    if(!['passenger','driver','vehicle_owner'].includes(r.user.role))throw new ForbiddenException('Only customer accounts can discover nearby drivers.');
     const {data,error}=await this.db.userClient(r.user.accessToken).rpc('drive_nearby_drivers',{
       p_lat:q.lat,
       p_lng:q.lng,

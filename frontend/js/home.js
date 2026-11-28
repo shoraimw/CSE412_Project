@@ -4,8 +4,63 @@
   const dhaka=[23.8103,90.4125];
   let map=null,pickupMarker=null,destinationMarker=null,routeLine=null;
   let pickup=null,destination=null,target='pickup',routeDistanceKm=null,routeDurationMin=null,routeCoordinates=[];
-  const money=value=>'৳'+Number(value||0).toLocaleString('en-BD',{maximumFractionDigits:0});
+  const CURRENCIES=['BDT','USD','EUR','GBP','INR','SGD','MYR','AED','SAR','AUD','CAD','CNY','JPY','THB','NPR','PKR'];
+  let selectedCurrency='BDT',exchangeRates={BDT:1},fareQuotes={},nearbyRefreshInFlight=false;
+  const autocompleteState={
+    pickup:{results:[],timer:null,controller:null,active:-1},
+    destination:{results:[],timer:null,controller:null,active:-1}
+  };
+  const nearbyDriverMarkers=new Map();
+  const bdtMoney=value=>'৳'+Number(value||0).toLocaleString('en-BD',{maximumFractionDigits:0});
+  const money=value=>{
+    const amount=Number(value||0),rate=Number(exchangeRates[selectedCurrency]||1);
+    if(selectedCurrency==='BDT')return bdtMoney(amount);
+    return new Intl.NumberFormat('en-US',{style:'currency',currency:selectedCurrency,maximumFractionDigits:2}).format(amount*rate)+' · '+bdtMoney(amount);
+  };
   const setMessage=(text,kind='')=>{message.textContent=text;message.className='form-message '+kind;};
+  function updateFareLabels(){
+    for(const type of ['car','bike','cng']){
+      if($(type+'Fare'))$(type+'Fare').textContent=fareQuotes[type]===undefined?'—':money(fareQuotes[type]);
+    }
+    const selected=document.querySelector('input[name="vehicleType"]:checked')?.value;
+    if(selected&&fareQuotes[selected]!==undefined&&$('selectedFare'))$('selectedFare').textContent=money(fareQuotes[selected]);
+  }
+  async function setCurrency(code,persist=false){
+    if(!CURRENCIES.includes(code)||!Number.isFinite(Number(exchangeRates[code]))||Number(exchangeRates[code])<=0)return;
+    selectedCurrency=code;
+    if($('displayCurrency'))$('displayCurrency').value=code;
+    try{localStorage.setItem('drive_currency',code);}catch{}
+    updateFareLabels();
+    if($('currencyNote'))$('currencyNote').textContent='Converted display only. Actual ride requests and payment settlement remain in BDT.';
+    if(persist&&localStorage.getItem(DRIVE_TOKEN_KEY)){
+      try{await driveRequest('/users/me',{method:'PATCH',body:JSON.stringify({preferred_currency:code})});}
+      catch(error){setMessage('Currency changed for this visit, but the account preference could not be saved: '+error.message,'error');}
+    }
+  }
+  async function loadCurrencySettings(){
+    const selector=$('displayCurrency');
+    if(!selector)return;
+    try{
+      const [catalog,rates]=await Promise.all([driveRequest('/payments/currencies'),driveRequest('/payments/rates')]);
+      exchangeRates={BDT:1,...(rates.rates||{})};
+      const available=(catalog.currencies||CURRENCIES).filter(code=>Number(exchangeRates[code])>0);
+      selector.innerHTML=available.map(code=>'<option value="'+driveEscape(code)+'">'+driveEscape(code)+'</option>').join('');
+      const stored=localStorage.getItem('drive_currency')||'BDT';
+      let preferred=available.includes(stored)?stored:'BDT';
+      if(localStorage.getItem(DRIVE_TOKEN_KEY)){
+        try{
+          const profile=await driveRequest('/users/me');
+          if(available.includes(profile.preferred_currency))preferred=profile.preferred_currency;
+        }catch{}
+      }
+      await setCurrency(preferred,false);
+      const updated=rates.fetchedAt?new Date(rates.fetchedAt).toLocaleString():'';
+      $('currencyNote').textContent='Tourist mode currency display · '+(updated?'Rates updated '+updated+'. ':'')+'Booking and settlement remain in BDT.';
+    }catch{
+      exchangeRates={BDT:1};selector.innerHTML='<option value="BDT">BDT</option>';await setCurrency('BDT',false);
+      $('currencyNote').textContent='Live exchange rates are unavailable. Showing fares in BDT.';
+    }
+  }
 
   if(window.L&&$('rideMap')){
     map=L.map('rideMap',{zoomControl:true}).setView(dhaka,12);
@@ -28,9 +83,11 @@
     routeCoordinates=[];routeDistanceKm=null;routeDurationMin=null;
     $('routeSummary').hidden=true;
     const point={lat:Number(lat),lng:Number(lng),label:label||'Selected map location'};
+    hideSuggestions(kind);
     if(kind==='pickup'){
       pickup=point;pickupInput.value=point.label;
       if(map&&window.L){if(pickupMarker)map.removeLayer(pickupMarker);pickupMarker=L.marker([point.lat,point.lng],{icon:markerIcon('pin-pickup')}).addTo(map).bindPopup('Pickup');}
+      refreshNearbyDrivers();
     }else{
       destination=point;destinationInput.value=point.label;
       if(map&&window.L){if(destinationMarker)map.removeLayer(destinationMarker);destinationMarker=L.marker([point.lat,point.lng],{icon:markerIcon('pin-destination')}).addTo(map).bindPopup('Drop-off');}
@@ -43,20 +100,134 @@
       previewRoute();
     }
   }
+  function photonLabel(properties){
+    const values=[properties.name,properties.street,properties.district,properties.city||properties.locality,properties.state,properties.country]
+      .map(value=>String(value||'').trim()).filter(Boolean);
+    return values.filter((value,index)=>values.indexOf(value)===index).slice(0,4).join(', ')||'Selected location';
+  }
+  async function photonSearch(query,signal){
+    const params=new URLSearchParams({q:query+', Bangladesh',lat:String(dhaka[0]),lon:String(dhaka[1]),limit:'8',lang:'en'});
+    const response=await fetch('https://photon.komoot.io/api/?'+params.toString(),{signal,headers:{Accept:'application/json'}});
+    if(!response.ok)throw new Error('Location search is temporarily unavailable.');
+    const data=await response.json();
+    return (data.features||[]).map(feature=>{
+      const properties=feature.properties||{},coordinates=feature.geometry?.coordinates||[];
+      if(properties.country&&!String(properties.country).toLowerCase().includes('bangladesh'))return null;
+      const lng=Number(coordinates[0]),lat=Number(coordinates[1]);
+      if(!Number.isFinite(lat)||!Number.isFinite(lng))return null;
+      return {lat,lng,label:photonLabel(properties)};
+    }).filter(Boolean);
+  }
   async function reverseGeocode(lat,lng){
     try{
-      const response=await fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat='+lat+'&lon='+lng+'&zoom=16',{signal:AbortSignal.timeout(8000)});
+      const params=new URLSearchParams({lat:String(lat),lon:String(lng),lang:'en'});
+      const response=await fetch('https://photon.komoot.io/reverse?'+params.toString(),{signal:AbortSignal.timeout(8000)});
       if(!response.ok)throw new Error('Reverse geocoding unavailable');
       const data=await response.json();
-      return data.display_name?data.display_name.split(',').slice(0,3).join(', '):'Map location';
+      return data.features?.[0]?.properties?photonLabel(data.features[0].properties):'Map location';
     }catch{return 'Map location';}
   }
   async function geocode(value){
-    const response=await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=bd&q='+encodeURIComponent(value+', Bangladesh'),{signal:AbortSignal.timeout(8000)});
-    if(!response.ok)throw new Error('Location search is temporarily unavailable.');
-    const rows=await response.json();
+    const rows=await photonSearch(value,AbortSignal.timeout(8000));
     if(!rows.length)throw new Error('Location not found. Try a more specific address.');
-    return {lat:Number(rows[0].lat),lng:Number(rows[0].lon),label:rows[0].display_name.split(',').slice(0,3).join(', ')};
+    return rows[0];
+  }
+  function hideSuggestions(kind){
+    const panel=$(kind+'Suggestions'),input=kind==='pickup'?pickupInput:destinationInput,state=autocompleteState[kind];
+    if(panel)panel.hidden=true;
+    if(input)input.setAttribute('aria-expanded','false');
+    state.active=-1;
+  }
+  function setupAutocomplete(kind){
+    const input=kind==='pickup'?pickupInput:destinationInput;
+    const panel=$(kind+'Suggestions'),state=autocompleteState[kind];
+    if(!input||!panel)return;
+    input.addEventListener('input',()=>{
+      const value=input.value.trim();
+      if(kind==='pickup'&&pickup?.label!==value){
+        pickup=null;if(pickupMarker){map?.removeLayer(pickupMarker);pickupMarker=null;}
+        if(routeLine){map?.removeLayer(routeLine);routeLine=null;}
+        routeCoordinates=[];routeDistanceKm=null;routeDurationMin=null;$('routeSummary').hidden=true;clearNearbyDrivers();
+      }
+      if(kind==='destination'&&destination?.label!==value){
+        destination=null;if(destinationMarker){map?.removeLayer(destinationMarker);destinationMarker=null;}
+        if(routeLine){map?.removeLayer(routeLine);routeLine=null;}
+        routeCoordinates=[];routeDistanceKm=null;routeDurationMin=null;$('routeSummary').hidden=true;
+      }
+      if(state.timer)clearTimeout(state.timer);
+      if(state.controller)state.controller.abort();
+      if(value.length<3){state.results=[];panel.innerHTML='';hideSuggestions(kind);return;}
+      state.timer=setTimeout(async()=>{
+        state.controller=new AbortController();
+        try{
+          const results=await photonSearch(value,state.controller.signal);
+          state.results=results;state.active=-1;
+          panel.innerHTML=results.map((place,index)=>'<button type="button" class="location-suggestion" role="option" aria-selected="false" data-suggestion-index="'+index+'"><span class="suggestion-pin">⌖</span><span>'+driveEscape(place.label)+'</span></button>').join('');
+          panel.hidden=!results.length;input.setAttribute('aria-expanded',String(results.length>0));
+        }catch(error){
+          if(error.name!=='AbortError'){state.results=[];panel.innerHTML='';hideSuggestions(kind);}
+        }
+      },450);
+    });
+    panel.addEventListener('mousedown',event=>{
+      if(event.target.closest('[data-suggestion-index]'))event.preventDefault();
+    });
+    panel.addEventListener('click',event=>{
+      const button=event.target.closest('[data-suggestion-index]');
+      if(!button)return;
+      const place=state.results[Number(button.dataset.suggestionIndex)];
+      if(place)setPoint(kind,place.lat,place.lng,place.label);
+    });
+    input.addEventListener('keydown',event=>{
+      if(panel.hidden||!state.results.length)return;
+      if(event.key==='ArrowDown'||event.key==='ArrowUp'){
+        event.preventDefault();
+        const delta=event.key==='ArrowDown'?1:-1;
+        state.active=(state.active+delta+state.results.length)%state.results.length;
+        panel.querySelectorAll('[data-suggestion-index]').forEach((button,index)=>{
+          button.classList.toggle('active',index===state.active);
+          button.setAttribute('aria-selected',String(index===state.active));
+        });
+      }else if(event.key==='Enter'&&state.active>=0){
+        event.preventDefault();
+        const place=state.results[state.active];
+        if(place)setPoint(kind,place.lat,place.lng,place.label);
+      }else if(event.key==='Escape')hideSuggestions(kind);
+    });
+    input.addEventListener('blur',()=>setTimeout(()=>hideSuggestions(kind),140));
+  }
+  function clearNearbyDrivers(){
+    for(const marker of nearbyDriverMarkers.values())if(map)map.removeLayer(marker);
+    nearbyDriverMarkers.clear();
+  }
+  async function refreshNearbyDrivers(){
+    if(!map||!pickup||!localStorage.getItem(DRIVE_TOKEN_KEY)||nearbyRefreshInFlight)return;
+    nearbyRefreshInFlight=true;
+    try{
+      const vehicleType=document.querySelector('input[name="vehicleType"]:checked')?.value||'car';
+      const query=new URLSearchParams({lat:String(pickup.lat),lng:String(pickup.lng),vehicleType,radiusKm:'15'});
+      const drivers=await driveRequest('/drivers/nearby?'+query.toString());
+      const visible=new Set();
+      for(const driver of Array.isArray(drivers)?drivers:[]){
+        const id=String(driver.driver_id||'');
+        const lat=Number(driver.latitude),lng=Number(driver.longitude);
+        if(!id||!Number.isFinite(lat)||!Number.isFinite(lng))continue;
+        visible.add(id);
+        let marker=nearbyDriverMarkers.get(id);
+        if(!marker){
+          const icon=L.divIcon({className:'drive-nearby-driver-icon',html:'<span></span>',iconSize:[22,22],iconAnchor:[11,11]});
+          marker=L.marker([lat,lng],{icon}).addTo(map);
+          nearbyDriverMarkers.set(id,marker);
+        }else marker.setLatLng([lat,lng]);
+        marker.bindTooltip('Online '+driveEscape(driver.vehicle_type||'driver')+' · '+Number(driver.distance_km||0).toFixed(1)+' km away');
+      }
+      for(const [id,marker] of nearbyDriverMarkers){
+        if(!visible.has(id)){map.removeLayer(marker);nearbyDriverMarkers.delete(id);}
+      }
+    }catch{
+      // Discovery is supplementary; ride booking remains available if the
+      // live nearby-driver feed is temporarily unavailable.
+    }finally{nearbyRefreshInFlight=false;}
   }
   async function resolveInput(kind){
     const value=(kind==='pickup'?pickupInput:destinationInput).value.trim();
@@ -102,12 +273,17 @@
     for(const type of ['car','bike','cng']){
       try{
         const quote=await driveRequest('/fare/estimate',{method:'POST',body:JSON.stringify({distanceKm:routeDistanceKm,vehicleType:type,durationMinutes:routeDurationMin})});
-        if($(type+'Fare'))$(type+'Fare').textContent=money(quote.estimatedFare);
-        if(document.querySelector('input[name="vehicleType"]:checked')?.value===type)$('selectedFare').textContent=money(quote.estimatedFare);
-      }catch{$(type+'Fare').textContent='—';}
+        fareQuotes[type]=Number(quote.estimatedFare);
+        if($(type+'Fare'))$(type+'Fare').textContent=money(fareQuotes[type]);
+        if(document.querySelector('input[name="vehicleType"]:checked')?.value===type)$('selectedFare').textContent=money(fareQuotes[type]);
+      }catch{delete fareQuotes[type];$(type+'Fare').textContent='—';}
     }
   }
 
+  setupAutocomplete('pickup');
+  setupAutocomplete('destination');
+  $('displayCurrency')?.addEventListener('change',()=>setCurrency($('displayCurrency').value,true));
+  loadCurrencySettings();
   document.querySelectorAll('.map-pick').forEach(button=>button.addEventListener('click',()=>{
     target=button.dataset.target;
     document.querySelectorAll('.map-pick').forEach(item=>item.classList.toggle('active',item===button));
@@ -116,6 +292,7 @@
   document.querySelectorAll('.ride-option').forEach(option=>option.addEventListener('click',()=>{
     document.querySelectorAll('.ride-option').forEach(item=>item.classList.toggle('selected',item===option));
     if(routeDistanceKm)refreshFares();
+    refreshNearbyDrivers();
   }));
   $('useLocation')?.addEventListener('click',()=>{
     if(!navigator.geolocation)return setMessage('Location access is not available in this browser.','error');
@@ -190,4 +367,5 @@
     }
   }
   if(map)setTimeout(()=>map.invalidateSize(),150);
+  if(driveSession())setInterval(()=>{if(!document.hidden)refreshNearbyDrivers();},15000);
 })();

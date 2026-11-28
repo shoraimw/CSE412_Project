@@ -2,7 +2,8 @@
   if(!driveRequireAuth('driver.html'))return;
   const $=id=>document.getElementById(id);
   const activeStates=['matched','driver_arriving','in_progress'];
-  let watchId=null,lastPosition=null,available=false,assignedTrips=[],locationSending=false,firstGpsFix=true;
+  let watchId=null,lastPosition=null,available=false,assignedTrips=[],pendingCancellationRequests=[],locationSending=false,firstGpsFix=true,lastTripLocationSentAt=0;
+  const knownRideStatuses=new Map();
   const setMessage=(id,text,kind='')=>{const el=$(id);if(el){el.textContent=text;el.className='message '+kind;}};
   const stateClass=s=>['completed','approved'].includes(s)?'success':['pending','requested','matched','driver_arriving','in_progress'].includes(s)?'warning':['rejected','cancelled'].includes(s)?'danger':'';
   const activeTrips=()=>assignedTrips.filter(ride=>activeStates.includes(ride.status));
@@ -119,6 +120,9 @@
 
   async function updateActiveRideLocations(){
     const c=lastPosition?.coords;if(!c)return;
+    const now=Date.now();
+    if(now-lastTripLocationSentAt<5000)return;
+    lastTripLocationSentAt=now;
     const rides=activeTrips();
     await Promise.all(rides.map(ride=>driveRequest('/rides/'+encodeURIComponent(ride.id)+'/location',{
       method:'POST',body:JSON.stringify({
@@ -171,11 +175,19 @@
   }
 
   async function refresh(){
-    const [requests,trips]=await Promise.all([
+    const [requests,trips,cancellations]=await Promise.all([
       driveRequest('/rides/open-requests').catch(()=>[]),
-      driveRequest('/rides').catch(()=>[])
+      driveRequest('/rides').catch(()=>[]),
+      driveRequest('/rides/cancellation-requests').catch(()=>[])
     ]);
-    assignedTrips=Array.isArray(trips)?trips:[];
+    const nextTrips=Array.isArray(trips)?trips:[];
+    for(const ride of nextTrips){
+      const previous=knownRideStatuses.get(ride.id);
+      if(previous==='in_progress'&&ride.status==='completed')window.driveArrivalNotice?.(ride.id,'driver');
+      knownRideStatuses.set(ride.id,ride.status);
+    }
+    assignedTrips=nextTrips;
+    pendingCancellationRequests=Array.isArray(cancellations)?cancellations:[];
     const completedTrips=assignedTrips.filter(ride=>ride.status==='completed');
     const finalizedFares=completedTrips.filter(ride=>ride.actualFare!==null&&ride.actualFare!==undefined);
     const grossFare=finalizedFares.reduce((total,ride)=>total+Number(ride.actualFare||0),0);
@@ -202,9 +214,16 @@
       const finalFare=ride.actualFare;
       const fareText=finalFare!==null&&finalFare!==undefined?driveMoney(finalFare)+' final':driveMoney(ride.estimatedFare)+' estimated';
       const label=({driver_arriving:'Arrived at pickup',in_progress:'Start trip',completed:'Complete trip'})[next]||'';
-      const action=next?'<button class="button-mini dark" data-status="'+driveEscape(ride.id)+'" data-next="'+next+'">'+label+'</button>':status==='completed'&&finalFare==null?'<button class="button-mini dark" data-finalize="'+driveEscape(ride.id)+'">Retry final fare</button>':'';
+      const statusAction=next?'<button class="button-mini dark" data-status="'+driveEscape(ride.id)+'" data-next="'+next+'">'+label+'</button>':status==='completed'&&finalFare==null?'<button class="button-mini dark" data-finalize="'+driveEscape(ride.id)+'">Retry final fare</button>':'';
+      const canChat=activeStates.includes(status);
+      const chatAction=canChat?'<button class="button-mini" data-chat-ride="'+driveEscape(ride.id)+'">Chat</button>':'';
+      const canDriverCancel=['matched','driver_arriving','in_progress'].includes(status);
+      const cancelLabel=status==='in_progress'?'End trip with reason':'Cancel accepted ride';
+      const cancelAction=canDriverCancel?'<button class="button-mini danger" data-driver-cancel="'+driveEscape(ride.id)+'">'+cancelLabel+'</button>':'';
+      const pending=pendingCancellationRequests.find(item=>item.ride_id===ride.id);
+      const cancellationNotice=pending?'<div class="message warning">Passenger cancellation request: '+driveEscape(pending.reason)+'<div class="row-actions"><button class="button-mini dark" data-cancel-response="'+driveEscape(pending.id)+'" data-approve="true">Approve</button><button class="button-mini danger" data-cancel-response="'+driveEscape(pending.id)+'" data-approve="false">Decline</button></div></div>':'';
       const fareState=status==='completed'&&finalFare==null?'<span class="pill warning">Final fare pending</span>':'';
-      return '<div class="list-item"><div class="list-item-main"><strong>'+driveEscape(ride.pickupAddress||'Pickup')+' → '+driveEscape(ride.destinationAddress||'Destination')+'</strong><small>'+driveDate(ride.createdAt)+' · '+fareText+'</small><span class="pill '+stateClass(status)+'">'+driveEscape(status.replaceAll('_',' '))+'</span>'+fareState+'</div>'+action+'</div>';
+      return '<div class="list-item"><div class="list-item-main"><strong>'+driveEscape(ride.pickupAddress||'Pickup')+' → '+driveEscape(ride.destinationAddress||'Destination')+'</strong><small>'+driveDate(ride.createdAt)+' · '+fareText+'</small><span class="pill '+stateClass(status)+'">'+driveEscape(status.replaceAll('_',' '))+'</span>'+fareState+cancellationNotice+'</div><div class="row-actions">'+statusAction+chatAction+cancelAction+'</div></div>';
     }).join(''):'<div class="empty-state">Accepted trips will appear here.</div>';
 
     $('openRequests').querySelectorAll('[data-claim]').forEach(button=>button.addEventListener('click',async()=>{
@@ -215,6 +234,32 @@
         if(activeTrips().length){startLocationWatch(false);setPresence('On trip','Trip in progress',true);}
         driveToast('Ride accepted. Your live trip tracking is active.');
       }catch(error){driveToast(error.message);button.disabled=false;}
+    }));
+    $('assignedTrips').querySelectorAll('[data-driver-cancel]').forEach(button=>button.addEventListener('click',async()=>{
+      const ride=assignedTrips.find(item=>item.id===button.dataset.driverCancel);
+      const inProgress=ride?.status==='in_progress';
+      const reason=prompt(inProgress?'Why are you ending this active trip? Please provide at least 8 characters.':'Why are you cancelling this accepted ride? Please provide at least 8 characters.');
+      if(!reason)return;
+      if(!confirm(inProgress?'End this active trip now? The customer and DRIVE administrators will be notified and your reason will be recorded.':'Cancel this ride before departure? The customer and DRIVE administrators will be notified.'))return;
+      button.disabled=true;
+      try{
+        const result=await driveRequest('/rides/'+encodeURIComponent(button.dataset.driverCancel)+'/cancel',{method:'POST',body:JSON.stringify({reason})});
+        available=true;
+        if(watchId===null)startLocationWatch(true);
+        else if(lastPosition)await updateDriverLocation(true);
+        driveToast(result.message||'Ride cancelled. You are available for new requests.');
+        await refresh();
+        setPresence('Online','Go offline',false);
+      }
+      catch(error){driveToast(error.message);button.disabled=false;}
+    }));
+    $('assignedTrips').querySelectorAll('[data-cancel-response]').forEach(button=>button.addEventListener('click',async()=>{
+      const approve=button.dataset.approve==='true';
+      const note=approve?'':(prompt('Why are you declining this cancellation request? (optional)')||'');
+      if(!confirm(approve?'Approve the passenger cancellation and end this ride?':'Decline the passenger cancellation request?'))return;
+      button.disabled=true;
+      try{const result=await driveRequest('/rides/cancellation-requests/'+encodeURIComponent(button.dataset.cancelResponse)+'/respond',{method:'POST',body:JSON.stringify({approve,note})});driveToast(result.message||'Cancellation decision saved.');await refresh();}
+      catch(error){driveToast(error.message);button.disabled=false;}
     }));
     $('assignedTrips').querySelectorAll('[data-finalize]').forEach(button=>button.addEventListener('click',async()=>{
       button.disabled=true;
@@ -228,6 +273,7 @@
       button.disabled=true;
       try{
         await driveRequest('/rides/'+encodeURIComponent(button.dataset.status)+'/status',{method:'PATCH',body:JSON.stringify({status:button.dataset.next})});
+        if(button.dataset.next==='completed')window.driveArrivalNotice?.(button.dataset.status,'driver');
         await refresh();
         if(activeTrips().length){available=false;if(watchId===null)startLocationWatch(false);setPresence('On trip','Trip in progress',true);}
         else if(watchId!==null)await stopLocationWatch();

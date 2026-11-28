@@ -1,6 +1,6 @@
 import { Type } from 'class-transformer';
 import { IsIn, IsNumber, IsOptional, IsString, IsUUID, MaxLength, Min, MinLength, Matches } from 'class-validator';
-export const CURRENCIES=['BDT','USD','EUR','SGD','INR','MYR'] as const;
+export const CURRENCIES=['BDT','USD','EUR','GBP','INR','SGD','MYR','AED','SAR','AUD','CAD','CNY','JPY','THB','NPR','PKR'] as const;
 export type CurrencyCode=typeof CURRENCIES[number];
 export class CreatePaymentQuoteDto {
   @Type(()=>Number) @IsNumber() @Min(1) amountBDT!:number;

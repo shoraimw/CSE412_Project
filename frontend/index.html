@@ -20,12 +20,19 @@
   <div class="panel-heading"><p class="eyebrow">YOUR CITY. YOUR JOURNEY.</p><h1 id="bookingTitle">Go anywhere<br>with DRIVE.</h1><p class="muted">A simpler way to get where you need to go.</p></div>
   <form id="rideForm" class="ride-form">
     <div class="location-fields">
-      <div class="location-row"><span class="location-dot pickup-dot" aria-hidden="true"></span><label class="location-input"><span>Pickup location</span><input id="pickup" name="pickup" placeholder="Enter pickup location" autocomplete="off" required></label><button type="button" class="field-action" id="useLocation" title="Use my current location" aria-label="Use my current location">⌖</button></div>
+      <div class="location-control" data-location-control="pickup">
+        <div class="location-row"><span class="location-dot pickup-dot" aria-hidden="true"></span><label class="location-input"><span>Pickup location</span><input id="pickup" name="pickup" placeholder="Enter pickup location" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="pickupSuggestions" aria-expanded="false" required></label><button type="button" class="field-action" id="useLocation" title="Use my current location" aria-label="Use my current location">⌖</button></div>
+        <div id="pickupSuggestions" class="location-suggestions" role="listbox" aria-label="Pickup suggestions" hidden></div>
+      </div>
       <div class="location-connector"></div>
-      <div class="location-row"><span class="location-dot destination-dot" aria-hidden="true"></span><label class="location-input"><span>Drop-off location</span><input id="destination" name="destination" placeholder="Where to?" autocomplete="off" required></label><button type="button" class="field-action" id="swapLocations" title="Swap locations" aria-label="Swap locations">⇅</button></div>
+      <div class="location-control" data-location-control="destination">
+        <div class="location-row"><span class="location-dot destination-dot" aria-hidden="true"></span><label class="location-input"><span>Drop-off location</span><input id="destination" name="destination" placeholder="Where to?" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="destinationSuggestions" aria-expanded="false" required></label><button type="button" class="field-action" id="swapLocations" title="Swap locations" aria-label="Swap locations">⇅</button></div>
+        <div id="destinationSuggestions" class="location-suggestions" role="listbox" aria-label="Drop-off suggestions" hidden></div>
+      </div>
     </div>
     <div class="map-pick-row"><span class="muted small">Choose a point on the map:</span><div class="map-pick-actions"><button type="button" class="map-pick active" data-target="pickup">Pickup</button><button type="button" class="map-pick" data-target="destination">Drop-off</button></div></div>
-    <div class="ride-options-heading"><span>Choose your ride</span><span class="muted small">Estimated fares in BDT</span></div>
+    <div class="ride-options-heading"><span>Choose your ride</span><label class="currency-picker"><span>Display currency</span><select id="displayCurrency" aria-label="Display fares in your preferred currency"><option value="BDT">BDT · Bangladeshi Taka</option></select></label></div>
+    <p id="currencyNote" class="currency-note">Tourist mode: choose your preferred currency. Ride fares and settlement remain in BDT.</p>
     <div class="ride-options">
       <label class="ride-option selected"><input type="radio" name="vehicleType" value="car" checked><span class="ride-glyph">▰</span><span class="ride-option-copy"><strong>Car</strong><small>Everyday comfort</small></span><span class="ride-price" id="carFare">—</span></label>
       <label class="ride-option"><input type="radio" name="vehicleType" value="bike"><span class="ride-glyph">◒</span><span class="ride-option-copy"><strong>Bike</strong><small>Quick city trips</small></span><span class="ride-price" id="bikeFare">—</span></label>

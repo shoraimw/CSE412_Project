@@ -1,30 +1,13 @@
-name: DRIVE CI
+name: Archived — consolidated into DRIVE validation
 
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches:
-      - main
-      - feature/drive-end-to-end-completion-20261128
-
-permissions:
-  contents: read
+  workflow_dispatch:
 
 jobs:
-  build-and-smoke:
+  retired:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Install root dependencies
-        run: npm install --no-audit --no-fund
-      - name: Build backend and validate Worker bundle
-        run: npm run build
-      - name: Frontend and route smoke checks
-        run: npm run smoke
+      - name: Explain current pipeline
+        run: |
+          echo "The single active CI pipeline is .github/workflows/drive-validation.yml."
+          echo "It validates pull requests to main and pushes to main."

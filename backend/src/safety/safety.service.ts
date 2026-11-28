@@ -1,4 +1,4 @@
-import { BadRequestException,Injectable,NotFoundException,ServiceUnavailableException, Inject } from '@nestjs/common';
+import { BadRequestException,ForbiddenException,Injectable,NotFoundException,ServiceUnavailableException, Inject } from '@nestjs/common';
 import {createHash,randomBytes,randomUUID} from 'crypto';
 import {DatabaseService} from '../database/database.service';
 import {CreateSafetyTripDto,GeoPointDto,SafetyContactDto,SafetySettingsDto,SosDto} from './safety.dto';
@@ -19,7 +19,49 @@ export class SafetyService{
  async getSharedTrip(token:string){if(!/^[a-f0-9]{64}$/i.test(token))throw new NotFoundException('This trip-sharing link is invalid or expired.');const tokenHash=createHash('sha256').update(token).digest('hex');const {data,error}=await this.database.publicClient().rpc('drive_get_shared_trip',{p_token_hash:tokenHash});if(error||!data)throw new NotFoundException('This trip-sharing link is invalid or expired.');return data;}
  async updateLocation(userId:string,token:string,tripId:string,point:GeoPointDto){const db=this.db(token);const {data:trip,error}=await db.from('safety_trip_sessions').select('*').eq('id',tripId).eq('user_id',userId).maybeSingle();if(error||!trip)throw new NotFoundException('Trip not found.');if(trip.status==='COMPLETED')throw new BadRequestException('This trip has already been completed.');const hasStarted=await this.tripHasStarted(db,trip);const route=(trip.planned_route||[]) as GeoPointDto[];const warnings=[...(trip.warnings||[])];if(hasStarted&&route.length>=2){let min=Infinity;for(let i=0;i<route.length-1;i++)min=Math.min(min,segmentDistance(point,route[i],route[i+1]));if(min>500&&!warnings.some((w:any)=>w.type==='ROUTE_DEVIATION'&&Date.now()-new Date(w.createdAt).getTime()<5*60000))warnings.push({id:randomUUID(),type:'ROUTE_DEVIATION',message:'Current location is more than 500 metres from the planned route.',createdAt:new Date().toISOString()});}let status=trip.status;if(status==='ACTIVE'&&hasStarted&&Date.now()>new Date(trip.expected_arrival_at).getTime()+10*60000){status='DELAYED';warnings.push({id:randomUUID(),type:'UNEXPECTED_DELAY',message:'The trip is more than 10 minutes past its estimated arrival time.',createdAt:new Date().toISOString()});}const now=new Date().toISOString();const {data:updated,error:ue}=await db.from('safety_trip_sessions').update({current_lat:point.lat,current_lng:point.lng,warnings,status,updated_at:now}).eq('id',tripId).eq('user_id',userId).select('*').single();if(ue||!updated)throw new BadRequestException(ue?.message||'Location update failed.');const {error:le}=await db.from('safety_trip_locations').insert({safety_trip_id:tripId,user_id:userId,latitude:point.lat,longitude:point.lng});if(le)throw new BadRequestException(le.message);return {trip:this.formatTrip(updated),latestWarnings:warnings.slice(-3)};}
  async completeTrip(userId:string,token:string,tripId:string){const {data,error}=await this.db(token).from('safety_trip_sessions').update({status:'COMPLETED',updated_at:new Date().toISOString()}).eq('id',tripId).eq('user_id',userId).select('*').maybeSingle();if(error||!data)throw new NotFoundException('Trip not found.');return {message:'Trip marked as completed.',trip:this.formatTrip(data)};}
- async createSos(userId:string,token:string,dto:SosDto){const db=this.db(token);if(dto.tripId){const {data:trip,error}=await db.from('safety_trip_sessions').select('id,status').eq('id',dto.tripId).eq('user_id',userId).maybeSingle();if(error||!trip)throw new NotFoundException('Trip not found.');if(trip.status!=='COMPLETED')await db.from('safety_trip_sessions').update({status:'EMERGENCY',updated_at:new Date().toISOString()}).eq('id',dto.tripId).eq('user_id',userId);}const {data:alert,error}=await db.from('safety_alerts').insert({user_id:userId,alert_type:'sos',message:(dto.message||'Emergency assistance requested.').trim(),latitude:dto.location?.lat??null,longitude:dto.location?.lng??null,status:'open'}).select('*').single();if(error||!alert)throw new BadRequestException(error?.message||'SOS could not be recorded.');const settings=await this.getSettings(userId,token);return {alert,emergencyContactsConfigured:settings.emergencyContacts.length,emergencyContacts:settings.emergencyContacts,notificationDelivery:'USER_ACTION_REQUIRED',message:settings.emergencyContacts.length?'SOS recorded and DRIVE administrators have an in-app alert. Use the message links below to contact your saved emergency contacts; you must press Send in your messaging app.':'SOS recorded and DRIVE administrators have an in-app alert, but no emergency contacts are saved.'};}
+ async createSos(userId:string,token:string,dto:SosDto){
+  const db=this.db(token);
+  if(dto.tripId){
+    const {data:trip,error}=await db.from('safety_trip_sessions').select('id,status').eq('id',dto.tripId).eq('user_id',userId).maybeSingle();
+    if(error||!trip)throw new NotFoundException('Trip not found.');
+    if(trip.status!=='COMPLETED')await db.from('safety_trip_sessions').update({status:'EMERGENCY',updated_at:new Date().toISOString()}).eq('id',dto.tripId).eq('user_id',userId);
+  }
+  let rideId:string|null=null;
+  if(dto.rideId){
+    const {data:ride,error:rideError}=await db.from('rides').select('id').eq('id',dto.rideId).maybeSingle();
+    if(rideError||!ride)throw new NotFoundException('Ride not found.');
+    const {data:membership,error:membershipError}=await db.from('ride_passengers').select('ride_id').eq('ride_id',dto.rideId).eq('passenger_id',userId).maybeSingle();
+    if(membershipError||!membership)throw new ForbiddenException('Only a passenger on this ride can attach an SOS alert.');
+    rideId=ride.id;
+  }
+  let alert:any=null;
+  if(rideId){
+    const {data:existing,error:existingError}=await db.from('safety_alerts').select('*')
+      .eq('user_id',userId).eq('ride_id',rideId).eq('alert_type','ride_emergency_cancel')
+      .order('created_at',{ascending:false}).limit(1).maybeSingle();
+    if(existingError)throw new ServiceUnavailableException(existingError.message);
+    alert=existing;
+  }
+  if(!alert){
+    const {data,error}=await db.from('safety_alerts').insert({
+      user_id:userId,ride_id:rideId,alert_type:'sos',
+      message:(dto.message||'Emergency assistance requested.').trim(),
+      latitude:dto.location?.lat??null,longitude:dto.location?.lng??null,status:'open'
+    }).select('*').single();
+    if(error||!data)throw new BadRequestException(error?.message||'SOS could not be recorded.');
+    alert=data;
+  }
+  const settings=await this.getSettings(userId,token);
+  return {
+    alert,
+    emergencyContactsConfigured:settings.emergencyContacts.length,
+    emergencyContacts:settings.emergencyContacts,
+    notificationDelivery:'USER_ACTION_REQUIRED',
+    message:settings.emergencyContacts.length
+      ?'SOS recorded and DRIVE administrators have an in-app alert. Use the message links below to contact your saved emergency contacts; you must press Send in your messaging app.'
+      :'SOS recorded and DRIVE administrators have an in-app alert, but no emergency contacts are saved.'
+  };
+ }
  async getAlerts(userId:string,token:string){const {data,error}=await this.db(token).from('safety_alerts').select('*').eq('user_id',userId).order('created_at',{ascending:false}).limit(50);if(error)throw new ServiceUnavailableException(error.message);return (data||[]).map(a=>({id:a.id,message:a.message||'Emergency alert',status:a.status,createdAt:a.created_at,alertType:a.alert_type,notifiedContacts:[]}));}
  private formatTrip(t:any){return {id:t.id,userId:t.user_id,rideId:t.ride_id||null,rideRequestId:t.ride_request_id||null,destination:t.destination,startedAt:t.started_at,expectedArrivalAt:t.expected_arrival_at,status:t.status,currentLocation:t.current_lat===null||t.current_lng===null?null:{lat:t.current_lat,lng:t.current_lng,updatedAt:t.updated_at},plannedRoute:t.planned_route||[],warnings:t.warnings||[]};}
 }

@@ -2,3 +2,41 @@
 @media(max-width:1000px){.main-nav{gap:17px}.home-layout{grid-template-columns:minmax(340px,420px) minmax(0,1fr);gap:20px}.vehicle-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:760px){.topbar{height:64px;padding:0 17px}.brand{font-size:22px}.main-nav{display:none}.top-actions{gap:12px}.nav-icon-link{display:none}.home-layout{display:flex;flex-direction:column;padding:17px 14px 28px;gap:18px}.booking-panel{max-width:none}.panel-tabs{margin-bottom:20px}.panel-heading h1{font-size:39px}.map-section{order:-1}.map-toolbar{height:38px}.ride-map{height:280px;min-height:280px}.map-help{font-size:9px}.site-footer{padding:16px;gap:10px;flex-wrap:wrap}.site-footer a{margin-left:0}.auth-layout{grid-template-columns:1fr}.auth-aside{display:none}.auth-card-wrap{min-height:calc(100vh - 64px);padding:28px 20px}.page-shell{padding:25px 15px 60px}.grid-2,.dashboard-grid{grid-template-columns:1fr}.grid-3,.vehicle-grid{grid-template-columns:1fr 1fr}.stat-grid{grid-template-columns:1fr 1fr}.form-grid{grid-template-columns:1fr}.form-field.full{grid-column:auto}.toolbar{align-items:flex-start;flex-direction:column}.mobile-nav{position:fixed;bottom:0;left:0;right:0;z-index:200;display:flex;justify-content:space-around;background:#fff;border-top:1px solid var(--line);padding:9px 4px calc(9px + env(safe-area-inset-bottom))}.mobile-nav a{font-size:9px;color:#555;display:flex;flex-direction:column;align-items:center;gap:3px}.mobile-nav strong{font-size:17px;color:#111}}
 @media(max-width:420px){.grid-3,.vehicle-grid{grid-template-columns:1fr}.route-summary{grid-template-columns:1fr 1fr}.ride-options-heading{align-items:flex-start;flex-direction:column;gap:5px}}
+
+/* DRIVE location autocomplete, tourist currency selector and live nearby drivers */
+.location-control{position:relative;z-index:4}
+.location-control:focus-within{z-index:20}
+.location-suggestions{position:absolute;top:calc(100% + 5px);left:0;right:0;z-index:1000;max-height:260px;overflow-y:auto;background:#fff;border:1px solid #dedede;border-radius:10px;box-shadow:0 12px 28px #00000018;padding:5px}
+.location-suggestions[hidden]{display:none}
+.location-suggestion{display:flex;align-items:center;gap:10px;width:100%;padding:11px 10px;border:0;border-radius:7px;background:#fff;text-align:left;color:#111;font-size:12px;cursor:pointer}
+.location-suggestion:hover,.location-suggestion.active{background:#f2f2f2}
+.suggestion-pin{display:grid;place-items:center;width:25px;height:25px;flex:none;border-radius:50%;background:#f0f0f0;font-size:15px}
+.currency-picker{display:flex;align-items:center;gap:7px;font-size:10px;font-weight:600;color:#666}
+.currency-picker select{max-width:150px;border:1px solid #ddd;border-radius:7px;background:#fff;padding:7px 9px;color:#111;font-size:11px}
+.currency-note{margin:-3px 0 10px;color:#777;font-size:10px;line-height:1.45}
+.drive-nearby-driver-icon{background:transparent;border:0}
+.drive-nearby-driver-icon span{display:block;width:18px;height:18px;border:3px solid #fff;border-radius:50%;background:#111;box-shadow:0 2px 9px #0005}
+@media(max-width:480px){.ride-options-heading{align-items:flex-start;gap:8px;flex-wrap:wrap}.currency-picker{margin-left:auto}}
+
+/* Ride chat, arrival confirmation and cancellation workflow */
+.ride-chat-dialog{width:min(540px,calc(100% - 24px));max-width:540px;max-height:86vh;padding:20px;border:1px solid #ddd;border-radius:14px;background:#fff;color:#111;box-shadow:0 24px 70px #0003}
+.ride-chat-dialog::backdrop{background:#0007}
+.chat-message-list{height:min(48vh,420px);min-height:180px;overflow-y:auto;display:flex;flex-direction:column;gap:9px;padding:12px 2px}
+.chat-message{max-width:88%;padding:10px 12px;border:1px solid #e5e5e5;border-radius:10px;background:#f8f8f8}
+.chat-message strong{display:block;font-size:11px;margin-bottom:5px}
+.chat-message p{font-size:13px;line-height:1.5;margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.chat-message small{display:block;margin-top:6px;color:#777;font-size:10px}
+.chat-composer{display:grid;grid-template-columns:1fr auto;gap:9px;align-items:end;border-top:1px solid #eee;padding-top:12px}
+.chat-composer textarea{width:100%;min-height:44px;max-height:120px;resize:vertical;border:1px solid #ddd;border-radius:9px;padding:10px;font:inherit;font-size:13px}
+.chat-composer button{min-height:42px}
+.drive-arrival-dialog{width:min(390px,calc(100% - 24px));padding:28px;border:1px solid #e5e5e5;border-radius:18px;background:#fff;color:#111;text-align:center;box-shadow:0 24px 70px #0003}
+.drive-arrival-dialog::backdrop{background:#0007}
+.drive-arrival-dialog h2{font-size:25px;letter-spacing:-.7px;margin:10px 0}
+.drive-arrival-dialog p:not(.eyebrow){font-size:13px;line-height:1.6;color:#666;margin:0 0 18px}
+.arrival-check{width:54px;height:54px;margin:0 auto 14px;display:grid;place-items:center;border-radius:50%;background:#111;color:#fff;font-size:28px}
+@media(max-width:480px){.ride-chat-dialog{padding:14px}.chat-composer{grid-template-columns:1fr}.chat-composer button{width:100%}}
+
+.review-stars{display:flex;align-items:center;gap:6px}
+.review-stars button{border:0;background:transparent;color:#b8b8b8;font-size:32px;line-height:1;padding:2px 4px;cursor:pointer;transition:transform .12s ease,color .12s ease}
+.review-stars button:hover{transform:translateY(-2px)}
+.review-stars button.selected{color:#111}

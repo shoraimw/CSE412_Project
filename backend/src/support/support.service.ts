@@ -81,7 +81,7 @@ export class SupportService {
       ?await this.db(token).from('profiles').select('id,full_name').in('id',ids)
       :{data:[],error:null};
     if(profileError)throw new ServiceUnavailableException(profileError.message);
-    const map=new Map<string,any>((profiles||[]).map((p:any):[string,any]=>[p.id,p]));
+    const map=new Map<string,any>((profiles||[]).map((p:any)=>[p.id,p] as [string,any]));
     return rows.map((r:any)=>({...r,reviewer:map.get(r.reviewer_id)||null,reviewee:map.get(r.reviewee_id)||null}));
   }
 

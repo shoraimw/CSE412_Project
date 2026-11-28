@@ -1,4 +1,4 @@
-name: Archived — Cloudflare build disabled
+name: Archived — Cloudflare Git integration handles preview builds
 
 on:
   workflow_dispatch:
@@ -7,7 +7,9 @@ jobs:
   retired:
     runs-on: ubuntu-latest
     steps:
-      - name: Explain current pipeline
+      - name: Explain current deployment
         run: |
-          echo "Cloudflare is not the selected application host for the current Vercel-first release."
-          echo "The active validation workflow is .github/workflows/drive-validation.yml."
+          echo "Cloudflare Pages Git integration builds and deploys the static frontend."
+          echo "Cloudflare Workers Builds creates API Worker preview deployments."
+          echo "The production Worker deployment workflow is .github/workflows/cloudflare-deploy.yml."
+          echo "This workflow is intentionally retired to avoid duplicate deployments."
