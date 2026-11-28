@@ -81,6 +81,7 @@
   });
   $('exploreLanguage')?.addEventListener('change',async()=>{
     applyLanguage($('exploreLanguage').value);
+    await Promise.all([loadPlaces(),loadPlans()]);
     const error=await savePreference('preferred_language',language);
     if(error)$('touristCurrencyNote').textContent=t('languageLocal')+error.message;
     else $('touristCurrencyNote').textContent=t('languageSaved')+' '+t('sourceNote');
@@ -93,14 +94,14 @@
     try{
       places=await driveRequest('/tourist/places?'+params.toString());
       $('placeCount').textContent=places.length+t('placeCount');
-      $('placesGrid').innerHTML=places.length?places.map(place=>'<label class="vehicle-card"><div class="vehicle-image">⌖</div><div class="vehicle-body"><div class="toolbar"><span class="pill">'+driveEscape(place.category||'Explore')+'</span><input type="checkbox" class="place-select" value="'+driveEscape(place.id)+'" aria-label="'+driveEscape(t('selectPlace')+place.name)+'"></div><h3>'+driveEscape(place.name)+'</h3><p>'+driveEscape(place.description||'Explore this destination.')+'</p><p>'+driveEscape(place.city)+' · '+driveEscape(place.estimatedVisitHours||1)+driveEscape(t('hours'))+'</p></div></label>').join(''):'<div class="empty-state">'+t('noPlaces')+'</div>';
+      $('placesGrid').innerHTML=places.length?places.map(place=>'<label class="vehicle-card"><div class="vehicle-image">⌖</div><div class="vehicle-body"><div class="toolbar"><span class="pill">'+driveEscape(translations[language][String(place.category||'explore').toLowerCase()]||place.category||t('explore'))+'</span><input type="checkbox" class="place-select" value="'+driveEscape(place.id)+'" aria-label="'+driveEscape(t('selectPlace')+place.name)+'"></div><h3>'+driveEscape(place.name)+'</h3><p>'+driveEscape(place.description||'Explore this destination.')+'</p><p>'+driveEscape(place.city)+' · '+driveEscape(place.estimatedVisitHours||1)+driveEscape(t('hours'))+'</p></div></label>').join(''):'<div class="empty-state">'+t('noPlaces')+'</div>';
     }catch(error){$('placesGrid').innerHTML='<div class="empty-state">'+driveEscape(error.message)+'</div>';}
   }
   async function loadPlans(){
     if(!localStorage.getItem(DRIVE_TOKEN_KEY))return;
     try{
       const plans=await driveRequest('/tourist/plans');
-      $('savedPlans').innerHTML=plans.length?plans.map(p=>'<div class="list-item"><div class="list-item-main"><strong>'+driveEscape(p.city)+' · '+driveEscape(p.transport_preference)+'</strong><small>'+driveEscape((p.place_ids||[]).length)+' '+t('placeCount')+' · '+driveEscape(p.travel_date||t('dateNotSet'))+'</small></div><span class="pill">'+t('savedTag')+'</span></div>').join(''):'<div class="empty-state">'+t('noPlans')+'</div>';
+      $('savedPlans').innerHTML=plans.length?plans.map(p=>'<div class="list-item"><div class="list-item-main"><strong>'+driveEscape(p.city)+' · '+driveEscape(t(String(p.transport_preference||'').toLowerCase().replaceAll(' ','').replace('publictransport','publicTransport')))+'</strong><small>'+driveEscape((p.place_ids||[]).length)+' '+t('placeCount')+' · '+driveEscape(p.travel_date||t('dateNotSet'))+'</small></div><span class="pill">'+t('savedTag')+'</span></div>').join(''):'<div class="empty-state">'+t('noPlans')+'</div>';
     }catch(error){$('savedPlans').innerHTML='<div class="empty-state">'+driveEscape(error.message)+'</div>';}
   }
   $('exploreFilters').addEventListener('submit',event=>{event.preventDefault();loadPlaces();});
