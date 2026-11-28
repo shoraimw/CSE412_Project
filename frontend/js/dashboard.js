@@ -20,6 +20,7 @@
   const trackableStates=['matched','driver_arriving','in_progress'];
   let payments=[],tripMap=null,driverMarker=null,pickupMarker=null,destinationMarker=null,routeLine=null;
   let trackedRideId=null,trackingTimer=null,paymentRide=null,pendingPaymentId=null,pendingPaymentMethod=null;
+  const driverRatings=new Map();
   let safetySessions=[],safetyWatchId=null,safetyLocationSending=false,safetyHeartbeatTimer=null,lastSafetyPosition=null;
   const knownRideStatuses=new Map();let firstRideLoad=true;
 
@@ -57,9 +58,18 @@
     if(!ride?.rideId||!trackableStates.includes(ride.status))return;
     try{
       const data=await driveRequest('/rides/'+encodeURIComponent(ride.rideId)+'/track');
-      $('trackingStatus').textContent=data.currentLocation
+      let ratingText='';
+      if(ride.driver_id){
+        let rating=driverRatings.get(ride.driver_id);
+        if(!rating){
+          try{rating=await driveRequest('/reviews/driver/'+encodeURIComponent(ride.driver_id));driverRatings.set(ride.driver_id,rating);}catch{}
+        }
+        if(rating)ratingText=rating.averageRating===null?'Driver: '+rating.label:'Driver rating: '+('★'.repeat(rating.stars)+'☆'.repeat(5-rating.stars))+' '+rating.label+' ('+rating.totalReviews+' reviews)';
+      }
+      const trackingText=data.currentLocation
         ?'Driver location updated '+driveDate(data.currentLocation.updatedAt)+'. Trip status: '+statusLabel(data.status)+'.'
         :'Waiting for the driver to share a GPS location. Trip status: '+statusLabel(data.status)+'.';
+      $('trackingStatus').textContent=trackingText+(ratingText?' '+ratingText:'');
       if(!window.L)return;
       initTrackingMap();
       driverMarker=setTrackingMarker(driverMarker,data.currentLocation,'Driver location');
