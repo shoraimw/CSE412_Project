@@ -96,10 +96,10 @@ WHERE lower(name) = lower('Ratargul Swamp Forest') AND lower(city) = 'sylhet';
 
 UPDATE public.tourist_places SET
   address = 'Jaflong, Gowainghat, Sylhet',
-  image_url = 'https://commons.wikimedia.org/wiki/Special:FilePath/Jaflong%2C_Sylhet%2C_Bangladesh.jpg?width=1200',
+  image_url = 'https://commons.wikimedia.org/wiki/Special:FilePath/Lalakhal_Sylhet.jpg?width=1200',
   image_alt = 'River and hills at Jaflong in Sylhet',
   image_credit = 'Salam Khokon · Wikimedia Commons',
-  image_source_url = 'https://commons.wikimedia.org/wiki/File:Jaflong,_Sylhet,_Bangladesh.jpg'
+  image_source_url = 'https://commons.wikimedia.org/wiki/File:Lalakhal_Sylhet.jpg'
 WHERE lower(name) = lower('Jaflong') AND lower(city) = 'sylhet';
 
 UPDATE public.tourist_places SET
@@ -136,7 +136,10 @@ WHERE lower(name) = lower('Himchari National Park') AND lower(city) = lower('Cox
 
 UPDATE public.tourist_places SET
   address = 'Ethnological Museum Road, Agrabad, Chattogram',
-  image_alt = 'Ethnological Museum in Chattogram'
+  image_url = 'https://commons.wikimedia.org/wiki/Special:FilePath/Ethnological_Museum_of_Chittagong.JPG?width=1200',
+  image_alt = 'Ethnological Museum in Chattogram',
+  image_credit = 'Moheen Reeyad · CC BY-SA 4.0',
+  image_source_url = 'https://commons.wikimedia.org/wiki/File:Ethnological_Museum_of_Chittagong.JPG'
 WHERE lower(name) = lower('Ethnological Museum') AND lower(city) = 'chattogram';
 
 INSERT INTO public.tourist_places
@@ -155,8 +158,8 @@ FROM (VALUES
   ('Kuakata Sea Beach', 'Patuakhali', 'Beach', 'A long sandy beach in southern Bangladesh, known for wide coastal views and sunrise and sunset scenery.', 21.8144, 90.1222, ARRAY['beach','sunrise','sunset','photography'], ARRAY['Hotels','Food','Transport'], 3.0, 'Kuakata, Patuakhali', 'https://commons.wikimedia.org/wiki/Special:FilePath/Kuakata_beach.jpg?width=1200', 'Kuakata Sea Beach in Patuakhali', 'Mahbub Hasan · CC BY-SA', 'https://commons.wikimedia.org/wiki/File:Kuakata_beach.jpg'),
   ('Sajek Valley', 'Rangamati', 'Adventure', 'A hill destination known for rolling green ridges, cloud-filled valleys and views from the Ruilui area.', 23.3810, 92.2930, ARRAY['nature','hiking','mountains','photography'], ARRAY['Local guides','Resorts','Food'], 5.0, 'Sajek, Baghaichhari, Rangamati', 'https://commons.wikimedia.org/wiki/Special:FilePath/Mountain_of_Sajek_Valley.jpg?width=1200', 'Green hills and clouds at Sajek Valley', 'Mahjuja Islam · CC BY-SA 4.0', 'https://commons.wikimedia.org/wiki/File:Mountain_of_Sajek_Valley.jpg'),
   ('Sundarbans - Karamjal', 'Khulna', 'Wildlife', 'A visitor area at the edge of the Sundarbans mangrove forest, with forest trails and wildlife interpretation. Access requires checking local permits and boat arrangements.', 22.4310, 89.5920, ARRAY['wildlife','nature','boat','forest'], ARRAY['Boat access','Forest office','Local guides'], 4.0, 'Karamjal, Mongla, Bagerhat', 'https://commons.wikimedia.org/wiki/Special:FilePath/SUNDARBAN.jpg?width=1200', 'Mangrove waterways in the Sundarbans', 'Wikimedia Commons contributor', 'https://commons.wikimedia.org/wiki/File:SUNDARBAN.jpg'),
-  ('Lalakhal', 'Sylhet', 'Nature', 'A river destination near Jaintiapur known for boat journeys and changing shades of clear water.', 25.1443, 92.1608, ARRAY['nature','river','boat','photography'], ARRAY['Boat','Food','Transport'], 2.5, 'Jaintiapur, Sylhet', 'https://commons.wikimedia.org/wiki/Special:FilePath/Jaflong%2C_Sylhet%2C_Bangladesh.jpg?width=1200', 'River and green hills in the Sylhet region', 'Salam Khokon · Wikimedia Commons', 'https://commons.wikimedia.org/wiki/File:Jaflong,_Sylhet,_Bangladesh.jpg'),
-  ('Inani Beach', 'Cox’s Bazar', 'Beach', 'A quieter coastal stretch south of Cox’s Bazar, known for rocky shoreline views and open sea.', 21.1664, 92.0485, ARRAY['beach','nature','photography'], ARRAY['Food','Transport'], 2.5, 'Inani, Ukhiya, Cox’s Bazar', 'https://commons.wikimedia.org/wiki/Special:FilePath/Cox%27s_Bazar_sea_beach%2C_Bangladesh.jpg?width=1200', 'Coastal shoreline near Cox’s Bazar', 'Tanvir Rahat · CC BY-SA', 'https://commons.wikimedia.org/wiki/File:Cox%27s_Bazar_sea_beach,_Bangladesh.jpg')
+  ('Lalakhal', 'Sylhet', 'Nature', 'A river destination near Jaintiapur known for boat journeys and changing shades of clear water.', 25.1443, 92.1608, ARRAY['nature','river','boat','photography'], ARRAY['Boat','Food','Transport'], 2.5, 'Jaintiapur, Sylhet', 'https://commons.wikimedia.org/wiki/Special:FilePath/Lalakhal_Sylhet.jpg?width=1200', 'The Sari River at Lalakhal in Sylhet', 'Sadiakorobi · CC BY-SA 4.0', 'https://commons.wikimedia.org/wiki/File:Lalakhal_Sylhet.jpg'),
+  ('Inani Beach', 'Cox’s Bazar', 'Beach', 'A quieter coastal stretch south of Cox’s Bazar, known for rocky shoreline views and open sea.', 21.1664, 92.0485, ARRAY['beach','nature','photography'], ARRAY['Food','Transport'], 2.5, 'Inani, Ukhiya, Cox’s Bazar', 'https://commons.wikimedia.org/wiki/Special:FilePath/Inani_sea_beach%2C_Cox%27s_Bazar%2C_Bangladesh.jpg?width=1200', 'Inani sea beach in Cox’s Bazar', 'Tanvir Rahat · CC BY-SA 4.0', 'https://commons.wikimedia.org/wiki/File:Inani_sea_beach,_Cox%27s_Bazar,_Bangladesh.jpg')
 ) AS v(name, city, category, description, latitude, longitude, tags, nearby_facilities,
        estimated_visit_hours, address, image_url, image_alt, image_credit, image_source_url)
 WHERE NOT EXISTS (
