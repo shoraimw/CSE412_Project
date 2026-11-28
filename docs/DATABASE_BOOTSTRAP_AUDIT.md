@@ -8,8 +8,8 @@ Region: `ap-southeast-1`
 
 - 31 DRIVE application tables exist in the `public` schema.
 - RLS is enabled on all 31 public application tables.
-- 62 migrations are applied in Supabase.
-- 62 SQL migration files are tracked in `supabase/migrations/`.
+- 63 migrations are applied in Supabase.
+- 63 SQL migration files are tracked in `supabase/migrations/`.
 - Every applied migration version has exactly one matching repository file; no missing or extra migration versions were found in the latest comparison.
 - The database was not reset and no user, ride, rental, payment or tourist data was deleted during this audit.
 - The Supabase project is healthy.
@@ -24,7 +24,7 @@ The historical tourist compatibility migration changes `tourist_places.id` from 
 
 Incremental migrations add driver/owner application workflows, Women Safety sessions and expiring shares, shared rides, driver dispatch, notifications, admin review/audit, payment proof, transaction state guards, ride chat, cancellation workflows, activity history, final-fare authorization and reviews.
 
-A version-parity check confirms that the repository now contains the full 62-file migration history. A clean-room migration run against a separate empty Supabase project has not yet been performed.
+A version-parity check confirms that the repository now contains the full 63-file migration history. A clean-room migration run against a separate empty Supabase project has not yet been performed.
 
 ## Ride cancellation safeguards
 
@@ -43,6 +43,8 @@ A version-parity check confirms that the repository now contains the full 62-fil
 - The `btree_gist` extension was moved into the `extensions` schema.
 - Duplicate permissive policies and duplicate indexes were removed; missing foreign-key indexes were added.
 - Supabase leaked-password protection still needs to be enabled in Dashboard → Authentication → Security.
+
+The remaining nine RLS initialization-plan warnings were addressed by wrapping `auth.uid()` and the role helper in statement-level SELECTs. The Performance Advisor now reports no RLS initialization-plan warnings. It still reports 60 unused indexes; with zero application rows and no real query workload, these are informational and must not be dropped until usage is measured after testing.
 
 Re-run Security and Performance Advisors after future schema changes.
 
