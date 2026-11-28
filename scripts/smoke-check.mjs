@@ -84,6 +84,13 @@ else{
     if(!secureClaim.toLowerCase().includes(token.toLowerCase()))failures.push('Ride-claim migration is missing '+token+'.');
   }
 }
+const claimMathFixPath=path.join(root,'supabase','migrations','20261128183834_drive_secure_ride_claim_math_fix.sql');
+if(!existsSync(claimMathFixPath))failures.push('Missing follow-up migration for the secure claim distance expression.');
+else{
+  const claimMathFix=readFileSync(claimMathFixPath,'utf8');
+  if(claimMathFix.includes('pg_catalog.least')||claimMathFix.includes('pg_catalog.greatest'))failures.push('LEAST/GREATEST must remain unqualified PostgreSQL expressions.');
+  if(!claimMathFix.includes('least(1.0, greatest(0.0,'))failures.push('Secure claim distance must clamp the haversine expression.');
+}
 
 
 
