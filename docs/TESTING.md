@@ -48,7 +48,7 @@ The team requirement PDF defines 12 functional requirement groups and five non-f
 
 | Requirement | Current implementation in this branch | Verification / boundary |
 |---|---|---|
-| Authentication & Security | Supabase email/password authentication, session tokens, role checks, password visibility toggle | Phone OTP requires an SMS provider; do not claim it is configured |
+| Authentication & Security | Supabase email/password authentication, email OTP, Google OAuth, password recovery/reset, session tokens, role checks and password visibility toggle | Phone OTP requires an SMS provider; leaked-password protection must be enabled before public launch |
 | User Management | Passenger profiles, driver applications, owner applications, role-controlled admin approval | Verify with passenger, driver, owner and admin accounts |
 | Vehicle Rental | Vehicle catalogue, owner workflow, rental booking and database overlap guard | Test two overlapping bookings for the same vehicle |
 | Smart Ride Booking | Map-selected pickup/destination, ride type, fare quote and persistent ride request | Requires browser location permission only for current-location pickup |
@@ -56,7 +56,7 @@ The team requirement PDF defines 12 functional requirement groups and five non-f
 | Real-Time Ride Tracking | Driver foreground GPS sends position changes plus a 15-second heartbeat while online or on-trip; the passenger tracking map refreshes every 10 seconds | Browser tab must remain open; trip GPS is foreground-only. Ride alerts use Supabase Realtime while the Driver workspace is open, with polling fallback; native background GPS and push are not configured |
 | Automatic Fare Estimate | Automatic BDT estimate from server-calculated OpenStreetMap OSRM road distance | OSRM provides standard route estimates; live traffic is not included. The fare uses a deterministic formula, not machine learning; final fare is subject to trip conditions |
 | Route Optimization | OpenStreetMap OSRM route alternatives with fastest, shortest and balanced selection | OSRM uses standard road-network data, not live traffic. Balanced scoring minimizes normalized distance and duration using a deterministic route comparison |
-| Multi-Currency Payment | Live BDT-to-currency conversion quotes and payment-intent records | Cash payment intents can be recorded and manually confirmed by an admin after cash is physically received; no card/bKash/Nagad gateway or foreign-currency settlement is connected |
+| Multi-Currency Payment | Live BDT-to-currency quotes, SSLCommerz hosted checkout/validation and receipt records; cash and manual bKash/Nagad payment intents | SSLCommerz Store ID/Password are not configured; wallet proof requires manual merchant-app verification; no foreign-currency settlement claim is made |
 | Women Safety Mode | Preference stored with ride request; verified-driver claim guard; trusted contacts, expiring private trip-share links and planned-route monitoring during an active trip | SMS/WhatsApp delivery is not configured; keep the passenger dashboard open for foreground GPS |
 | Smart Emergency & Safe Trip | SOS incident records, emergency contacts, expected-arrival delay and route-deviation checks | No emergency-services dispatch or guaranteed contact notification |
 | Tourist Mode | Seeded tourist places, recommendations and saved multi-stop plans | Validate location accuracy and route provider availability |
@@ -82,14 +82,14 @@ The team requirement PDF defines 12 functional requirement groups and five non-f
 4. Claim the same request from two driver sessions at nearly the same time; exactly one claim must succeed.
 5. Start the ride, start foreground GPS sharing from the driver browser, and verify passenger A sees the marker update on the tracking map.
 6. Confirm a different passenger cannot read the ride or its tracking data.
-7. Test rental booking overlap (including a concurrent insert), owner-only booking updates, valid and invalid rental state transitions, fare quote, currency quote, safety settings, private share expiry, SOS record, tourist plan and notification history.
+7. Test rental booking overlap (including a concurrent insert), owner-only booking updates, valid and invalid rental state transitions, fare quote, currency quote, safety settings, private share expiry, SOS record, tourist plan, Tourist Mode language preference, passenger rating/feedback, linked support complaint and notification history. Confirm a paid test payment has a receipt number and the receipt page can Print/Save as PDF.
 8. Attempt direct PostgREST updates that skip ride lifecycle states or alter fare/ownership fields; the database trigger must reject them. Open a valid private trip-share link in a logged-out/private browser and verify it loads; test a random or expired token and verify it returns an invalid/expired message.
 9. Add one Trusted Contact and one Emergency Contact. Enable Women Safety, submit a ride request, and confirm only the Trusted Contact receives a live-share link while Emergency Contacts are reserved for SOS.
 10. Open the share action on a mobile browser, send the prefilled link to the Trusted Contact, open it on a second phone/browser, and confirm the map refreshes with the passenger GPS every five seconds while the passenger dashboard remains open.
 11. Verify GPS starts when the driver changes the ride to `in_progress`, not while the request is waiting; verify the safety session closes and the contact page stops polling when the ride completes or is cancelled.
 12. Test the manual Safe Trip flow separately: start a trip, allow location permission, share with selected trusted contacts, and complete the trip.
 11. Confirm the automatic fare estimate and saved ride-request fare match for the same route and vehicle; test Fastest, Shortest and Balanced route preferences.
-12. Test an expired access token with a valid refresh token, then verify the profile name, email and phone render and save correctly.
+12. Test an expired access token with a valid refresh token, then verify the profile name, email, phone and preferred language render and save correctly. Request a password reset, follow the email link, set a new password and sign in again. In Tourist Mode switch English/Bangla and confirm the preference persists after reload.
 10. Run the staged k6 profile against a dedicated test environment. Record error rate and p50/p95/p99 latency; never infer 100k concurrency from registered-user count.
 
 ## Manual UI and route tests
