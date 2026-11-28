@@ -31,9 +31,9 @@ See [docs/UI_REBUILD.md](docs/UI_REBUILD.md) for the route map and verification 
 
 The stale website issue was traced to Cloudflare Pages `path_includes`: it previously watched only selected frontend and Pages Function folders. Backend, database and deployment-only commits were skipped, leaving an older successful deployment as the canonical site.
 
-The Pages project now watches all repository paths (`path_includes: ["*"]`). A new production deployment was triggered from commit `8e1c67c25b4e863f294dbf065923d00c69ab4aa2` and completed successfully. The latest verified production Pages deployment is `https://4087f6ea.drive-ewu.pages.dev`; the canonical site remains `https://drive-ewu.pages.dev`.
+The Pages project now watches all repository paths (`path_includes: ["*"]`). A new production deployment was triggered from commit `8e1c67c25b4e863f294dbf065923d00c69ab4aa2` and completed successfully. The latest verified production Pages deployment is `https://31823588.drive-ewu.pages.dev` (commit `9d7886a3`); the canonical site remains `https://drive-ewu.pages.dev`.
 
-The API Worker is deployed separately from the static Pages frontend. The GitHub Actions workflow `.github/workflows/cloudflare-deploy.yml` now rebuilds and deploys the Worker for backend/config changes on `main`. It requires the GitHub repository Actions secret `CLOUDFLARE_API_TOKEN` with Workers Scripts:Edit permission. If the secret is missing, the workflow explicitly warns that only the static frontend was deployed.
+The API Worker is deployed separately from the static Pages frontend. The GitHub Actions workflow `.github/workflows/cloudflare-deploy.yml` rebuilds and deploys the Worker for backend/config changes on `main`. The latest production deployment is version `bdb247b3` (28 Nov 2026, 05:02 UTC); the deployment workflow completed successfully. The workflow uses the repository Actions secret `CLOUDFLARE_API_TOKEN` with Workers Scripts:Edit permission.
 
 - Pages build output: `frontend/`
 - Worker entrypoint: `backend/src/worker.ts`
