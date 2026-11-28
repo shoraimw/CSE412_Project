@@ -34,8 +34,8 @@ The current chat UI refreshes messages every 2.5 seconds. The database table is 
 
 ## 4. Passenger cancellation and emergency
 
-- [ ] Passenger or Vehicle Owner who booked the ride can request cancellation with a reason.
-- [ ] Driver accounts can use the customer cancellation workflow only for rides they booked themselves. (Pending DB role-guard migration; see blocker below.)
+- [ ] Passenger, Driver or Vehicle Owner who is a passenger on the ride can request cancellation with a reason.
+- [ ] Driver accounts can use customer cancellation only for rides they booked and joined as a passenger; the database verifies ride-passenger membership.
 - [ ] The assigned Driver sees a pending cancellation request and can approve or decline it.
 - [ ] Approval cancels the ride and notifies all ride passengers.
 - [ ] Decline preserves the active ride and sends the requester the driver's response note.
@@ -47,6 +47,7 @@ Emergency contact SMS is not sent automatically. The user must tap the Call or T
 ## 5. Driver cancellation
 
 - [ ] Assigned Driver accepts a request and cancels before pickup with a reason of at least 8 characters.
+- [ ] Assigned Driver can end an in-progress trip with a required reason; a direct status PATCH to cancelled is rejected.
 - [ ] During an active trip, the assigned Driver can end the ride with a required reason.
 - [ ] The Passenger and Administrator are notified and the reason is recorded in ride activity.
 - [ ] The Driver becomes available for another request after cancellation.
@@ -72,10 +73,6 @@ Emergency contact SMS is not sent automatically. The user must tap the Call or T
 - [ ] Admin can cancel an uncompleted ride with a reason.
 - [ ] Admin actions are written to the audit log.
 - [ ] Admin can review payment proofs and update support cases.
-
-## Remaining database role-guard item
-
-The backend route accepts Driver accounts for customer-side cancellation of rides they booked themselves, but the currently applied `drive_request_ride_cancellation` database function still allows only Passenger and Vehicle Owner roles. A migration is required to add Driver to that customer-role guard while retaining the `ride_passengers` ownership check. Do not mark this test as passed until that migration is applied and verified.
 
 ## Test environment limitation
 
