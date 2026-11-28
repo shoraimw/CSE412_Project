@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { EstimateFareDto, VEHICLE_RATES } from './fare.dto';
 
@@ -11,10 +11,28 @@ export class FareService {
     if(!fallback||!Number.isFinite(input.distanceKm)||input.distanceKm<=0){
       throw new BadRequestException('A positive route distance and supported vehicle type are required.');
     }
-    const {data:rule,error}=await this.database.publicClient().from('fare_rules')
-      .select('base_fare,per_km,per_minute,peak_hour_multiplier,demand_multiplier_cap')
-      .eq('vehicle_type',input.vehicleType).eq('is_active',true).maybeSingle();
-    if(error)throw new ServiceUnavailableException('Fare configuration is temporarily unavailable.');
+    // Keep estimates available for the university demo if the optional
+    // admin-managed fare_rules read is temporarily unavailable.
+    // Database rates take priority; VEHICLE_RATES are safe BDT defaults.
+    let rule: {
+      base_fare?: number | string;
+      per_km?: number | string;
+      per_minute?: number | string;
+      peak_hour_multiplier?: number | string;
+      demand_multiplier_cap?: number | string;
+    } | null = null;
+    try {
+      const result = await this.database.publicClient().from('fare_rules')
+        .select('base_fare,per_km,per_minute,peak_hour_multiplier,demand_multiplier_cap')
+        .eq('vehicle_type',input.vehicleType).eq('is_active',true).maybeSingle();
+      if (result.error) {
+        console.warn('DRIVE fare_rules read failed; using built-in BDT rates:', result.error.message);
+      } else {
+        rule = result.data;
+      }
+    } catch (error) {
+      console.warn('DRIVE fare configuration unavailable; using built-in BDT rates:', error);
+    }
     const baseFare=Number(rule?.base_fare??fallback.base);
     const perKm=Number(rule?.per_km??fallback.perKm);
     const perMinute=Number(rule?.per_minute??0);
