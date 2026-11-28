@@ -27,7 +27,7 @@
       dialog=document.createElement('dialog');dialog.id='driveArrivalDialog';dialog.className='drive-arrival-dialog';
       document.body.appendChild(dialog);
     }
-    const message=role==='driver'?'You have marked this trip as complete. Thank you for driving with DRIVE.':'Your journey has been completed successfully. Thank you for riding with DRIVE.';
+    const message=role==='driver'?'Your trip has been completed successfully. Thank you for driving with DRIVE.':'Your journey has been completed successfully. Thank you for riding with DRIVE.';
     dialog.innerHTML='<div class="arrival-check">✓</div><p class="eyebrow">DRIVE · TRIP COMPLETE</p><h2>Destination reached!</h2><p>'+message+'</p><button type="button" class="button button-dark" id="arrivalClose">Got it</button>';
     if(typeof dialog.showModal==='function')dialog.showModal();
     else dialog.setAttribute('open','');
