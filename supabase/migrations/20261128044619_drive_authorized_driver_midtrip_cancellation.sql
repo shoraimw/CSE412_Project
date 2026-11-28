@@ -1,7 +1,7 @@
 begin;
 
--- Patch only the two known function guards; fail closed if the deployed
--- definitions differ from the audited schema.
+-- A driver may cancel an assigned ride before pickup or end it after pickup.
+-- Preserve the existing function body and replace only its status allow-list.
 do $migration$
 declare
   v_definition text;
@@ -23,20 +23,22 @@ begin
   select pg_get_functiondef('public.drive_driver_cancel_ride(uuid,text)'::regprocedure)
     into v_definition;
   if position(v_old in v_definition)=0 then
-    raise exception 'Expected driver cancellation status guard was not found';
+    raise exception 'Expected driver cancellation status guard was not found; refusing to patch an unexpected function definition';
   end if;
   execute replace(v_definition,v_old,v_new);
 
   select pg_get_functiondef('public.drive_request_ride_cancellation(uuid,text,boolean,double precision,double precision)'::regprocedure)
     into v_request_definition;
   if position(v_old_role in v_request_definition)=0 then
-    raise exception 'Expected customer cancellation role guard was not found';
+    raise exception 'Expected customer cancellation role guard was not found; refusing to patch an unexpected function definition';
   end if;
   execute replace(v_request_definition,v_old_role,v_new_role);
 end;
 $migration$;
 
--- Require all cancellation writes to pass through a reasoned workflow.
+-- Do not allow a driver to bypass the cancellation RPC by PATCHing a ride
+-- directly to cancelled. The dedicated RPCs set drive.allow_cancel locally;
+-- administrators and trusted service-role operations remain authorized.
 create or replace function private.drive_require_cancel_rpc()
 returns trigger
 language plpgsql
