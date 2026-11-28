@@ -48,7 +48,7 @@
     if($('exploreLanguage'))$('exploreLanguage').value=language;
   }
   async function savePreference(field,value){
-    if(!localStorage.getItem(DRIVE_TOKEN_KEY))return;
+    if(!localStorage.getItem(DRIVE_TOKEN_KEY)&&!localStorage.getItem('drive_refresh_token'))return;
     try{await driveRequest('/users/me',{method:'PATCH',body:JSON.stringify({[field]:value})});}
     catch(error){return error;}
   }
@@ -56,7 +56,7 @@
     const select=$('exploreCurrency');
     const codes=['BDT','USD','EUR','GBP','INR','SGD','MYR','AED','SAR','AUD','CAD','CNY','JPY','THB','NPR','PKR'];
     let profile=null;
-    if(localStorage.getItem(DRIVE_TOKEN_KEY)){
+    if(localStorage.getItem(DRIVE_TOKEN_KEY)||localStorage.getItem('drive_refresh_token')){
       try{profile=await driveRequest('/users/me');}catch{}
     }
     applyLanguage(profile?.preferred_language||localStorage.getItem('drive_language')||'en');
@@ -98,11 +98,49 @@
     }catch(error){$('placesGrid').innerHTML='<div class="empty-state">'+driveEscape(error.message)+'</div>';}
   }
   async function loadPlans(){
-    if(!localStorage.getItem(DRIVE_TOKEN_KEY))return;
+    if(!localStorage.getItem(DRIVE_TOKEN_KEY)&&!localStorage.getItem('drive_refresh_token')){
+      $('savedPlans').innerHTML='<div class="empty-state">Log in to view and save your travel plans.</div>';
+      return;
+    }
     try{
       const plans=await driveRequest('/tourist/plans');
       $('savedPlans').innerHTML=plans.length?plans.map(p=>'<div class="list-item"><div class="list-item-main"><strong>'+driveEscape(p.city)+' · '+driveEscape(t(String(p.transport_preference||'').toLowerCase().replaceAll(' ','').replace('publictransport','publicTransport')))+'</strong><small>'+driveEscape((p.place_ids||[]).length)+' '+t('placeCount')+' · '+driveEscape(p.travel_date||t('dateNotSet'))+'</small></div><span class="pill">'+t('savedTag')+'</span></div>').join(''):'<div class="empty-state">'+t('noPlans')+'</div>';
-    }catch(error){$('savedPlans').innerHTML='<div class="empty-state">'+driveEscape(error.message)+'</div>';}
+    }catch(error){
+      const message=/session|log in|invalid/i.test(error.message)?'Your session needs refreshing. Please log in again to view saved plans.':error.message;
+      $('savedPlans').innerHTML='<div class="empty-state">'+driveEscape(message)+'</div>';
+    }
+  }
+  async function syncExploreAccount(){
+    const login=$('exploreLogin'),account=$('exploreAccount'),apply=$('driverPartnerApply'),prompt=$('driverPartnerPromptText');
+    const hasSession=Boolean(localStorage.getItem(DRIVE_TOKEN_KEY)||localStorage.getItem('drive_refresh_token'));
+    if(!hasSession){
+      if(login)login.hidden=false;if(account)account.hidden=true;
+      if(apply)apply.textContent='Sign in to apply →';
+      if(prompt)prompt.textContent='Already use DRIVE as a customer? Sign in with the same account, then apply to become a driver. You can keep booking rides after approval.';
+      return;
+    }
+    try{
+      const user=await driveRequest('/users/me');
+      if(login)login.hidden=true;if(account)account.hidden=false;
+      if(apply&&prompt){
+        if(user.role==='passenger'){
+          apply.textContent='Apply to drive →';
+          prompt.textContent='You are signed in as a customer. Apply with this same account; after approval you can both book rides and accept rides as a driver.';
+        }else if(user.role==='driver'){
+          apply.textContent='Open driver workspace →';
+          prompt.textContent='Your driver access is active. You can continue using this account to book rides as a customer or open your driver workspace.';
+        }else if(user.role==='vehicle_owner'){
+          apply.textContent='Open driver application →';
+          prompt.textContent='You are signed in with your owner account. Ride booking remains available; driver applications are currently submitted from Passenger accounts.';
+        }else{
+          apply.hidden=true;prompt.textContent='Manage the DRIVE platform from your administrator workspace.';
+        }
+      }
+    }catch(error){
+      if(login)login.hidden=false;if(account)account.hidden=true;
+      if(apply)apply.textContent='Sign in to apply →';
+      if(prompt)prompt.textContent='Your session could not be restored. Sign in again to apply for driver access and save travel plans.';
+    }
   }
   $('exploreFilters').addEventListener('submit',event=>{event.preventDefault();loadPlaces();});
   $('savePlan').addEventListener('click',async()=>{
@@ -119,5 +157,5 @@
     }catch(error){$('planMessage').textContent=error.message;$('planMessage').className='message error';}
     finally{button.disabled=false;}
   });
-  loadCurrencyPreference();loadPlaces();loadPlans();
+  syncExploreAccount();loadCurrencyPreference();loadPlaces();loadPlans();
 })();
