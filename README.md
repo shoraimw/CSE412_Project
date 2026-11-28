@@ -31,7 +31,7 @@ See [docs/UI_REBUILD.md](docs/UI_REBUILD.md) for the route map and verification 
 
 The stale website issue was traced to Cloudflare Pages `path_includes`: it previously watched only selected frontend and Pages Function folders. Backend, database and deployment-only commits were skipped, leaving an older successful deployment as the canonical site.
 
-The Pages project now watches all repository paths (`path_includes: ["*"]`). A new production deployment was triggered from commit `8e1c67c25b4e863f294dbf065923d00c69ab4aa2` and completed successfully. The production deployment URL is `https://091f592d.drive-ewu.pages.dev`; the Pages canonical deployment now points to that release.
+The Pages project now watches all repository paths (`path_includes: ["*"]`). A new production deployment was triggered from commit `8e1c67c25b4e863f294dbf065923d00c69ab4aa2` and completed successfully. The latest verified production Pages deployment is `https://4087f6ea.drive-ewu.pages.dev`; the canonical site remains `https://drive-ewu.pages.dev`.
 
 The API Worker is deployed separately from the static Pages frontend. The GitHub Actions workflow `.github/workflows/cloudflare-deploy.yml` now rebuilds and deploys the Worker for backend/config changes on `main`. It requires the GitHub repository Actions secret `CLOUDFLARE_API_TOKEN` with Workers Scripts:Edit permission. If the secret is missing, the workflow explicitly warns that only the static frontend was deployed.
 
@@ -48,9 +48,9 @@ See [docs/CLOUDFLARE_DEPLOYMENT.md](docs/CLOUDFLARE_DEPLOYMENT.md).
 
 Project: `CSE412_Project`, region `ap-southeast-1`.
 
-The baseline schema and all existing incremental feature migrations were applied to the previously empty project. The current public schema contains 23 DRIVE application tables with RLS enabled. The database migration history contains 36 applied entries, including the baseline and incremental feature migrations.
+The connected project contains 31 DRIVE application tables, all with RLS enabled. The database has 62 applied migrations and the repository tracks all 62 matching SQL files. The baseline and tourist UUID compatibility migrations were recovered from the database migration history; the full applied version list now matches the repository.
 
-The baseline migration SQL must remain in the repository and be kept in sync with the migration history before treating this as a reproducible fresh-install workflow. Do not reset the project or apply destructive schema changes without review.
+The current database was not reset. A clean-room run against a separate empty Supabase project has not yet been completed. Do not replay the historical tourist UUID migration against this live database; it deletes baseline seed rows before the later catalog migration restores the destination catalog. See [docs/DATABASE_BOOTSTRAP_AUDIT.md](docs/DATABASE_BOOTSTRAP_AUDIT.md).
 
 ## Functional scope
 
@@ -75,7 +75,7 @@ See [docs/REQUIREMENTS_TRACEABILITY.md](docs/REQUIREMENTS_TRACEABILITY.md) and [
 
 ## Important service boundaries
 
-- **Payments:** bKash/Nagad transaction references can be submitted and manually reviewed. No automatic merchant gateway or payment webhook is connected.
+- **Payments:** SSLCommerz hosted checkout and webhook validation are implemented, but live activation requires `SSLCOMMERZ_STORE_ID` and `SSLCOMMERZ_STORE_PASSWORD` Worker secrets. bKash/Nagad transaction references are manually reviewed; cash remains pending until receipt is confirmed.
 - **Emergency assistance:** SOS is stored and administrators receive in-app alerts. No police dispatch or guaranteed SMS/WhatsApp delivery is configured.
 - **Location:** browser foreground GPS is not native background tracking. Test on real phones.
 - **Maps:** public OpenStreetMap/OSRM services provide standard road estimates, not guaranteed live traffic or commercial SLAs.
