@@ -1,19 +1,19 @@
 # DRIVE verification and load testing
 
 ## Automated checks
-- Backend: GitHub Actions runs `npm install`, `npx tsc --noEmit -p backend/tsconfig.json` and `npm run build`.
-- Frontend: GitHub Actions runs `node --check` on every JavaScript file under `frontend/js`.
-- Supabase: 23 public application tables currently have RLS enabled; the Security Advisor returned no security or health lints in the 2026-11-28 audit. Re-run advisors after every schema change.
-- Deployment: Cloudflare Pages hosts the static frontend and a separate Cloudflare Worker serves the NestJS API. Pages and Worker deployments are separate; the Worker deploy workflow requires `CLOUDFLARE_API_TOKEN`.
+- Backend: the active GitHub Actions workflow runs the root `npm run build`, which installs the backend, type-checks and builds NestJS, runs asset smoke checks, and validates the Cloudflare Worker bundle.
+- Frontend: GitHub Actions runs `node --check` on every JavaScript file under `frontend/js` and checks that no server-only Supabase key reference is shipped to the browser.
+- Supabase: 31 public application tables have RLS enabled. The 2026-11-28 Security Advisor reports 9 authenticated SECURITY DEFINER function warnings and one private-schema RLS-without-policy INFO finding; the performance advisor reports 4 unindexed foreign keys and 10 RLS auth-initplan warnings. The health advisor returned no lints. Re-review these findings after schema changes; the private integration-secret table intentionally has no client policies.
+- Deployment: Cloudflare Pages hosts the static frontend and the `cse412-project` Cloudflare Worker serves the NestJS API. Pages Git integration deploys the frontend; Workers Builds creates preview Worker deployments; the production Worker workflow requires `CLOUDFLARE_API_TOKEN`.
 
 ## Current integration readiness — 2026-11-28
 
-- The `CSE412_Project` Supabase database is healthy and contains 23 public DRIVE tables; all 23 have RLS enabled.
-- The database currently has **zero Auth users and zero profiles**. Seven tourist-place seed records exist. End-to-end role testing therefore requires the team to register accounts first.
+- The `CSE412_Project` Supabase database is reachable and contains 31 public DRIVE tables; all 31 have RLS enabled.
+- The database currently has **zero Auth users and zero profiles**. Seven tourist-place seed records exist. End-to-end role testing therefore requires separate Passenger, Driver, Vehicle Owner and Admin accounts to be registered and approved first.
 - Follow [ADMIN_BOOTSTRAP.md](ADMIN_BOOTSTRAP.md) to promote the first trusted team account to Admin. Do not add a public admin bootstrap endpoint.
 - Cloudflare Pages production and preview configurations both have a `DRIVE_API` service binding to the `cse412-project` Worker.
-- The payment UI creates academic-demo payment intents. Cash can be recorded; bKash/Nagad transaction IDs are submitted for manual admin verification. No real payment gateway or money collection is connected.
-- Women Safety uses foreground browser GPS. Add trusted/emergency contacts in Passenger Dashboard, save the preference, then request a ride with Women Safety enabled. The passenger dashboard must remain open and have location permission to update the safety session; the private share link expires after 24 hours. SMS/WhatsApp delivery is not configured.
+- The payment service includes SSLCOMMERZ session creation and server-side validation callbacks. Cloudflare currently has `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `DRIVE_PAYMENT_WEBHOOK_SECRET`, but does not have `SSLCOMMERZ_STORE_ID` or `SSLCOMMERZ_STORE_PASSWORD`; therefore live/sandbox card checkout remains disabled until the merchant supplies those credentials. Cash can be recorded and bKash/Nagad transaction IDs are submitted for manual admin verification; no automatic wallet collection is connected.
+- Women Safety uses foreground browser GPS. Add trusted/emergency contacts in Passenger Dashboard, save the preference, then request a ride with Women Safety enabled. The passenger dashboard must remain open and have location permission to update the safety session; the private share link expires after 24 hours. SMS/WhatsApp delivery is not configured. The KYC storage bucket `drive-kyc` is private and limited to JPG, PNG and PDF files up to 10 MB.
 
 ## Local integration test
 1. Configure `backend/.env` from `.env.example` with the DRIVE Supabase project URL and publishable key.

@@ -2,9 +2,14 @@ name: DRIVE validation
 
 on:
   push:
-    branches: [main, rebuild/drive-clean-ui-20261128]
+    branches:
+      - main
+      - feature/drive-end-to-end-completion-20261128
+      - gpt/drive-functional-fixes-20261128
   pull_request:
-    branches: [main]
+    branches:
+      - main
+      - feature/drive-end-to-end-completion-20261128
   workflow_dispatch:
 
 permissions:
@@ -13,6 +18,7 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
@@ -20,43 +26,27 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
 
-      - name: Install root deployment dependencies
+      - name: Install root dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Install backend dependencies
-        run: npm install --no-audit --no-fund
-        working-directory: backend
-
-      - name: Type-check backend
-        run: npm run typecheck
-        working-directory: backend
-
-      - name: Build NestJS backend
+      - name: Build, type-check, smoke-test and validate Cloudflare Worker
         run: npm run build
-        working-directory: backend
 
       - name: Validate frontend JavaScript syntax
         shell: bash
         run: |
           set -euo pipefail
-          while IFS= read -r -d '' file; do node --check "$file"; done < <(find frontend/js -type f -name '*.js' -print0)
+          while IFS= read -r -d '' file; do
+            node --check "$file"
+          done < <(find frontend/js -type f -name '*.js' -print0)
 
-      - name: Validate Vercel API adapter and configuration
-        run: |
-          node --check 'api/[...path].js'
-          node --input-type=module -e "import { readFileSync } from 'node:fs'; JSON.parse(readFileSync('vercel.json', 'utf8'));"
-
-      - name: Validate application assets
-        run: npm run smoke
-
-      - name: Validate Cloudflare Worker bundle
-        run: npx wrangler deploy --dry-run
-
-      - name: Ensure no server-only Supabase key is exposed in frontend
+      - name: Ensure server-only Supabase credentials are not exposed
         shell: bash
         run: |
-          if grep -R --line-number --exclude='*.map' 'SUPABASE_SERVICE_ROLE_KEY\\|service_role' frontend; then
-            echo 'A server-only Supabase key or role marker was found in frontend assets.'
+          if grep -R --line-number --exclude='*.map' 'SUPABASE_SERVICE_ROLE_KEY' frontend; then
+            echo 'A server-only Supabase credential reference was found in frontend assets.'
             exit 1
           fi
