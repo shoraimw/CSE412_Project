@@ -96,10 +96,10 @@ WHERE lower(name) = lower('Ratargul Swamp Forest') AND lower(city) = 'sylhet';
 
 UPDATE public.tourist_places SET
   address = 'Jaflong, Gowainghat, Sylhet',
-  image_url = 'https://commons.wikimedia.org/wiki/Special:FilePath/Lalakhal_Sylhet.jpg?width=1200',
+  image_url = 'https://commons.wikimedia.org/wiki/Special:FilePath/Jaflong%2C_Sylhet%2C_Bangladesh.jpg?width=1200',
   image_alt = 'River and hills at Jaflong in Sylhet',
   image_credit = 'Salam Khokon · Wikimedia Commons',
-  image_source_url = 'https://commons.wikimedia.org/wiki/File:Lalakhal_Sylhet.jpg'
+  image_source_url = 'https://commons.wikimedia.org/wiki/File:Jaflong,_Sylhet,_Bangladesh.jpg'
 WHERE lower(name) = lower('Jaflong') AND lower(city) = 'sylhet';
 
 UPDATE public.tourist_places SET
