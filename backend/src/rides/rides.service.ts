@@ -207,6 +207,32 @@ export class RidesService{
   if(role==='admin'){const {data,error}=await this.db(token).from('ride_requests').select('*,rides(id,driver_id,vehicle_id,status,accepted_at,started_at,completed_at,actual_fare)').order('created_at',{ascending:false}).limit(200);if(error)throw new ServiceUnavailableException(error.message);return (data||[]).map(x=>this.formatRequest(x,Array.isArray(x.rides)?x.rides[0]||null:x.rides));}
   return [];
  }
+ async myBookings(userId:string,token:string,role:Role){
+  if(!['passenger','driver','vehicle_owner'].includes(role))throw new ForbiddenException('Ride booking history is available to customer accounts.');
+  const db=this.db(token);
+  const [{data:owned,error:ownedError},{data:memberships,error:membershipError}]=await Promise.all([
+   db.from('ride_requests').select('*,rides(id,driver_id,vehicle_id,status,accepted_at,started_at,completed_at,actual_fare,actual_fare_breakdown,ride_passengers(passenger_id,seats,fare_share))').eq('passenger_id',userId).order('created_at',{ascending:false}),
+   db.from('ride_passengers').select('ride_id,seats,fare_share,rides(id,request_id,driver_id,vehicle_id,status,accepted_at,started_at,completed_at,actual_fare,actual_fare_breakdown,ride_requests(*))').eq('passenger_id',userId)
+  ]);
+  if(ownedError||membershipError)throw new ServiceUnavailableException(ownedError?.message||membershipError?.message);
+  const rows=new Map<string,any>();
+  for(const item of owned||[]){
+   const ride=Array.isArray(item.rides)?item.rides[0]||null:item.rides;
+   const membership=(ride?.ride_passengers||[]).find((p:any)=>p.passenger_id===userId);
+   const formatted=this.formatRequest(item,ride);
+   if(membership){formatted.passengerFare=Number(membership.fare_share);formatted.seats=Number(membership.seats||1);}
+   rows.set(item.id,formatted);
+  }
+  for(const membership of memberships||[]){
+   const ride=Array.isArray(membership.rides)?membership.rides[0]||null:membership.rides;
+   const request=Array.isArray(ride?.ride_requests)?ride.ride_requests[0]||null:ride?.ride_requests;
+   if(!ride||!request)continue;
+   const existing=rows.get(request.id);
+   if(existing){existing.passengerFare=Number(membership.fare_share);existing.seats=Number(membership.seats||1);}
+   else{const formatted=this.formatRequest(request,ride);formatted.passengerFare=Number(membership.fare_share);formatted.seats=Number(membership.seats||1);rows.set(request.id,formatted);}
+  }
+  return Array.from(rows.values()).sort((a,b)=>new Date(b.createdAt).getTime()-new Date(a.createdAt).getTime());
+ }
  async openRequests(userId:string,token:string,role:Role){
   if(role!=='driver')throw new ForbiddenException('Only drivers can view open ride requests.');
   const db=this.db(token);
@@ -238,7 +264,14 @@ export class RidesService{
   }
   return {message:'Request passed. It remains available to other eligible drivers.',rejectionId:data.id};
  }
- async cancelRequest(userId:string,token:string,requestId:string,role:Role){if(role!=='passenger')throw new ForbiddenException('Only the passenger who created this request can cancel it.');const {data,error}=await this.db(token).from('ride_requests').update({status:'cancelled'}).eq('id',requestId).eq('passenger_id',userId).eq('status','requested').select('id,status').maybeSingle();if(error)throw new BadRequestException(error.message);if(!data)throw new BadRequestException('This ride can no longer be cancelled. It may already have been accepted or cancelled.');return {requestId:data.id,status:data.status,message:'Ride request cancelled.'};}
+ async cancelRequest(userId:string,token:string,requestId:string,role:Role){
+  if(!['passenger','driver','vehicle_owner'].includes(role))throw new ForbiddenException('Only customer accounts can cancel their own unaccepted ride requests.');
+  const {data,error}=await this.db(token).from('ride_requests').update({status:'cancelled',cancelled_at:new Date().toISOString()})
+   .eq('id',requestId).eq('passenger_id',userId).eq('status','requested').select('id,status').maybeSingle();
+  if(error)throw new BadRequestException(error.message);
+  if(!data)throw new BadRequestException('This ride can no longer be cancelled. It may already have been accepted or cancelled.');
+  return {requestId:data.id,status:data.status,message:'Ride request cancelled.'};
+ }
  async claimRequest(userId:string,token:string,role:Role,requestId:string){
   if(role!=='driver')throw new ForbiddenException('Only drivers can accept ride requests.');
   const db=this.db(token);

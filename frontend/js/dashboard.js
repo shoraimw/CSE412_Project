@@ -147,12 +147,12 @@
   async function load(){
     try{
       const user=await driveRequest('/users/me');
-      if(user.role!=='passenger'){location.href=driveRoleHome(user.role);return;}
+      if(user.role==='admin'){location.href=driveRoleHome(user.role);return;}
       $('welcomeText').textContent='Welcome, '+(user.full_name||user.name||'there')+'. Your journeys, all in one place.';
     }catch(error){$('welcomeText').textContent=error.message;}
 
     let rides=[],notifications={items:[],unreadCount:0};
-    try{rides=await driveRequest('/rides');}catch(error){$('activeRides').innerHTML='<div class="empty-state">'+driveEscape(error.message)+'</div>';}
+    try{rides=await driveRequest('/rides/my-bookings');}catch(error){$('activeRides').innerHTML='<div class="empty-state">'+driveEscape(error.message)+'</div>';}
     try{notifications=await driveRequest('/notifications');}catch{}
     try{payments=await driveRequest('/payments/me');if(!Array.isArray(payments))payments=[];}catch{payments=[];}
     let sharedRides=[],myReviews=[],supportCases=[];

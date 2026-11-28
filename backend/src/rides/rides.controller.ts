@@ -2,6 +2,7 @@ import { Body,Controller,Get,Param,Patch,Post,Req,UseGuards, Inject } from '@nes
 type AuthReq=Request&{user:{id:string;accessToken:string;role:'passenger'|'driver'|'vehicle_owner'|'admin'}};
 @Controller('rides')@UseGuards(AuthGuard)export class RidesController{constructor(@Inject(RidesService) private readonly rides:RidesService){}
 @Get()list(@Req()r:AuthReq){return this.rides.list(r.user.id,r.user.accessToken,r.user.role);}
+@Get('my-bookings')myBookings(@Req()r:AuthReq){return this.rides.myBookings(r.user.id,r.user.accessToken,r.user.role);}
 @Get('open-requests')open(@Req()r:AuthReq){return this.rides.openRequests(r.user.id,r.user.accessToken,r.user.role);}
 @Get('shared')shared(@Req()r:AuthReq){return this.rides.openShared(r.user.accessToken,r.user.role);}
 @Post()create(@Req()r:AuthReq,@Body()d:CreateRideDto){return this.rides.create(r.user.id,r.user.accessToken,d);}
