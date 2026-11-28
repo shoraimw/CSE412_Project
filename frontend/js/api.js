@@ -43,6 +43,11 @@ async function driveRequest(path, options = {}) {
     ...(token ? { Authorization: 'Bearer ' + token } : {})
   });
   let token = localStorage.getItem(DRIVE_TOKEN_KEY);
+  // Restore a valid app session when the access token is missing but a refresh token remains.
+  if (!token && localStorage.getItem('drive_refresh_token')) {
+    try { token = await driveRefreshSession(); }
+    catch { throw new Error('Your session has expired. Please log in again.'); }
+  }
   let response = await fetch(DRIVE_API_BASE + path, { ...options, headers: makeHeaders(token) });
   if (response.status === 401 && token && !path.startsWith('/auth/')) {
     try {
@@ -58,7 +63,7 @@ async function driveRequest(path, options = {}) {
   return payload;
 }
 function driveRequireAuth(next = 'dashboard.html') {
-  if (!localStorage.getItem(DRIVE_TOKEN_KEY)) {
+  if (!localStorage.getItem(DRIVE_TOKEN_KEY) && !localStorage.getItem('drive_refresh_token')) {
     window.location.href = 'login.html?next=' + encodeURIComponent(next);
     return false;
   }
