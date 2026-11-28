@@ -1,6 +1,7 @@
 (() => {
   const $=id=>document.getElementById(id);
-  window.addEventListener('drive:arrival-dismissed',()=>{const first=$('reviewQueue')?.querySelector('[data-review]');if(first)first.click();});
+  let pendingReviewAfterArrival=false;
+  window.addEventListener('drive:arrival-dismissed',()=>{pendingReviewAfterArrival=true;const first=$('reviewQueue')?.querySelector('[data-review]');if(first){pendingReviewAfterArrival=false;first.click();}});
   const ratingLabels={1:'Very poor',2:'Poor',3:'Average',4:'Good',5:'Excellent'};
   function setReviewRating(value){
     const rating=Math.max(0,Math.min(5,Number(value)||0));
@@ -250,6 +251,10 @@
     $('reviewQueue').querySelectorAll('[data-review]').forEach(button=>button.addEventListener('click',()=>{
       $('reviewRideId').value=button.dataset.review;$('reviewComment').value='';$('reviewMessage').textContent='';setReviewRating(0);$('reviewDialog').showModal();
     }));
+    if(pendingReviewAfterArrival){
+      pendingReviewAfterArrival=false;
+      $('reviewQueue').querySelector('[data-review]')?.click();
+    }
 
     $('sharedRides').innerHTML=sharedRides.length?sharedRides.map(ride=>'<div class="list-item"><div class="list-item-main"><strong>'+driveEscape(ride.pickup_label)+' → '+driveEscape(ride.destination_label)+'</strong><small>'+driveEscape(ride.vehicle_type)+' · '+driveMoney(ride.estimated_fare)+' total · '+Number(ride.seats_available)+' seats left · '+Number(ride.distance_km||0).toFixed(1)+' km</small></div><button class="button-mini dark" data-join-shared="'+driveEscape(ride.ride_id)+'">Join</button></div>').join(''):'<div class="empty-state">No shared rides are accepting passengers right now.</div>';
     $('sharedRides').querySelectorAll('[data-join-shared]').forEach(button=>button.addEventListener('click',async()=>{
