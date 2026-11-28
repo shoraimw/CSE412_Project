@@ -2,7 +2,7 @@
   if(!driveRequireAuth('driver.html'))return;
   const $=id=>document.getElementById(id);
   const activeStates=['matched','driver_arriving','in_progress'];
-  let watchId=null,lastPosition=null,available=false,assignedTrips=[],pendingCancellationRequests=[],locationSending=false,firstGpsFix=true;
+  let watchId=null,lastPosition=null,available=false,assignedTrips=[],pendingCancellationRequests=[],locationSending=false,firstGpsFix=true,lastTripLocationSentAt=0;
   const knownRideStatuses=new Map();
   const setMessage=(id,text,kind='')=>{const el=$(id);if(el){el.textContent=text;el.className='message '+kind;}};
   const stateClass=s=>['completed','approved'].includes(s)?'success':['pending','requested','matched','driver_arriving','in_progress'].includes(s)?'warning':['rejected','cancelled'].includes(s)?'danger':'';
@@ -120,6 +120,9 @@
 
   async function updateActiveRideLocations(){
     const c=lastPosition?.coords;if(!c)return;
+    const now=Date.now();
+    if(now-lastTripLocationSentAt<5000)return;
+    lastTripLocationSentAt=now;
     const rides=activeTrips();
     await Promise.all(rides.map(ride=>driveRequest('/rides/'+encodeURIComponent(ride.id)+'/location',{
       method:'POST',body:JSON.stringify({
@@ -214,9 +217,7 @@
       const statusAction=next?'<button class="button-mini dark" data-status="'+driveEscape(ride.id)+'" data-next="'+next+'">'+label+'</button>':status==='completed'&&finalFare==null?'<button class="button-mini dark" data-finalize="'+driveEscape(ride.id)+'">Retry final fare</button>':'';
       const canChat=activeStates.includes(status);
       const chatAction=canChat?'<button class="button-mini" data-chat-ride="'+driveEscape(ride.id)+'">Chat</button>':'';
-      const canDriverCancel=['matched','driver_arriving','in_progress'].includes(status);
-      const cancelLabel=status==='in_progress'?'End trip with reason':'Cancel accepted ride';
-      const cancelAction=canDriverCancel?'<button class="button-mini danger" data-driver-cancel="'+driveEscape(ride.id)+'">'+cancelLabel+'</button>':'';
+      const cancelAction=['matched','driver_arriving'].includes(status)?'<button class="button-mini danger" data-driver-cancel="'+driveEscape(ride.id)+'">Cancel accepted ride</button>':'';
       const pending=pendingCancellationRequests.find(item=>item.ride_id===ride.id);
       const cancellationNotice=pending?'<div class="message warning">Passenger cancellation request: '+driveEscape(pending.reason)+'<div class="row-actions"><button class="button-mini dark" data-cancel-response="'+driveEscape(pending.id)+'" data-approve="true">Approve</button><button class="button-mini danger" data-cancel-response="'+driveEscape(pending.id)+'" data-approve="false">Decline</button></div></div>':'';
       const fareState=status==='completed'&&finalFare==null?'<span class="pill warning">Final fare pending</span>':'';
@@ -233,11 +234,9 @@
       }catch(error){driveToast(error.message);button.disabled=false;}
     }));
     $('assignedTrips').querySelectorAll('[data-driver-cancel]').forEach(button=>button.addEventListener('click',async()=>{
-      const ride=assignedTrips.find(item=>item.id===button.dataset.driverCancel);
-      const inProgress=ride?.status==='in_progress';
-      const reason=prompt(inProgress?'Why are you ending this active trip? Please provide at least 8 characters.':'Why are you cancelling this accepted ride? Please provide at least 8 characters.');
+      const reason=prompt('Why are you cancelling this accepted ride? Please provide at least 8 characters.');
       if(!reason)return;
-      if(!confirm(inProgress?'End this active trip now? The customer and DRIVE administrators will be notified and your reason will be recorded.':'Cancel this ride before departure? The customer and DRIVE administrators will be notified.'))return;
+      if(!confirm('Cancel this ride before departure? The customer and DRIVE administrators will be notified.'))return;
       button.disabled=true;
       try{
         const result=await driveRequest('/rides/'+encodeURIComponent(button.dataset.driverCancel)+'/cancel',{method:'POST',body:JSON.stringify({reason})});
