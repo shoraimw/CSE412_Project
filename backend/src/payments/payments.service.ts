@@ -82,6 +82,8 @@ export class PaymentsService {
     if(existingPayment?.status==='paid')throw new BadRequestException('This ride or rental has already been paid.');
     if(existingPayment?.status==='pending')throw new BadRequestException('A payment is already pending for this booking. Open payment history to review its status.');
 
+    if(dto.method!=='card'&&dto.currency!=='BDT')throw new BadRequestException('Cash, bKash and Nagad payments settle in BDT. Select BDT for payment checkout; other currencies are display estimates.');
+
     if(dto.method==='card'){
       const config=getDriveRuntimeConfig();
       if(!config.sslcommerzStoreId||!config.sslcommerzStorePassword){
