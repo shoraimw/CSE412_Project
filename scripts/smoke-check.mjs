@@ -56,6 +56,8 @@ else{
 if(!existsSync(driverUiPath)||!readFileSync(driverUiPath,'utf8').includes("['matched','driver_arriving','in_progress'].includes(status)"))failures.push('Assigned Driver cancellation UI must support active-trip ending.');
 if(!existsSync(customerCancellationMigrationPath)||!readFileSync(customerCancellationMigrationPath,'utf8').includes('drive_require_cancel_rpc'))failures.push('Missing database guard for reasoned ride cancellation.');
 if(!existsSync(customerCancellationMigrationPath)||!readFileSync(customerCancellationMigrationPath,'utf8').includes("'driver'::public.drive_role"))failures.push('Missing database permission for Driver-as-customer cancellation.');
+const rlsOptimizationPath=path.join(root,'supabase','migrations','20261128045610_drive_rls_policy_initplan_optimization.sql');
+if(!existsSync(rlsOptimizationPath)||!readFileSync(rlsOptimizationPath,'utf8').includes('auth.uid()'))failures.push('Missing RLS policy initplan optimization migration.');
 
 if(existsSync(frontend))walk(frontend);
 let assetCount=0;
