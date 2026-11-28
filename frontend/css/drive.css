@@ -131,3 +131,7 @@
   .explore-dialog{width:calc(100% - 18px)}
   .explore-admin-filters .control{max-width:none!important;width:100%}
 }
+
+/* Keep the route summary hidden until a real or fallback route estimate is ready. */
+.route-summary[hidden]{display:none!important}
+.form-message.warning{color:#805b00}
