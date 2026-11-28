@@ -5,7 +5,7 @@
     en:{
       eyebrow:'TOURIST MODE',title:'Make a day of it.',subtitle:'Discover places and save a simple travel plan.',
       city:'City',interest:'Interest',allInterests:'All interests',travelDate:'Travel date',transport:'Transport',
-      publicTransport:'Public Transport',touristCurrency:'Tourist currency',language:'Language',
+      publicTransport:'Public Transport',car:'Car',bike:'Bike',walking:'Walking',history:'History',nature:'Nature',beach:'Beach',culture:'Culture',explore:'Explore',touristCurrency:'Tourist currency',language:'Language',
       findPlaces:'Find places',placesTitle:'Places to explore',loadingPlaces:'Loading places…',
       savedPlans:'Your saved plans',saveSelected:'Save selected places',loginToSeePlans:'Log in to view saved plans.',
       currencyNote:'Tourist display currency: ',ratesUpdated:'. Exchange rates updated ',settled:'. Ride fares remain settled in BDT.',
@@ -21,7 +21,7 @@
     bn:{
       eyebrow:'ট্যুরিস্ট মোড',title:'একদিনের ভ্রমণ সাজান।',subtitle:'পছন্দের জায়গা খুঁজুন এবং সহজ ভ্রমণ পরিকল্পনা সংরক্ষণ করুন।',
       city:'শহর',interest:'পছন্দের বিষয়',allInterests:'সব ধরনের জায়গা',travelDate:'ভ্রমণের তারিখ',transport:'যাতায়াত',
-      publicTransport:'গণপরিবহন',touristCurrency:'মুদ্রা',language:'ভাষা',
+      publicTransport:'গণপরিবহন',car:'গাড়ি',bike:'বাইক',walking:'হেঁটে',history:'ইতিহাস',nature:'প্রকৃতি',beach:'সমুদ্রসৈকত',culture:'সংস্কৃতি',explore:'ঘুরে দেখুন',touristCurrency:'মুদ্রা',language:'ভাষা',
       findPlaces:'জায়গা খুঁজুন',placesTitle:'ঘুরে দেখার জায়গা',loadingPlaces:'জায়গা লোড হচ্ছে…',
       savedPlans:'আপনার সংরক্ষিত পরিকল্পনা',saveSelected:'নির্বাচিত জায়গা সংরক্ষণ করুন',loginToSeePlans:'সংরক্ষিত পরিকল্পনা দেখতে লগইন করুন।',
       currencyNote:'প্রদর্শনের মুদ্রা: ',ratesUpdated:'। বিনিময় হার হালনাগাদ: ',settled:'। রাইডের মূল্য BDT-তেই পরিশোধ হবে।',
