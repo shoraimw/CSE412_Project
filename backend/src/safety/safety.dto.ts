@@ -1,7 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsIn, IsInt, IsNumber,
-  IsNotEmpty, IsOptional, IsString, Matches, Max, MaxLength, Min, ValidateNested
+  IsNotEmpty, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, ValidateNested
 } from 'class-validator';
 
 export class SafetyContactDto {
@@ -44,5 +44,6 @@ export class LocationUpdateDto extends GeoPointDto {}
 export class SosDto {
   @IsOptional() @IsString() @MaxLength(300) message?: string;
   @IsOptional() @IsString() tripId?: string;
+  @IsOptional() @IsUUID() rideId?: string;
   @IsOptional() @ValidateNested() @Type(() => GeoPointDto) location?: GeoPointDto;
 }

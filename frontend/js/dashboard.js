@@ -216,7 +216,22 @@
       button.disabled=true;
       const send=async location=>{
         try{
-          const result=await driveRequest('/rides/'+encodeURIComponent(button.dataset.emergencyCancel)+'/cancellation-request',{method:'POST',body:JSON.stringify({reason,emergency:true,location})});
+          const rideId=button.dataset.emergencyCancel;
+          const result=await driveRequest('/rides/'+encodeURIComponent(rideId)+'/cancellation-request',{method:'POST',body:JSON.stringify({reason,emergency:true,location})});
+          try{
+            const sos=await driveRequest('/safety/sos',{method:'POST',body:JSON.stringify({message:'Emergency cancellation for ride '+rideId+': '+reason,rideId,location})});
+            const contacts=Array.isArray(sos.emergencyContacts)?sos.emergencyContacts:[];
+            const links=contacts.map(contact=>{
+              const phone=String(contact.phone||'').replace(/[^+0-9]/g,'');
+              const sms='sms:'+phone+'?body='+encodeURIComponent('I need help. My DRIVE emergency cancellation was triggered.');
+              return '<div class="row-actions"><a href="tel:'+phone+'">Call '+driveEscape(contact.name)+'</a><a href="'+sms+'">Text '+driveEscape(contact.name)+'</a></div>';
+            }).join('');
+            $('sosMessage').innerHTML=driveEscape(sos.message||'SOS recorded.')+links;
+            $('sosMessage').className='message success';
+          }catch(sosError){
+            $('sosMessage').textContent='Emergency cancellation was recorded, but emergency contact details could not be loaded: '+sosError.message;
+            $('sosMessage').className='message warning';
+          }
           driveToast(result.message||'Emergency cancellation recorded.');await load();
         }catch(error){driveToast(error.message);button.disabled=false;}
       };
