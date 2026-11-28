@@ -5,17 +5,9 @@
 grant select, insert on table public.ride_request_rejections to authenticated;
 
 drop policy if exists ride_request_rejections_driver_select on public.ride_request_rejections;
-create policy ride_request_rejections_driver_select
-on public.ride_request_rejections
-for select
-to authenticated
-using (
-  driver_id = (select auth.uid())
-  and (select private.drive_role()) = 'driver'::public.drive_role
-);
-
 drop policy if exists ride_request_rejections_driver_insert on public.ride_request_rejections;
-create policy ride_request_rejections_driver_insert
+drop policy if exists ride_request_rejections_insert_driver on public.ride_request_rejections;
+create policy ride_request_rejections_insert_driver
 on public.ride_request_rejections
 for insert
 to authenticated
