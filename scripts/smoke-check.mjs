@@ -41,6 +41,22 @@ else{
 if(existsSync(path.join(root,'vercel.json')))failures.push('Legacy Vercel deployment config must be removed.');
 if(existsSync(path.join(root,'api','[...path].js')))failures.push('Legacy Vercel API catch-all must be removed.');
 
+
+// Keep ride cancellation on the audited role-checked RPC path.
+const ridesServicePath=path.join(root,'backend','src','rides','rides.service.ts');
+const driverUiPath=path.join(frontend,'js','driver.js');
+const cancellationMigrationPath=path.join(root,'supabase','migrations','20261128044619_drive_authorized_driver_midtrip_cancellation.sql');
+const customerCancellationMigrationPath=path.join(root,'supabase','migrations','20261128045317_drive_customer_driver_cancellation_and_guard_null_safety.sql');
+if(!existsSync(ridesServicePath))failures.push('Missing rides service cancellation workflow.');
+else{
+  const ridesService=readFileSync(ridesServicePath,'utf8');
+  if(!ridesService.includes("if(!['passenger','driver','vehicle_owner'].includes(role))"))failures.push('Customer cancellation must allow only Passenger, Driver or Vehicle Owner roles before the database participant check.');
+  if(!ridesService.includes("matched:['driver_arriving'],driver_arriving:['in_progress'],in_progress:['completed']"))failures.push('Direct ride status updates must not bypass the reasoned cancellation RPC.');
+}
+if(!existsSync(driverUiPath)||!readFileSync(driverUiPath,'utf8').includes("['matched','driver_arriving','in_progress'].includes(status)"))failures.push('Assigned Driver cancellation UI must support active-trip ending.');
+if(!existsSync(cancellationMigrationPath)||!readFileSync(cancellationMigrationPath,'utf8').includes('drive_require_cancel_rpc'))failures.push('Missing database guard for reasoned ride cancellation.');
+if(!existsSync(customerCancellationMigrationPath)||!readFileSync(customerCancellationMigrationPath,'utf8').includes("'driver'::public.drive_role"))failures.push('Missing database permission for Driver-as-customer cancellation.');
+
 if(existsSync(frontend))walk(frontend);
 let assetCount=0;
 for(const page of pages){
