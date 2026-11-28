@@ -48,3 +48,86 @@
   #receiptCard .card-title{font-size:22px}
   #receiptCard .list-item{break-inside:avoid;border-bottom:1px solid #ddd}
 }
+
+
+/* Explore destination catalogue */
+.explore-shell{max-width:1240px}
+.explore-filter-card{margin:24px 0 22px}
+.explore-filter-card .form-grid{align-items:end}
+.button-block{width:100%;justify-content:center}
+.explore-partner-banner{display:flex;align-items:center;justify-content:space-between;gap:22px;padding:22px 24px;margin:20px 0 30px;border:1px solid #e4e8e3;border-radius:18px;background:linear-gradient(110deg,#f7f8f5,#fff)}
+.explore-partner-banner h2{font-size:20px;letter-spacing:-.5px;margin:4px 0 7px}
+.explore-partner-banner p:not(.eyebrow){max-width:720px;color:#647067;font-size:13px;line-height:1.6;margin:0}
+.explore-partner-banner .eyebrow{margin:0;color:#737c72}
+.explore-section-heading{margin:24px 0 14px}
+.explore-place-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.explore-place-card{overflow:hidden;border:1px solid #e5e9e5;border-radius:17px;background:#fff;min-width:0;transition:transform .16s ease,box-shadow .16s ease}
+.explore-place-card:hover{transform:translateY(-2px);box-shadow:0 12px 30px #1420160d}
+.explore-place-image{display:block;width:100%;height:190px;padding:0;border:0;background:#edf0ec;overflow:hidden;cursor:pointer}
+.explore-place-image img{display:block;width:100%;height:100%;object-fit:cover;transition:transform .25s ease}
+.explore-place-card:hover .explore-place-image img{transform:scale(1.035)}
+.explore-image-placeholder{display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:linear-gradient(135deg,#e9eee7,#f7f8f5);color:#667164;font-size:11px;letter-spacing:2px;font-weight:800}
+.explore-place-image.image-missing{background:#edf0ec}
+.explore-place-body{padding:16px}
+.explore-place-meta{margin-bottom:10px}
+.explore-save-check{display:inline-flex;align-items:center;gap:5px;color:#687168;font-size:11px;cursor:pointer}
+.explore-place-body h3{font-size:18px;line-height:1.3;letter-spacing:-.35px;margin:0 0 8px}
+.explore-place-description{min-height:58px;color:#687168;font-size:13px;line-height:1.55;margin:0 0 12px}
+.explore-place-location{font-size:12px;color:#667168;margin:0 0 14px}
+.explore-place-actions{display:flex;gap:8px}
+.explore-place-actions .button{flex:1;min-height:40px}
+.explore-saved-plans{margin:26px 0 44px}
+.explore-dialog{border:0;padding:0;background:transparent;width:min(650px,calc(100% - 28px));max-width:650px;max-height:90vh;overflow:visible}
+.explore-dialog::backdrop{background:rgba(13,20,15,.55);backdrop-filter:blur(3px)}
+.explore-dialog-panel{position:relative;max-height:90vh;overflow:auto;background:#fff;border:1px solid #e5e9e5;border-radius:20px;box-shadow:0 24px 70px #0003}
+.explore-dialog-close{position:absolute;z-index:2;right:13px;top:13px;width:36px;height:36px;border:0;border-radius:50%;background:#fff;color:#111;font-size:24px;line-height:1;box-shadow:0 3px 14px #0002;cursor:pointer}
+.explore-details-image{display:block;width:100%;height:270px;object-fit:cover;border-radius:20px 20px 0 0;background:#edf0ec}
+.explore-details-copy{padding:24px}
+.explore-details-copy h2{font-size:28px;letter-spacing:-.8px;margin:12px 0 6px}
+.explore-details-copy p{font-size:14px;line-height:1.65;color:#5f6b61}
+.explore-details-location{font-weight:700!important;color:#29342b!important}
+.explore-image-credit{font-size:11px!important}
+.explore-image-credit a{color:#344b38;text-decoration:underline}
+.explore-ride-panel{padding:28px}
+.explore-ride-panel h2{font-size:26px;letter-spacing:-.7px;margin:8px 0 14px}
+.explore-ride-destination{display:flex;flex-direction:column;gap:4px;padding:13px 15px;margin-bottom:18px;background:#f5f7f3;border:1px solid #e7ece5;border-radius:12px}
+.explore-ride-destination strong{font-size:15px}
+.explore-ride-destination span{font-size:12px;color:#667168}
+.explore-ride-panel .stack{display:grid;gap:15px}
+.explore-location-button{margin-top:8px}
+.currency-note{margin:0 0 12px}
+.explore-admin-filters{gap:10px;flex-wrap:wrap;margin:18px 0}
+.explore-admin-filters .control{min-height:42px;padding:9px 12px;border:1px solid #dfe5df;border-radius:9px;background:#fff;font:inherit}
+.explore-admin-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
+.explore-admin-card{display:grid;grid-template-columns:145px minmax(0,1fr);overflow:hidden;border:1px solid #e4e9e4;border-radius:14px;background:#fff;min-width:0}
+.explore-admin-thumb{min-height:180px;background:#edf0ec;overflow:hidden}
+.explore-admin-thumb img{width:100%;height:100%;min-height:180px;display:block;object-fit:cover}
+.explore-admin-thumb.image-missing{display:flex;align-items:center;justify-content:center;color:#778175;font-size:11px}
+.explore-admin-card-body{padding:13px;min-width:0}
+.explore-admin-card-body h4{font-size:15px;margin:9px 0 4px}
+.explore-admin-description{font-size:12px;color:#6a756b;line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.button-mini{border:1px solid #dce2dc;background:#fff;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer}
+.button-mini.dark{background:#111;color:#fff;border-color:#111}
+.button-mini.danger{color:#a52b2b;border-color:#efcaca}
+.button-mini:disabled{opacity:.5;cursor:wait}
+.pill.success{background:#e8f4e9;color:#2b6a38}
+.pill.warning{background:#fff3df;color:#8a5a12}
+.check-row{display:flex!important;align-items:center;gap:8px;color:#263329!important}
+.check-row input{width:auto!important;min-height:0!important;margin:0!important}
+@media(max-width:900px){
+  .explore-place-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .explore-admin-grid{grid-template-columns:1fr}
+}
+@media(max-width:620px){
+  .explore-partner-banner{align-items:flex-start;flex-direction:column;padding:18px}
+  .explore-partner-banner .button{width:100%}
+  .explore-place-grid{grid-template-columns:1fr}
+  .explore-place-image{height:210px}
+  .explore-admin-card{grid-template-columns:112px minmax(0,1fr)}
+  .explore-admin-thumb,.explore-admin-thumb img{min-height:190px}
+  .explore-dialog-panel{border-radius:16px}
+  .explore-details-image{height:205px}
+  .explore-details-copy,.explore-ride-panel{padding:19px}
+  .explore-dialog{width:calc(100% - 18px)}
+  .explore-admin-filters .control{max-width:none!important;width:100%}
+}
