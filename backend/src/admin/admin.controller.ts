@@ -1,13 +1,15 @@
 import {
   BadRequestException, Body, Controller, ForbiddenException, Get, Inject,
-  NotFoundException, Param, Patch, Query, Req, UseGuards
+  NotFoundException, Param, Patch, Post, Delete, Query, Req, UploadedFile, UseGuards, UseInterceptors
 } from '@nestjs/common';
 import { Request } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { randomUUID } from 'crypto';
 import { IsIn, IsString, MaxLength, MinLength } from 'class-validator';
 import { AuthGuard } from '../auth/auth.guard';
 import { DatabaseService } from '../database/database.service';
 import { ReviewDto, ReviewPaymentDto } from '../drivers/driver.dto';
+import { TouristPlaceAdminDto } from '../tourist/tourist-admin.dto';
 
 type AdminRequest = Request & {
   user: { id: string; accessToken: string; role: string };
@@ -71,6 +73,148 @@ export class AdminController {
     const errors = results.flatMap((result, index) => result.error ? [{ section: names[index], message: result.error.message }] : []);
     const counts = Object.fromEntries(names.map((name, index) => [name, results[index].count ?? 0]));
     return { counts, errors, generatedAt: new Date().toISOString() };
+  }
+
+
+  private httpImageUrl(value: string | undefined, field: string) {
+    if (value === undefined || value.trim() === '') return null;
+    try {
+      const url = new URL(value.trim());
+      if (url.protocol !== 'https:' && url.protocol !== 'http:') throw new Error('Unsupported protocol');
+      return url.toString();
+    } catch {
+      throw new BadRequestException(field + ' must be a valid HTTP or HTTPS URL.');
+    }
+  }
+
+  private touristPlacePayload(dto: TouristPlaceAdminDto) {
+    const payload: Record<string, unknown> = {};
+    if (dto.name !== undefined) payload.name = dto.name.trim();
+    if (dto.city !== undefined) payload.city = dto.city.trim();
+    if (dto.category !== undefined) payload.category = dto.category.trim();
+    if (dto.description !== undefined) payload.description = dto.description.trim();
+    if (dto.address !== undefined) payload.address = dto.address.trim() || null;
+    if (dto.latitude !== undefined) payload.latitude = dto.latitude;
+    if (dto.longitude !== undefined) payload.longitude = dto.longitude;
+    if (dto.isActive !== undefined) payload.is_active = dto.isActive;
+    if (dto.tags !== undefined) payload.tags = dto.tags.map(value => value.trim()).filter(Boolean);
+    if (dto.nearbyFacilities !== undefined) payload.nearby_facilities = dto.nearbyFacilities.map(value => value.trim()).filter(Boolean);
+    if (dto.estimatedVisitHours !== undefined) payload.estimated_visit_hours = dto.estimatedVisitHours;
+    if (dto.imageUrl !== undefined) payload.image_url = this.httpImageUrl(dto.imageUrl, 'Image URL');
+    if (dto.imageAlt !== undefined) payload.image_alt = dto.imageAlt.trim() || null;
+    if (dto.imageCredit !== undefined) payload.image_credit = dto.imageCredit.trim() || null;
+    if (dto.imageSourceUrl !== undefined) payload.image_source_url = this.httpImageUrl(dto.imageSourceUrl, 'Image source URL');
+    return payload;
+  }
+
+  @Get('tourist-places')
+  async touristPlaces(@Req() request: AdminRequest) {
+    const { data, error } = await this.client(request).from('tourist_places')
+      .select('*').order('city').order('name');
+    if (error) throw new BadRequestException(error.message);
+    return data || [];
+  }
+
+  @Post('tourist-places')
+  async createTouristPlace(@Req() request: AdminRequest, @Body() dto: TouristPlaceAdminDto) {
+    const name = dto.name?.trim();
+    const city = dto.city?.trim();
+    const category = dto.category?.trim();
+    if (!name || !city || !category) {
+      throw new BadRequestException('Place name, city and category are required.');
+    }
+    const db = this.client(request);
+    const payload = {
+      ...this.touristPlacePayload(dto),
+      name, city, category,
+      description: dto.description?.trim() || '',
+      is_active: dto.isActive ?? true,
+      tags: dto.tags?.map(value => value.trim()).filter(Boolean) || [],
+      nearby_facilities: dto.nearbyFacilities?.map(value => value.trim()).filter(Boolean) || [],
+      estimated_visit_hours: dto.estimatedVisitHours ?? 1.5,
+    };
+    const { data, error } = await db.from('tourist_places').insert(payload).select('*').single();
+    if (error || !data) throw new BadRequestException(error?.message || 'Destination could not be created.');
+    await this.audit(db, request, 'tourist_place.created', 'tourist_place', String(data.id), { name, city, category });
+    return data;
+  }
+
+  @Patch('tourist-places/:id')
+  async updateTouristPlace(
+    @Req() request: AdminRequest,
+    @Param('id') id: string,
+    @Body() dto: TouristPlaceAdminDto,
+  ) {
+    const patch = this.touristPlacePayload(dto);
+    if (!Object.keys(patch).length) throw new BadRequestException('Choose at least one destination field to update.');
+    const db = this.client(request);
+    const { data, error } = await db.from('tourist_places').update(patch).eq('id', id).select('*').maybeSingle();
+    if (error || !data) throw new NotFoundException(error?.message || 'Destination not found.');
+    await this.audit(db, request, 'tourist_place.updated', 'tourist_place', id, { fields: Object.keys(patch) });
+    return data;
+  }
+
+  @Delete('tourist-places/:id')
+  async removeTouristPlace(@Req() request: AdminRequest, @Param('id') id: string) {
+    const db = this.client(request);
+    const { data, error } = await db.from('tourist_places').update({ is_active: false })
+      .eq('id', id).select('id,name,city,is_active').maybeSingle();
+    if (error || !data) throw new NotFoundException(error?.message || 'Destination not found.');
+    await this.audit(db, request, 'tourist_place.unpublished', 'tourist_place', id, { name: data.name, city: data.city });
+    return { ...data, message: 'Destination removed from the public Explore catalogue.' };
+  }
+
+  @Post('tourist-places/:id/image')
+  @UseInterceptors(FileInterceptor('image', {
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: (_request, file, callback) => {
+      const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+      if (!allowed.includes(file.mimetype)) {
+        callback(new BadRequestException('Upload a JPG, PNG or WebP image.'), false);
+        return;
+      }
+      callback(null, true);
+    },
+  }))
+  async uploadTouristPlaceImage(
+    @Req() request: AdminRequest,
+    @Param('id') id: string,
+    @UploadedFile() file: any,
+  ) {
+    if (!file?.buffer?.length) throw new BadRequestException('Choose an image file before uploading.');
+    const db = this.client(request);
+    const { data: place, error: readError } = await db.from('tourist_places')
+      .select('id,name,image_storage_path,image_alt').eq('id', id).maybeSingle();
+    if (readError || !place) throw new NotFoundException(readError?.message || 'Destination not found.');
+
+    const extension = file.mimetype === 'image/png' ? 'png' : file.mimetype === 'image/webp' ? 'webp' : 'jpg';
+    const storage = db.storage.from('tourist-places');
+    const path = id + '/' + randomUUID() + '.' + extension;
+    const { data: uploaded, error: uploadError } = await storage.upload(path, file.buffer, {
+      contentType: file.mimetype,
+      cacheControl: '31536000',
+      upsert: false,
+    });
+    if (uploadError || !uploaded) throw new BadRequestException(uploadError?.message || 'Image upload failed.');
+
+    const imageUrl = storage.getPublicUrl(uploaded.path).data.publicUrl;
+    const { data, error } = await db.from('tourist_places').update({
+      image_url: imageUrl,
+      image_storage_path: uploaded.path,
+      image_alt: place.image_alt || place.name,
+      image_credit: 'Uploaded by DRIVE administrator',
+      image_source_url: null,
+    }).eq('id', id).select('*').single();
+    if (error || !data) {
+      await storage.remove([uploaded.path]).catch(() => undefined);
+      throw new BadRequestException(error?.message || 'Image was uploaded but could not be linked to the destination.');
+    }
+    if (place.image_storage_path) {
+      const { error: cleanupError } = await storage.remove([place.image_storage_path]);
+      if (cleanupError) console.error('[DRIVE Explore image cleanup]', cleanupError.message);
+    }
+    await this.audit(db, request, 'tourist_place.image_uploaded', 'tourist_place', id, { imagePath: uploaded.path });
+    return data;
   }
 
   @Get('driver-applications')
